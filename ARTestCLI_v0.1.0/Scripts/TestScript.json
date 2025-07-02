@@ -1,0 +1,59 @@
+[
+  {
+    "stepId": 1,
+    "name": "PowerSupply.TurnOn",
+    "params": {
+      "channel": 11,
+      "voltage": 12.0,
+      "currentLimit": 3.0
+    }
+  },
+  {
+    "stepId": 2,
+    "name": "Time.WaitMs",
+    "params": {
+      "milliseconds": 5000
+    }
+  },
+  {
+    "stepId": 3,
+    "name": "CAN.SendMessage",
+    "params": {
+      "channel": 1,
+      "id": "0x123",
+      "dlc": 8,
+      "data": [ 1, 2, 3, 4, 5, 6, 7, 8 ]
+    }
+  },
+  {
+    "stepId": 4,
+    "name": "Time.WaitMs",
+    "params": {
+      "milliseconds": 5000
+    }
+  },
+  {
+    "stepId": 5,
+    "name": "CAN.SendMessage",
+    "params": {
+      "channel": 1,
+      "id": "0x456",
+      "dlc": 8,
+      "data": [ 11, 12, 13, 14, 15, 16, 17, 18 ]
+    }
+  },
+  {
+    "stepId": 6,
+    "name": "Time.WaitMs",
+    "params": {
+      "milliseconds": 3000
+    }
+  },
+  {
+    "stepId": 7,
+    "name": "PowerSupply.TurnOff",
+    "params": {
+      "channel": 1
+    }
+  }
+]

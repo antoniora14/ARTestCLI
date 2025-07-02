@@ -1,0 +1,138 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="ArtCommands">
+      <UniqueIdentifier>{6ac1b15e-79f8-463b-8678-364812fc66a2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ArtCommands\PowerSupply">
+      <UniqueIdentifier>{67d51652-ad50-48c3-84ef-deb6bc848466}</UniqueIdentifier>
+      <Extensions>;ixx;def;odl;idl;hpj;bat;asm;asmx;.h</Extensions>
+    </Filter>
+    <Filter Include="ArtCommands\Timing">
+      <UniqueIdentifier>{022e5445-7fc9-4f11-9fe4-08fd43574e43}</UniqueIdentifier>
+      <Extensions>;ixx;def;odl;idl;hpj;bat;asm;asmx;.h</Extensions>
+    </Filter>
+    <Filter Include="ArtCore">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx;.h</Extensions>
+    </Filter>
+    <Filter Include="ArtCompiler">
+      <UniqueIdentifier>{e2d6e12d-7a78-4d03-b18d-f0894c4a82c9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ArtUtils">
+      <UniqueIdentifier>{b0f7c30f-fcae-4ecc-811e-aba7ad78c93c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ArtCommands\Conditions">
+      <UniqueIdentifier>{52a65d44-cbed-474a-891a-32491bb67e59}</UniqueIdentifier>
+      <Extensions>;ixx;def;odl;idl;hpj;bat;asm;asmx;.h</Extensions>
+    </Filter>
+    <Filter Include="Scripts">
+      <UniqueIdentifier>{c09ea921-b7fa-4022-8842-6471593d1658}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ArtCommands\Communication">
+      <UniqueIdentifier>{eef36ef3-d169-429f-a371-81f2fd86a7a8}</UniqueIdentifier>
+      <Extensions>;ixx;def;odl;idl;hpj;bat;asm;asmx;.h</Extensions>
+    </Filter>
+    <Filter Include="ArtCommands\Communication\CAN">
+      <UniqueIdentifier>{8636cac1-fddc-48cc-9697-b5af11d2037f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ArtInstruments">
+      <UniqueIdentifier>{808ead4b-1a21-4e08-8156-f43d26241459}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx;.h</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ArtCore\ARTestCLI.cpp">
+      <Filter>ArtCore</Filter>
+    </ClCompile>
+    <ClCompile Include="ArtCommands\PowerSupply\ArtPowerOffCommand.cpp">
+      <Filter>ArtCommands\PowerSupply</Filter>
+    </ClCompile>
+    <ClCompile Include="ArtCommands\PowerSupply\ArtPowerOnCommand.cpp">
+      <Filter>ArtCommands\PowerSupply</Filter>
+    </ClCompile>
+    <ClCompile Include="ArtCommands\Timing\ArtWaitCommand.cpp">
+      <Filter>ArtCommands\Timing</Filter>
+    </ClCompile>
+    <ClCompile Include="ArtCore\CCommandFactory.cpp">
+      <Filter>ArtCore</Filter>
+    </ClCompile>
+    <ClCompile Include="ArtCore\ScriptExecutor.cpp">
+      <Filter>ArtCore</Filter>
+    </ClCompile>
+    <ClCompile Include="ArtCore\ExecutionContext.cpp">
+      <Filter>ArtCore</Filter>
+    </ClCompile>
+    <ClCompile Include="ArtCommands\Communication\CAN\CanSendMsgCommand.cpp">
+      <Filter>ArtCommands\Communication\CAN</Filter>
+    </ClCompile>
+    <ClCompile Include="ArtInstruments\PowerSupply.cpp">
+      <Filter>ArtInstruments</Filter>
+    </ClCompile>
+    <ClCompile Include="ArtInstruments\InstrumentFactory.cpp">
+      <Filter>ArtInstruments</Filter>
+    </ClCompile>
+    <ClCompile Include="ArtInstruments\CanDevice.cpp">
+      <Filter>ArtInstruments</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ArtCore\ICommands.h">
+      <Filter>ArtCore</Filter>
+    </ClInclude>
+    <ClInclude Include="ArtCommands\PowerSupply\ArtPowerOffCommand.h">
+      <Filter>ArtCommands\PowerSupply</Filter>
+    </ClInclude>
+    <ClInclude Include="ArtCommands\PowerSupply\ArtPowerOnCommand.h">
+      <Filter>ArtCommands\PowerSupply</Filter>
+    </ClInclude>
+    <ClInclude Include="ArtCommands\Timing\ArtWaitCommand.h">
+      <Filter>ArtCommands\Timing</Filter>
+    </ClInclude>
+    <ClInclude Include="ArtCore\CCommandFactory.h">
+      <Filter>ArtCore</Filter>
+    </ClInclude>
+    <ClInclude Include="ArtCore\RegisterCommand.h">
+      <Filter>ArtCore</Filter>
+    </ClInclude>
+    <ClInclude Include="ArtCore\ScriptExecutor.h">
+      <Filter>ArtCore</Filter>
+    </ClInclude>
+    <ClInclude Include="ArtCore\ExecutionContext.h">
+      <Filter>ArtCore</Filter>
+    </ClInclude>
+    <ClInclude Include="ArtCommands\Communication\CAN\CanSendMsgCommand.h">
+      <Filter>ArtCommands\Communication\CAN</Filter>
+    </ClInclude>
+    <ClInclude Include="ArtInstruments\IInstrument.h">
+      <Filter>ArtInstruments</Filter>
+    </ClInclude>
+    <ClInclude Include="ArtInstruments\PowerSupply.h">
+      <Filter>ArtInstruments</Filter>
+    </ClInclude>
+    <ClInclude Include="ArtInstruments\InstrumentFactory.h">
+      <Filter>ArtInstruments</Filter>
+    </ClInclude>
+    <ClInclude Include="ArtInstruments\RegisterInstrument.h">
+      <Filter>ArtInstruments</Filter>
+    </ClInclude>
+    <ClInclude Include="ArtInstruments\CanDevice.h">
+      <Filter>ArtInstruments</Filter>
+    </ClInclude>
+    <ClInclude Include="ArtUtils\ArtMacros.h">
+      <Filter>ArtUtils</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Scripts\TestScript.json">
+      <Filter>Scripts</Filter>
+    </None>
+    <None Include="Scripts\TestInstruments.json">
+      <Filter>Scripts</Filter>
+    </None>
+  </ItemGroup>
+</Project>

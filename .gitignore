@@ -1,0 +1,39 @@
+# Build folders
+build/
+out/
+bin/
+Debug/
+Release/
+x64/
+*.suo
+*.sdf
+*.opensdf
+*.VC.db
+
+# VSCode
+.vscode/
+
+# Visual Studio
+*.user
+*.userosscache
+*.sln.docstates
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Object files, libraries, binaries
+*.o
+*.obj
+*.dll
+*.exe
+*.lib
+*.pdb
+
+# Logs
+*.log
+
+# Other
+*.DS_Store
