@@ -1,0 +1,13 @@
+{
+  "format": "ARTest.Script",
+  "version": 1,
+  "instruments": [],
+  "commands": [
+    {
+      "stepId": 1,
+      "name": "Unknown.Command",
+      "instrument": "NoInstrument",
+      "params": {}
+    }
+  ]
+}

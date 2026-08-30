@@ -5,6 +5,9 @@ bin/
 Debug/
 Release/
 x64/
+artifacts/
+vcpkg_installed/
+.vs/
 *.suo
 *.sdf
 *.opensdf
@@ -31,6 +34,8 @@ Makefile
 *.exe
 *.lib
 *.pdb
+*.ilk
+*.is_google_test
 
 # Logs
 *.log

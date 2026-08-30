@@ -1,27 +1,64 @@
-# ARTestCLI x64
+# ARTestCLI
 
-A C++17 command-line tool for automating test sequences using a plugin-based instrument architecture.  
-✅ Built for **x64 architecture**.
+ARTestCLI es el prototipo de motor de secuencias de prueba de ARTest. La Etapa A
+establece una base segura y comprobable antes de extraer el motor reutilizable
+por ARTestStudio y por futuros plugins.
 
-## ✨ Features
-- Modular design with dynamically loaded instruments (e.g., power supplies, relay cards, CAN devices, etc.)
-- JSON-based test sequence configuration
-- Command-line interface for flexible execution and debugging
+## Estado de la Etapa A
 
-## ⚙️ Build
+- Visual Studio 18 Insiders, toolset `v145`, plataforma `x64`.
+- C++20, `/W4`, conformidad estándar y archivos fuente UTF-8.
+- Documento JSON canónico y versionado: `ARTest.Script`, versión `1`.
+- Compilación/validación sin inicializar instrumentos.
+- Inicialización y apagado explícitos de instrumentos sólo durante ejecución.
+- Resultados tipados por paso y por corrida; una falla produce un código de
+  salida distinto de cero.
+- Google Test integrado en la solución.
+- Reportes XML y HTML con validación de consistencia del veredicto.
 
-### Using Visual Studio
-- Open the solution `ARTestCLI.sln`
-- Select **x64** as the target architecture
-- Choose Release or Debug configuration
-- Build the project
+## Compilar y probar
 
-## 🚀 Usage
+Desde la raíz del repositorio:
 
-Run the following commands from the output directory (`Release` or `Debug`):
+```powershell
+.\scripts\build.ps1 -Configuration Debug -Platform x64
+.\scripts\build.ps1 -Configuration Release -Platform x64
+```
 
-```bash
-run Scripts/TestInstruments.json
-compile Scripts/TestInstruments.json
-debug Scripts/TestInstruments.json
-break Scripts/TestInstruments.json 1,3
+También puede ejecutarse `build.cmd`; la ventana permanece abierta para mostrar
+el resultado. La ruta predeterminada de Visual Studio es:
+
+```text
+D:\Program Files\Microsoft Visual Studio\18\Insiders
+```
+
+La solución está en `source\ARTestCLI.sln`. El binario se genera en
+`artifacts\bin\x64\<Configuration>\ARTestCLI.exe`.
+
+## Uso
+
+```powershell
+$cli = '.\artifacts\bin\x64\Debug\ARTestCLI.exe'
+& $cli compile '.\source\Scripts\TestScript.json'
+& $cli run     '.\source\Scripts\TestScript.json'
+& $cli debug   '.\source\Scripts\TestScript.json'
+& $cli break   '.\source\Scripts\TestScript.json' 1 3
+```
+
+`compile` sólo analiza y valida el documento, los instrumentos, los comandos y
+los parámetros. No abre recursos de hardware.
+
+## Códigos de salida
+
+| Código | Significado |
+|---:|---|
+| 0 | Operación completada correctamente |
+| 2 | Argumentos inválidos |
+| 3 | Script o configuración inválidos |
+| 4 | Falló la inicialización de instrumentos |
+| 5 | Falló la ejecución de la secuencia |
+| 10 | Falla inesperada contenida en la frontera del proceso |
+
+Consulta [TESTING.md](TESTING.md) para el procedimiento de regresión y
+[docs/architecture/stage-a-safe-base.md](docs/architecture/stage-a-safe-base.md)
+para las decisiones de esta etapa.

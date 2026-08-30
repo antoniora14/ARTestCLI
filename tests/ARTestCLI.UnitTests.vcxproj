@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32"><Configuration>Debug</Configuration><Platform>Win32</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32"><Configuration>Release</Configuration><Platform>Win32</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>18.0</VCProjectVersion>
+    <ProjectGuid>{C2A49239-E974-4CC8-8A2C-FF11166A5D37}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>ARTestCLIUnitTests</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <UseDebugLibraries Condition="'$(Configuration)'=='Debug'">true</UseDebugLibraries>
+    <UseDebugLibraries Condition="'$(Configuration)'=='Release'">false</UseDebugLibraries>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <VcpkgRoot Condition="'$(VcpkgRoot)'==''">$(VCInstallDir)vcpkg\</VcpkgRoot>
+    <VcpkgEnableManifest>true</VcpkgEnableManifest>
+    <VcpkgManifestRoot>$(ProjectDir)..\</VcpkgManifestRoot>
+    <VcpkgAutoLink>false</VcpkgAutoLink>
+  </PropertyGroup>
+  <Import Project="$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.props"
+          Condition="Exists('$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.props')" />
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="Shared" />
+  <PropertyGroup Label="UserMacros" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\source;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <WarningLevel>Level4</WarningLevel>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>gtest.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="TestSupport\TemporaryScript.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="TestMain.cpp" />
+    <ClCompile Include="ScriptDocumentTests.cpp" />
+    <ClCompile Include="InstrumentFactoryTests.cpp" />
+    <ClCompile Include="CommandFactoryTests.cpp" />
+    <ClCompile Include="ScriptExecutorTests.cpp" />
+    <ClCompile Include="..\source\ArtCommands\Communication\CAN\CanSendMsgCommand.cpp" />
+    <ClCompile Include="..\source\ArtCommands\Conditions\IfCommand.cpp" />
+    <ClCompile Include="..\source\ArtCommands\PowerSupply\ArtPowerOffCommand.cpp" />
+    <ClCompile Include="..\source\ArtCommands\PowerSupply\ArtPowerOnCommand.cpp" />
+    <ClCompile Include="..\source\ArtCommands\Timing\ArtWaitCommand.cpp" />
+    <ClCompile Include="..\source\ArtCore\CCommandFactory.cpp" />
+    <ClCompile Include="..\source\ArtCore\ExecutionContext.cpp" />
+    <ClCompile Include="..\source\ArtCore\ScriptDocument.cpp" />
+    <ClCompile Include="..\source\ArtCore\ScriptExecutor.cpp" />
+    <ClCompile Include="..\source\ArtInstruments\CanDevice.cpp" />
+    <ClCompile Include="..\source\ArtInstruments\InstrumentFactory.cpp" />
+    <ClCompile Include="..\source\ArtInstruments\PowerSupply.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.targets"
+          Condition="Exists('$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.targets')" />
+  <Target Name="MarkAsGoogleTestExecutable" AfterTargets="Build">
+    <Touch Files="$(TargetPath).is_google_test" AlwaysCreate="true" />
+  </Target>
+  <ImportGroup Label="ExtensionTargets" />
+</Project>

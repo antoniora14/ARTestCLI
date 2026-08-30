@@ -1,0 +1,23 @@
+{
+  "format": "ARTest.Script",
+  "version": 1,
+  "instruments": [
+    {
+      "type": "PowerSupply",
+      "id": "PS_WITHOUT_RESOURCE",
+      "config": {
+        "model": "Manual initialization failure fixture"
+      }
+    }
+  ],
+  "commands": [
+    {
+      "stepId": 1,
+      "name": "Time.WaitMs",
+      "instrument": "NoInstrument",
+      "params": {
+        "milliseconds": 1
+      }
+    }
+  ]
+}

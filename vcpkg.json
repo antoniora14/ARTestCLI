@@ -1,0 +1,9 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "artestcli",
+  "version-string": "0.2.0",
+  "builtin-baseline": "21a093fd906aa328bf40559e3011d0e34a96c124",
+  "dependencies": [
+    "gtest"
+  ]
+}
