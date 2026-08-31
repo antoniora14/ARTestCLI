@@ -1,119 +1,118 @@
-#include "ArtInstruments/InstrumentFactory.h"
+#include "TestSupport/RecordingEventSink.h"
+
+#include "ARTestEngine.Core/Instruments/Fakes/FakeCanDevice.h"
+#include "ARTestEngine.Core/Instruments/Fakes/FakePowerSupply.h"
+#include "ARTestEngine.Core/Instruments/Fakes/RegisterFakeInstruments.h"
+#include "ARTestEngine.Core/Instruments/InstrumentManager.h"
 
 #include <gtest/gtest.h>
 
-#include <memory>
+using namespace artest;
 
 namespace
 {
-    class CountingInstrument final : public IInstrument
+    std::vector<InstrumentDefinition> ValidDefinitions()
     {
-    public:
-        static inline int initializationCount = 0;
-        static inline int shutdownCount = 0;
-
-        std::string GetId() const override { return m_id; }
-        void SetId(std::string id) override { m_id = std::move(id); }
-
-        OperationResult Initialize(const nlohmann::json& params) override
-        {
-            ++initializationCount;
-            if (params.value("fail", false))
-            {
-                return OperationResult::Failure("FAKE_INIT_FAILED", "Requested failure.");
-            }
-            return OperationResult::Success();
-        }
-
-        void Shutdown() noexcept override
-        {
-            ++shutdownCount;
-        }
-
-    private:
-        std::string m_id;
-    };
-
-    void RegisterCountingInstrument()
-    {
-        static const bool registered = []
-        {
-            InstrumentFactory::RegisterInstrument("Test.CountingInstrument", []
-            {
-                return std::make_unique<CountingInstrument>();
-            });
-            return true;
-        }();
-        (void)registered;
-    }
-
-    nlohmann::json Definition(bool fail = false)
-    {
-        return nlohmann::json::array({{
-            {"type", "Test.CountingInstrument"},
-            {"id", "fake-1"},
-            {"config", {{"fail", fail}}}
-        }});
+        return {
+            {"PowerSupply", "PS1", {{"hw-rsrc", "FAKE::PS"}}},
+            {"CAN", "CAN1", {{"hw-rsrc", "FAKE::CAN"}}}};
     }
 }
 
-TEST(InstrumentFactoryTests, LoadingDefinitionsDoesNotInitializeHardware)
+TEST(InstrumentManagerTests, LoadingDefinitionsDoesNotInitializeHardware)
 {
-    RegisterCountingInstrument();
-    CountingInstrument::initializationCount = 0;
-    InstrumentFactory factory;
+    RecordingEventSink sink;
+    InstrumentRegistry registry;
+    ASSERT_TRUE(RegisterFakeInstruments(registry).Succeeded());
+    InstrumentManager manager(registry, sink);
 
-    const OperationResult result = factory.LoadDefinitions(Definition());
+    ASSERT_TRUE(manager.LoadDefinitions(ValidDefinitions()).Succeeded());
+    const auto power = std::dynamic_pointer_cast<FakePowerSupply>(manager.GetInstrument("PS1"));
 
-    ASSERT_TRUE(result.Succeeded());
-    EXPECT_EQ(CountingInstrument::initializationCount, 0);
-    ASSERT_NE(factory.GetInstrument("fake-1"), nullptr);
-    EXPECT_EQ(factory.GetInstrument("fake-1")->GetId(), "fake-1");
+    ASSERT_NE(power, nullptr);
+    EXPECT_FALSE(power->IsInitialized());
+    EXPECT_TRUE(sink.events.empty());
 }
 
-TEST(InstrumentFactoryTests, InitializeAllActivatesDefinitionsExplicitly)
+TEST(InstrumentManagerTests, InitializeAndShutdownAreExplicitAndObservable)
 {
-    RegisterCountingInstrument();
-    CountingInstrument::initializationCount = 0;
-    CountingInstrument::shutdownCount = 0;
-    InstrumentFactory factory;
-    ASSERT_TRUE(factory.LoadDefinitions(Definition()).Succeeded());
+    RecordingEventSink sink;
+    InstrumentRegistry registry;
+    ASSERT_TRUE(RegisterFakeInstruments(registry).Succeeded());
+    InstrumentManager manager(registry, sink);
+    ASSERT_TRUE(manager.LoadDefinitions(ValidDefinitions()).Succeeded());
 
-    const OperationResult result = factory.InitializeAll();
-    factory.ShutdownAll();
+    ASSERT_TRUE(manager.InitializeAll().Succeeded());
+    auto power = std::dynamic_pointer_cast<FakePowerSupply>(manager.GetInstrument("PS1"));
+    auto can = std::dynamic_pointer_cast<FakeCanDevice>(manager.GetInstrument("CAN1"));
+    ASSERT_NE(power, nullptr);
+    ASSERT_NE(can, nullptr);
+    EXPECT_TRUE(power->IsInitialized());
+    EXPECT_TRUE(can->IsInitialized());
+    EXPECT_EQ(sink.Count(EngineEventKind::InstrumentInitialized), 2U);
 
-    ASSERT_TRUE(result.Succeeded());
-    EXPECT_EQ(CountingInstrument::initializationCount, 1);
-    EXPECT_EQ(CountingInstrument::shutdownCount, 1);
+    manager.ShutdownAll();
+    EXPECT_FALSE(power->IsInitialized());
+    EXPECT_FALSE(can->IsInitialized());
+    EXPECT_EQ(sink.Count(EngineEventKind::InstrumentShutdown), 2U);
 }
 
-TEST(InstrumentFactoryTests, RejectsUnknownTypesAndDuplicateIdentifiers)
+TEST(InstrumentManagerTests, RejectsUnknownTypesAndDuplicateIdentifiersAtomically)
 {
-    RegisterCountingInstrument();
-    InstrumentFactory factory;
-    const nlohmann::json definitions = nlohmann::json::array({
-        {{"type", "Unknown"}, {"id", "unknown"}, {"config", nlohmann::json::object()}},
-        {{"type", "Test.CountingInstrument"}, {"id", "duplicate"}, {"config", nlohmann::json::object()}},
-        {{"type", "Test.CountingInstrument"}, {"id", "duplicate"}, {"config", nlohmann::json::object()}}
-    });
+    RecordingEventSink sink;
+    InstrumentRegistry registry;
+    ASSERT_TRUE(RegisterFakeInstruments(registry).Succeeded());
+    InstrumentManager manager(registry, sink);
+    const std::vector<InstrumentDefinition> definitions{
+        {"Unknown", "unknown", nlohmann::json::object()},
+        {"CAN", "duplicate", {{"hw-rsrc", "A"}}},
+        {"CAN", "duplicate", {{"hw-rsrc", "B"}}}};
 
-    const OperationResult result = factory.LoadDefinitions(definitions);
+    const auto result = manager.LoadDefinitions(definitions);
 
     ASSERT_FALSE(result.Succeeded());
     EXPECT_EQ(result.diagnostics.size(), 2U);
-    EXPECT_EQ(factory.GetInstrument("duplicate"), nullptr);
+    EXPECT_EQ(manager.GetInstrument("duplicate"), nullptr);
 }
 
-TEST(InstrumentFactoryTests, InitializationFailureIsReportedAndCleanedUp)
+TEST(InstrumentManagerTests, InitializationFailureIsReportedAndPreviouslyInitializedInstrumentsAreCleanedUp)
 {
-    RegisterCountingInstrument();
-    CountingInstrument::initializationCount = 0;
-    InstrumentFactory factory;
-    ASSERT_TRUE(factory.LoadDefinitions(Definition(true)).Succeeded());
+    RecordingEventSink sink;
+    InstrumentRegistry registry;
+    ASSERT_TRUE(RegisterFakeInstruments(registry).Succeeded());
+    InstrumentManager manager(registry, sink);
+    const std::vector<InstrumentDefinition> definitions{
+        {"CAN", "A_CAN", {{"hw-rsrc", "FAKE::CAN"}}},
+        {"PowerSupply", "B_PS", {{"hw-rsrc", "FAKE::PS"}, {"failInitialization", true}}}};
+    ASSERT_TRUE(manager.LoadDefinitions(definitions).Succeeded());
 
-    const OperationResult result = factory.InitializeAll();
+    const auto result = manager.InitializeAll();
 
     ASSERT_FALSE(result.Succeeded());
-    EXPECT_EQ(result.diagnostics.front().code, "FAKE_INIT_FAILED");
-    EXPECT_EQ(CountingInstrument::initializationCount, 1);
+    EXPECT_EQ(result.diagnostics.front().code, "POWER_SUPPLY_INITIALIZATION_FORCED_FAILURE");
+    const auto can = std::dynamic_pointer_cast<FakeCanDevice>(manager.GetInstrument("A_CAN"));
+    ASSERT_NE(can, nullptr);
+    EXPECT_FALSE(can->IsInitialized());
+    EXPECT_EQ(sink.Count(EngineEventKind::InstrumentShutdown), 1U);
+}
+
+TEST(FakeInstrumentTests, RecordsPowerAndCanOperationsWithoutHardware)
+{
+    RecordingEventSink sink;
+    FakePowerSupply power(sink);
+    power.SetId("PS");
+    ASSERT_TRUE(power.Initialize({{"hw-rsrc", "FAKE"}}).Succeeded());
+    ASSERT_TRUE(power.SetVoltage(2, 13.5).Succeeded());
+    ASSERT_TRUE(power.SetCurrent(2, 1.25).Succeeded());
+    ASSERT_TRUE(power.TurnOn(2).Succeeded());
+    EXPECT_TRUE(power.IsChannelOn(2));
+    EXPECT_DOUBLE_EQ(power.Voltage(2), 13.5);
+    EXPECT_DOUBLE_EQ(power.CurrentLimit(2), 1.25);
+
+    FakeCanDevice can(sink);
+    can.SetId("CAN");
+    ASSERT_TRUE(can.Initialize({{"hw-rsrc", "FAKE"}}).Succeeded());
+    ASSERT_TRUE(can.SendMessage(0, 0x123U, {1U, 2U}).Succeeded());
+    ASSERT_EQ(can.SentMessages().size(), 1U);
+    EXPECT_EQ(can.SentMessages().front().messageId, 0x123U);
 }

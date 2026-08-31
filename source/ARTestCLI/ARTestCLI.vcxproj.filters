@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Application"><UniqueIdentifier>{6F3E7D14-7C3A-4D49-99FA-53E78FA5A2BD}</UniqueIdentifier></Filter>
+    <Filter Include="Console"><UniqueIdentifier>{4F29F4D8-36B4-405F-82F6-E390442D1E8C}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="CliApplication.cpp"><Filter>Application</Filter></ClCompile>
+    <ClCompile Include="Program.cpp"><Filter>Application</Filter></ClCompile>
+    <ClCompile Include="ConsoleEventSink.cpp"><Filter>Console</Filter></ClCompile>
+    <ClCompile Include="ConsoleExecutionControl.cpp"><Filter>Console</Filter></ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="CliApplication.h"><Filter>Application</Filter></ClInclude>
+    <ClInclude Include="ConsoleEventSink.h"><Filter>Console</Filter></ClInclude>
+    <ClInclude Include="ConsoleExecutionControl.h"><Filter>Console</Filter></ClInclude>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Commands"><UniqueIdentifier>{62A0DB67-07E5-4988-A637-0DF30664227A}</UniqueIdentifier></Filter>
+    <Filter Include="Commands\BuiltIn"><UniqueIdentifier>{697B4ABF-B01D-422D-A78A-13E42ADFCB7F}</UniqueIdentifier></Filter>
+    <Filter Include="Compilation"><UniqueIdentifier>{48E6175C-F109-46AA-88C1-69E47125B58E}</UniqueIdentifier></Filter>
+    <Filter Include="Execution"><UniqueIdentifier>{3C26DF81-16E2-4D67-98F7-70AA9DD9D739}</UniqueIdentifier></Filter>
+    <Filter Include="Instruments"><UniqueIdentifier>{9144E4D2-C8DC-4A52-AE87-88916E3E5902}</UniqueIdentifier></Filter>
+    <Filter Include="Instruments\Fakes"><UniqueIdentifier>{E0D931E5-07C5-4CDA-B5DC-35A0AB77356A}</UniqueIdentifier></Filter>
+    <Filter Include="Model"><UniqueIdentifier>{6F041EA1-E834-4C90-A326-B878B65F44E0}</UniqueIdentifier></Filter>
+    <Filter Include="Parsing"><UniqueIdentifier>{307F3907-A4A8-4913-919A-58E51AFDA81F}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Commands\BuiltIn\IfCommand.cpp"><Filter>Commands\BuiltIn</Filter></ClCompile>
+    <ClCompile Include="Commands\BuiltIn\PowerOffCommand.cpp"><Filter>Commands\BuiltIn</Filter></ClCompile>
+    <ClCompile Include="Commands\BuiltIn\PowerOnCommand.cpp"><Filter>Commands\BuiltIn</Filter></ClCompile>
+    <ClCompile Include="Commands\BuiltIn\RegisterBuiltInCommands.cpp"><Filter>Commands\BuiltIn</Filter></ClCompile>
+    <ClCompile Include="Commands\BuiltIn\SendCanMessageCommand.cpp"><Filter>Commands\BuiltIn</Filter></ClCompile>
+    <ClCompile Include="Commands\BuiltIn\WaitCommand.cpp"><Filter>Commands\BuiltIn</Filter></ClCompile>
+    <ClCompile Include="Commands\CommandRegistry.cpp"><Filter>Commands</Filter></ClCompile>
+    <ClCompile Include="Compilation\TestPlanCompiler.cpp"><Filter>Compilation</Filter></ClCompile>
+    <ClCompile Include="Execution\ExecutionContext.cpp"><Filter>Execution</Filter></ClCompile>
+    <ClCompile Include="Execution\TestExecutor.cpp"><Filter>Execution</Filter></ClCompile>
+    <ClCompile Include="Instruments\Fakes\FakeCanDevice.cpp"><Filter>Instruments\Fakes</Filter></ClCompile>
+    <ClCompile Include="Instruments\Fakes\FakePowerSupply.cpp"><Filter>Instruments\Fakes</Filter></ClCompile>
+    <ClCompile Include="Instruments\Fakes\RegisterFakeInstruments.cpp"><Filter>Instruments\Fakes</Filter></ClCompile>
+    <ClCompile Include="Instruments\InstrumentManager.cpp"><Filter>Instruments</Filter></ClCompile>
+    <ClCompile Include="Instruments\InstrumentRegistry.cpp"><Filter>Instruments</Filter></ClCompile>
+    <ClCompile Include="Parsing\JsonTestPlanParser.cpp"><Filter>Parsing</Filter></ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Commands\BuiltIn\IfCommand.h"><Filter>Commands\BuiltIn</Filter></ClInclude>
+    <ClInclude Include="Commands\BuiltIn\PowerOffCommand.h"><Filter>Commands\BuiltIn</Filter></ClInclude>
+    <ClInclude Include="Commands\BuiltIn\PowerOnCommand.h"><Filter>Commands\BuiltIn</Filter></ClInclude>
+    <ClInclude Include="Commands\BuiltIn\RegisterBuiltInCommands.h"><Filter>Commands\BuiltIn</Filter></ClInclude>
+    <ClInclude Include="Commands\BuiltIn\SendCanMessageCommand.h"><Filter>Commands\BuiltIn</Filter></ClInclude>
+    <ClInclude Include="Commands\BuiltIn\WaitCommand.h"><Filter>Commands\BuiltIn</Filter></ClInclude>
+    <ClInclude Include="Commands\CommandRegistry.h"><Filter>Commands</Filter></ClInclude>
+    <ClInclude Include="Commands\ICommand.h"><Filter>Commands</Filter></ClInclude>
+    <ClInclude Include="Compilation\TestPlanCompiler.h"><Filter>Compilation</Filter></ClInclude>
+    <ClInclude Include="Execution\ExecutionContext.h"><Filter>Execution</Filter></ClInclude>
+    <ClInclude Include="Execution\ExecutionResult.h"><Filter>Execution</Filter></ClInclude>
+    <ClInclude Include="Execution\IEventSink.h"><Filter>Execution</Filter></ClInclude>
+    <ClInclude Include="Execution\IExecutionControl.h"><Filter>Execution</Filter></ClInclude>
+    <ClInclude Include="Execution\TestExecutor.h"><Filter>Execution</Filter></ClInclude>
+    <ClInclude Include="Instruments\Fakes\FakeCanDevice.h"><Filter>Instruments\Fakes</Filter></ClInclude>
+    <ClInclude Include="Instruments\Fakes\FakePowerSupply.h"><Filter>Instruments\Fakes</Filter></ClInclude>
+    <ClInclude Include="Instruments\Fakes\RegisterFakeInstruments.h"><Filter>Instruments\Fakes</Filter></ClInclude>
+    <ClInclude Include="Instruments\ICanDevice.h"><Filter>Instruments</Filter></ClInclude>
+    <ClInclude Include="Instruments\IInstrument.h"><Filter>Instruments</Filter></ClInclude>
+    <ClInclude Include="Instruments\InstrumentManager.h"><Filter>Instruments</Filter></ClInclude>
+    <ClInclude Include="Instruments\InstrumentRegistry.h"><Filter>Instruments</Filter></ClInclude>
+    <ClInclude Include="Instruments\IPowerSupply.h"><Filter>Instruments</Filter></ClInclude>
+    <ClInclude Include="Model\CompiledStep.h"><Filter>Model</Filter></ClInclude>
+    <ClInclude Include="Model\TestPlan.h"><Filter>Model</Filter></ClInclude>
+    <ClInclude Include="Parsing\JsonTestPlanParser.h"><Filter>Parsing</Filter></ClInclude>
+    <ClInclude Include="Diagnostics.h" />
+  </ItemGroup>
+</Project>

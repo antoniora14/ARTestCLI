@@ -1,69 +1,71 @@
-# Pruebas automatizadas de ARTestCLI
+# ARTestCLI automated testing
 
-## Estructura
+## Structure
 
-El proyecto `tests\ARTestCLI.UnitTests.vcxproj` usa Google Test 1.18 y está
-incluido en `source\ARTestCLI.sln`.
+The `tests\ARTestCLI.UnitTests.vcxproj` project uses Google Test 1.18, is part of
+`source\ARTestCLI.sln`, and links the production `ARTestEngine.Core` library.
 
-- `ScriptDocumentTests.cpp`: archivo ausente, JSON corrupto, formato y versión.
-- `InstrumentFactoryTests.cpp`: definiciones, duplicados e inicialización
-  separada de la carga.
-- `CommandFactoryTests.cpp`: construcción válida y rechazo atómico de comandos.
-- `ScriptExecutorTests.cpp`: compilación, detención ante falla y resultados.
+- `ScriptDocumentTests.cpp`: JSON parsing, schema, format, version, and typed models.
+- `InstrumentFactoryTests.cpp`: injectable registries, lifetime, cleanup, events,
+  and fake instrument behavior.
+- `CommandFactoryTests.cpp`: semantic compilation, command registration, bindings,
+  validation, and atomic rejection.
+- `ScriptExecutorTests.cpp`: execution results, events, cancellation, exception
+  containment, and execution context.
 
-La línea base de la Etapa A contiene 15 casos distribuidos en 4 suites.
+The Stage B baseline contains 25 test cases across seven suites.
 
-## Ejecutar desde PowerShell
+## Run from PowerShell
 
-Desde la raíz del repositorio:
+From the repository root:
 
 ```powershell
 .\scripts\build.ps1 -Configuration Debug -Platform x64
 ```
 
-Antes de integrar cambios:
+Before integrating changes, run both configurations:
 
 ```powershell
 .\scripts\build.ps1 -Configuration Release -Platform x64
 ```
 
-El script devuelve un código distinto de cero si falla la compilación, alguna
-prueba, la validación del generador o la consistencia del reporte.
+The script returns a non-zero exit code if compilation, any test, the report
+generator validation, or report consistency validation fails.
 
-Para compilar sin ejecutar las pruebas:
+To compile without running tests:
 
 ```powershell
 .\scripts\build.ps1 -Configuration Debug -Platform x64 -SkipTests
 ```
 
-## Ejecutar desde Visual Studio Test Explorer
+## Run from Visual Studio Test Explorer
 
-1. Abrir `source\ARTestCLI.sln` con Visual Studio Insiders.
-2. Seleccionar `x64` y `Debug` o `Release`.
-3. Abrir **Test > Test Explorer**.
-4. Compilar la solución con **Build > Build Solution**.
-5. Confirmar que aparecen 15 pruebas en 4 suites.
-6. Seleccionar **Run All Tests**.
-7. Verificar que las 15 pruebas terminan con veredicto `Passed`.
+1. Open `source\ARTestCLI.sln` with Visual Studio Insiders.
+2. Select `x64` and `Debug` or `Release`.
+3. Open **Test > Test Explorer**.
+4. Build the solution with **Build > Build Solution**.
+5. Confirm that 25 tests from seven suites are discovered.
+6. Select **Run All Tests**.
+7. Verify that all 25 tests finish with a `Passed` verdict.
 
-## Reportes
+## Reports
 
-Cada ejecución genera:
+Each execution generates:
 
 - `artifacts\test-results\<Platform>\<Configuration>\ARTestCLI.UnitTests.xml`
 - `artifacts\test-results\<Platform>\<Configuration>\ARTestCLI.UnitTests.html`
 
-El flujo primero prueba el propio generador con casos sintéticos `PASSED`,
-`FAILED` y `SKIPPED`. Después compara los totales declarados por Google Test con
-los veredictos de cada caso. Una contradicción detiene el build.
+The workflow first tests the report generator with synthetic `PASSED`, `FAILED`,
+and `SKIPPED` cases. It then compares Google Test aggregate counters against
+every individual case verdict. A contradiction stops the build.
 
-Los reportes son artefactos locales excluidos de Git. Se adjuntan como evidencia
-de ejecución; no deben versionarse.
+Reports are local artifacts excluded from Git. Attach them as execution evidence;
+do not commit them.
 
-## Agregar una prueba
+## Add a test
 
-1. Elegir la suite de la responsabilidad modificada.
-2. Nombrar el caso como comportamiento observable.
-3. No depender de hardware real; usar dobles o configuraciones temporales.
-4. Ejecutar Debug y Release.
-5. Confirmar que el caso aparece en Test Explorer, XML y HTML.
+1. Choose the suite that owns the changed responsibility.
+2. Name the test after observable behavior.
+3. Do not depend on physical hardware; use fake instruments or local doubles.
+4. Run Debug and Release.
+5. Confirm that the case appears in Test Explorer, XML, and HTML.

@@ -3,10 +3,10 @@
   <ItemGroup>
     <Filter Include="Tests"><UniqueIdentifier>{5E358497-9370-4A40-AF15-31FC1154C677}</UniqueIdentifier></Filter>
     <Filter Include="TestSupport"><UniqueIdentifier>{4E74EA41-F01B-4720-BC8E-CF49869D769B}</UniqueIdentifier></Filter>
-    <Filter Include="Production Sources"><UniqueIdentifier>{D048289B-42D7-40A3-A34A-D9DD46383916}</UniqueIdentifier></Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TestSupport\TemporaryScript.h"><Filter>TestSupport</Filter></ClInclude>
+    <ClInclude Include="TestSupport\RecordingEventSink.h"><Filter>TestSupport</Filter></ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="TestMain.cpp"><Filter>TestSupport</Filter></ClCompile>
@@ -14,17 +14,5 @@
     <ClCompile Include="InstrumentFactoryTests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="CommandFactoryTests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="ScriptExecutorTests.cpp"><Filter>Tests</Filter></ClCompile>
-    <ClCompile Include="..\source\ArtCommands\Communication\CAN\CanSendMsgCommand.cpp"><Filter>Production Sources</Filter></ClCompile>
-    <ClCompile Include="..\source\ArtCommands\Conditions\IfCommand.cpp"><Filter>Production Sources</Filter></ClCompile>
-    <ClCompile Include="..\source\ArtCommands\PowerSupply\ArtPowerOffCommand.cpp"><Filter>Production Sources</Filter></ClCompile>
-    <ClCompile Include="..\source\ArtCommands\PowerSupply\ArtPowerOnCommand.cpp"><Filter>Production Sources</Filter></ClCompile>
-    <ClCompile Include="..\source\ArtCommands\Timing\ArtWaitCommand.cpp"><Filter>Production Sources</Filter></ClCompile>
-    <ClCompile Include="..\source\ArtCore\CCommandFactory.cpp"><Filter>Production Sources</Filter></ClCompile>
-    <ClCompile Include="..\source\ArtCore\ExecutionContext.cpp"><Filter>Production Sources</Filter></ClCompile>
-    <ClCompile Include="..\source\ArtCore\ScriptDocument.cpp"><Filter>Production Sources</Filter></ClCompile>
-    <ClCompile Include="..\source\ArtCore\ScriptExecutor.cpp"><Filter>Production Sources</Filter></ClCompile>
-    <ClCompile Include="..\source\ArtInstruments\CanDevice.cpp"><Filter>Production Sources</Filter></ClCompile>
-    <ClCompile Include="..\source\ArtInstruments\InstrumentFactory.cpp"><Filter>Production Sources</Filter></ClCompile>
-    <ClCompile Include="..\source\ArtInstruments\PowerSupply.cpp"><Filter>Production Sources</Filter></ClCompile>
   </ItemGroup>
 </Project>

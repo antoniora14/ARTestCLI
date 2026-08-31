@@ -50,6 +50,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="TestSupport\TemporaryScript.h" />
+    <ClInclude Include="TestSupport\RecordingEventSink.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="TestMain.cpp" />
@@ -57,18 +58,11 @@
     <ClCompile Include="InstrumentFactoryTests.cpp" />
     <ClCompile Include="CommandFactoryTests.cpp" />
     <ClCompile Include="ScriptExecutorTests.cpp" />
-    <ClCompile Include="..\source\ArtCommands\Communication\CAN\CanSendMsgCommand.cpp" />
-    <ClCompile Include="..\source\ArtCommands\Conditions\IfCommand.cpp" />
-    <ClCompile Include="..\source\ArtCommands\PowerSupply\ArtPowerOffCommand.cpp" />
-    <ClCompile Include="..\source\ArtCommands\PowerSupply\ArtPowerOnCommand.cpp" />
-    <ClCompile Include="..\source\ArtCommands\Timing\ArtWaitCommand.cpp" />
-    <ClCompile Include="..\source\ArtCore\CCommandFactory.cpp" />
-    <ClCompile Include="..\source\ArtCore\ExecutionContext.cpp" />
-    <ClCompile Include="..\source\ArtCore\ScriptDocument.cpp" />
-    <ClCompile Include="..\source\ArtCore\ScriptExecutor.cpp" />
-    <ClCompile Include="..\source\ArtInstruments\CanDevice.cpp" />
-    <ClCompile Include="..\source\ArtInstruments\InstrumentFactory.cpp" />
-    <ClCompile Include="..\source\ArtInstruments\PowerSupply.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\source\ARTestEngine.Core\ARTestEngine.Core.vcxproj">
+      <Project>{A6B573A1-3A58-4F46-91C0-D2F2EAB65930}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Import Project="$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.targets"

@@ -4,9 +4,9 @@ ARTestCLI is the command-line prototype of the ARTest test-sequencing engine.
 It loads versioned JSON scripts, validates commands and instrument bindings,
 initializes the required instruments, and executes each test step in sequence.
 
-The project is still under active development. Stage A establishes a safe,
-testable baseline before the sequencing engine is extracted into a reusable
-library for ARTestStudio, ARTestCLI, and future command or instrument plugins.
+The project is still under active development. Stage B extracts the sequencing
+engine into a reusable library that can later be consumed by ARTestStudio and
+future command or instrument adapters.
 
 ## Current capabilities
 
@@ -21,10 +21,16 @@ library for ARTestStudio, ARTestCLI, and future command or instrument plugins.
 - Built-in power supply, CAN, wait, and reserved conditional command types.
 - Interactive step-by-step execution and command-index breakpoints.
 - Google Test regression suite with XML and validated HTML reports.
+- Reusable `ARTestEngine.Core` static library with no console dependency.
+- Typed `TestPlan`, `StepDefinition`, and `CompiledStep` models.
+- Separate JSON parser, semantic compiler, and runtime executor.
+- Injectable command and instrument registries with explicit registration.
+- Structured engine events through `IEventSink`.
+- Fake power supply and CAN instruments for deterministic development and tests.
 
-The current instrument implementations are development simulations. Production
-hardware drivers, cancellation, timeouts, parallel execution, and the final DLL
-plugin ABI are intentionally outside Stage A.
+The current instrument implementations are deterministic fakes. Production
+hardware drivers, asynchronous cancellation, timeouts, parallel execution, and
+the final DLL plugin ABI remain later-stage work.
 
 ## Requirements
 
@@ -43,7 +49,9 @@ plugin ABI are intentionally outside Stage A.
 
 | Path | Purpose |
 |---|---|
-| `source/` | ARTestCLI solution, application sources, built-in commands, instruments, and sample scripts |
+| `source/ARTestEngine.Core/` | Reusable parser, compiler, executor, models, commands, events, registries, and fake instruments |
+| `source/ARTestCLI/` | Thin command-line host and console adapters |
+| `source/Scripts/` | Versioned sample test plans |
 | `tests/` | Google Test project and characterization tests |
 | `scripts/` | Reproducible build, report, and manual-test tooling |
 | `docs/architecture/` | Architecture decisions and stage boundaries |
@@ -177,17 +185,16 @@ The HTML generator is tested with synthetic passed, failed, and skipped cases.
 It also compares the aggregate Google Test counters with every individual test
 case. A contradictory report causes the build workflow to fail.
 
-The current Stage A baseline contains 15 tests across four suites. See
+The current Stage B baseline contains 25 tests across seven suites. See
 [TESTING.md](TESTING.md) for the regression procedure.
 
 ## Architecture and roadmap
 
-Stage A focuses on safe input handling, explicit resource lifetime, observable
-results, reproducible builds, and characterization tests. The next
-architectural work will replace static self-registration with an injectable
-command registry, define the reusable ARTestEngine boundary, and design a
-versioned plugin contract.
+Stage B separates parsing, semantic compilation, and execution behind a
+console-independent `ARTestEngine.Core`. ARTestCLI is now a composition root and
+host adapter instead of the engine itself. Static self-registration was removed
+in favor of explicit, injectable registries.
 
 See
-[Stage A - Safe ARTestCLI Baseline](docs/architecture/stage-a-safe-base.md)
-for the current architecture boundary and deferred decisions.
+[Stage B - ARTestEngine.Core](docs/architecture/stage-b-engine-core.md)
+for the current architecture boundary, dependency rules, and deferred decisions.

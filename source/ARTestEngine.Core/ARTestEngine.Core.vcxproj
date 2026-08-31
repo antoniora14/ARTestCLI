@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32"><Configuration>Debug</Configuration><Platform>Win32</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32"><Configuration>Release</Configuration><Platform>Win32</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>18.0</VCProjectVersion>
+    <ProjectGuid>{A6B573A1-3A58-4F46-91C0-D2F2EAB65930}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>ARTestEngineCore</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <UseDebugLibraries Condition="'$(Configuration)'=='Debug'">true</UseDebugLibraries>
+    <UseDebugLibraries Condition="'$(Configuration)'=='Release'">false</UseDebugLibraries>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="Shared" />
+  <PropertyGroup Label="UserMacros" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir)..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="Commands\BuiltIn\IfCommand.cpp" />
+    <ClCompile Include="Commands\BuiltIn\PowerOffCommand.cpp" />
+    <ClCompile Include="Commands\BuiltIn\PowerOnCommand.cpp" />
+    <ClCompile Include="Commands\BuiltIn\RegisterBuiltInCommands.cpp" />
+    <ClCompile Include="Commands\BuiltIn\SendCanMessageCommand.cpp" />
+    <ClCompile Include="Commands\BuiltIn\WaitCommand.cpp" />
+    <ClCompile Include="Commands\CommandRegistry.cpp" />
+    <ClCompile Include="Compilation\TestPlanCompiler.cpp" />
+    <ClCompile Include="Execution\ExecutionContext.cpp" />
+    <ClCompile Include="Execution\TestExecutor.cpp" />
+    <ClCompile Include="Instruments\Fakes\FakeCanDevice.cpp" />
+    <ClCompile Include="Instruments\Fakes\FakePowerSupply.cpp" />
+    <ClCompile Include="Instruments\Fakes\RegisterFakeInstruments.cpp" />
+    <ClCompile Include="Instruments\InstrumentManager.cpp" />
+    <ClCompile Include="Instruments\InstrumentRegistry.cpp" />
+    <ClCompile Include="Parsing\JsonTestPlanParser.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Commands\BuiltIn\IfCommand.h" />
+    <ClInclude Include="Commands\BuiltIn\PowerOffCommand.h" />
+    <ClInclude Include="Commands\BuiltIn\PowerOnCommand.h" />
+    <ClInclude Include="Commands\BuiltIn\RegisterBuiltInCommands.h" />
+    <ClInclude Include="Commands\BuiltIn\SendCanMessageCommand.h" />
+    <ClInclude Include="Commands\BuiltIn\WaitCommand.h" />
+    <ClInclude Include="Commands\CommandRegistry.h" />
+    <ClInclude Include="Commands\ICommand.h" />
+    <ClInclude Include="Compilation\TestPlanCompiler.h" />
+    <ClInclude Include="Diagnostics.h" />
+    <ClInclude Include="Execution\ExecutionContext.h" />
+    <ClInclude Include="Execution\ExecutionResult.h" />
+    <ClInclude Include="Execution\IEventSink.h" />
+    <ClInclude Include="Execution\IExecutionControl.h" />
+    <ClInclude Include="Execution\TestExecutor.h" />
+    <ClInclude Include="Instruments\Fakes\FakeCanDevice.h" />
+    <ClInclude Include="Instruments\Fakes\FakePowerSupply.h" />
+    <ClInclude Include="Instruments\Fakes\RegisterFakeInstruments.h" />
+    <ClInclude Include="Instruments\ICanDevice.h" />
+    <ClInclude Include="Instruments\IInstrument.h" />
+    <ClInclude Include="Instruments\InstrumentManager.h" />
+    <ClInclude Include="Instruments\InstrumentRegistry.h" />
+    <ClInclude Include="Instruments\IPowerSupply.h" />
+    <ClInclude Include="Model\CompiledStep.h" />
+    <ClInclude Include="Model\TestPlan.h" />
+    <ClInclude Include="Parsing\JsonTestPlanParser.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets" />
+</Project>

@@ -1,0 +1,31 @@
+{
+  "format": "ARTest.Script",
+  "version": 1,
+  "instruments": [
+    {
+      "type": "CAN",
+      "id": "A_CAN",
+      "config": {
+        "hw-rsrc": "FAKE::CAN"
+      }
+    },
+    {
+      "type": "PowerSupply",
+      "id": "B_PS",
+      "config": {
+        "hw-rsrc": "FAKE::PS",
+        "failInitialization": true
+      }
+    }
+  ],
+  "commands": [
+    {
+      "stepId": 1,
+      "name": "Time.WaitMs",
+      "instrument": "NoInstrument",
+      "params": {
+        "milliseconds": 0
+      }
+    }
+  ]
+}
