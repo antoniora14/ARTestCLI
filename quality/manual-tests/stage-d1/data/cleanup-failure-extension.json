@@ -1,0 +1,30 @@
+{
+  "format": "ARTest.Script",
+  "version": 1,
+  "instruments": [
+    {
+      "type": "com.artest.driver.sim.power",
+      "id": "SimPower1",
+      "config": {
+        "failShutdown": true
+      }
+    }
+  ],
+  "commands": [
+    {
+      "stepId": 1,
+      "name": "com.artest.command.sample.power-cycle",
+      "instrument": "SimPower1",
+      "params": {
+        "channel": 1,
+        "voltage": 12.0,
+        "holdMs": 10
+      },
+      "policy": {
+        "maxAttempts": 1,
+        "timeoutMs": 1000,
+        "onFailure": "stop"
+      }
+    }
+  ]
+}

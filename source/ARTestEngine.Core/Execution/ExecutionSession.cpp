@@ -131,6 +131,20 @@ namespace artest
         m_cancellation.Cancel();
     }
 
+    bool ExecutionSession::WaitFor(std::chrono::milliseconds timeout)
+    {
+        std::scoped_lock lock{m_waitMutex};
+        if (m_result.has_value())
+        {
+            return true;
+        }
+        if (!m_future.valid())
+        {
+            return false;
+        }
+        return m_future.wait_for(timeout) == std::future_status::ready;
+    }
+
     RunResult ExecutionSession::Wait()
     {
         std::scoped_lock lock{m_waitMutex};

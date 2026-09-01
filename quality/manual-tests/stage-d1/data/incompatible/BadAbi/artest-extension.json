@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "extensionId": "com.artest.extension.bad-abi",
+  "displayName": "Incompatible ABI Test Fixture",
+  "version": "0.1.0",
+  "publisher": "ARTest Quality",
+  "runtime": {
+    "kind": "native",
+    "entry": "MustNotBeLoaded.dll",
+    "isolation": "inProcess",
+    "architecture": "x64",
+    "abi": { "major": 9, "minor": 0 }
+  },
+  "components": [
+    {
+      "kind": "tool",
+      "typeId": "com.artest.tool.bad-abi",
+      "contractId": "artest.contract.tool.v1",
+      "version": "0.1.0",
+      "displayName": "Incompatible ABI Fixture"
+    }
+  ]
+}

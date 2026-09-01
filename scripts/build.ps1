@@ -27,6 +27,15 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 if (-not $SkipTests) {
+    $abiTestExecutable = Join-Path $repositoryRoot "artifacts\bin\$Platform\$Configuration\ARTestAbi.ContractTests.exe"
+    if (-not (Test-Path -LiteralPath $abiTestExecutable)) {
+        throw "The ABI contract test executable was not found: $abiTestExecutable"
+    }
+    & $abiTestExecutable
+    if ($LASTEXITCODE -ne 0) {
+        throw "The C/C++ ABI layout contract failed with exit code $LASTEXITCODE."
+    }
+
     $testExecutable = Join-Path $repositoryRoot "artifacts\bin\$Platform\$Configuration\ARTestCLI.UnitTests.exe"
     if (-not (Test-Path -LiteralPath $testExecutable)) {
         throw "The test executable was not found: $testExecutable"
@@ -53,4 +62,5 @@ if (-not $SkipTests) {
 
     Write-Host "XML report: $xmlReportPath"
     Write-Host "HTML report: $htmlReportPath"
+    Write-Host "Extensions: $(Join-Path $repositoryRoot "artifacts\extensions\$Platform\$Configuration")"
 }

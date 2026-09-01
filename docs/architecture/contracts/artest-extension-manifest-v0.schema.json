@@ -1,0 +1,268 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://artest.dev/schemas/extension-manifest-v0.schema.json",
+  "title": "ARTest extension package manifest v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "extensionId",
+    "displayName",
+    "version",
+    "publisher",
+    "runtime",
+    "components"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "extensionId": {
+      "$ref": "#/$defs/stableId"
+    },
+    "displayName": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "version": {
+      "$ref": "#/$defs/semanticVersion"
+    },
+    "publisher": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 4096
+    },
+    "runtime": {
+      "$ref": "#/$defs/runtime"
+    },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/component"
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^[A-Fa-f0-9]{64}$"
+        },
+        "signature": {
+          "type": "string",
+          "minLength": 1
+        },
+        "publisherCertificate": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "stableId": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 255,
+      "pattern": "^[a-z0-9]+(?:[.-][a-z0-9][a-z0-9-]*)+$"
+    },
+    "semanticVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "versionPair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["major", "minor"],
+      "properties": {
+        "major": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "minor": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "entry", "isolation"],
+      "properties": {
+        "kind": {
+          "enum": ["native", "python", "dotnet"]
+        },
+        "entry": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "entryPoint": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "isolation": {
+          "enum": ["inProcess", "process"]
+        },
+        "architecture": {
+          "enum": ["x64", "arm64"]
+        },
+        "abi": {
+          "$ref": "#/$defs/versionPair"
+        },
+        "protocol": {
+          "$ref": "#/$defs/versionPair"
+        },
+        "python": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "targetFramework": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": { "const": "native" }
+            }
+          },
+          "then": {
+            "required": ["architecture", "abi"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": { "const": "python" }
+            }
+          },
+          "then": {
+            "required": ["protocol", "python"],
+            "properties": {
+              "isolation": { "const": "process" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": { "const": "dotnet" }
+            }
+          },
+          "then": {
+            "required": ["entryPoint", "protocol", "targetFramework"],
+            "properties": {
+              "isolation": { "const": "process" }
+            }
+          }
+        }
+      ]
+    },
+    "requiredCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contractId"],
+      "properties": {
+        "contractId": {
+          "$ref": "#/$defs/stableId"
+        },
+        "selection": {
+          "enum": ["configured", "any"],
+          "default": "configured"
+        }
+      }
+    },
+    "schemaBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "schemaId", "path", "mediaType"],
+      "properties": {
+        "role": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z][A-Za-z0-9.-]*$"
+        },
+        "schemaId": {
+          "$ref": "#/$defs/stableId"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mediaType": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        }
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "typeId",
+        "contractId",
+        "version",
+        "displayName"
+      ],
+      "properties": {
+        "kind": {
+          "enum": ["command", "instrumentDriver", "tool"]
+        },
+        "typeId": {
+          "$ref": "#/$defs/stableId"
+        },
+        "contractId": {
+          "$ref": "#/$defs/stableId"
+        },
+        "version": {
+          "$ref": "#/$defs/semanticVersion"
+        },
+        "displayName": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/stableId"
+          }
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/requiredCapability"
+          }
+        },
+        "schemas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/schemaBinding"
+          }
+        },
+        "flags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["simulated", "requiresHardware"]
+          }
+        }
+      }
+    }
+  }
+}

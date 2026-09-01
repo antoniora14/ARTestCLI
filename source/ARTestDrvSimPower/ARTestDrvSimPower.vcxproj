@@ -8,54 +8,37 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
-    <ProjectGuid>{EE9B4638-8596-4838-AAE1-04C2214D673B}</ProjectGuid>
+    <ProjectGuid>{377B03F6-3D71-47A5-8A52-D3028BB8254B}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>ARTestCLI</RootNamespace>
+    <RootNamespace>ARTestDrvSimPower</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <UseDebugLibraries Condition="'$(Configuration)'=='Debug'">true</UseDebugLibraries>
     <UseDebugLibraries Condition="'$(Configuration)'=='Release'">false</UseDebugLibraries>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  <ImportGroup Label="ExtensionSettings" />
-  <ImportGroup Label="Shared" />
-  <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
-    <Link><SubSystem>Console</SubSystem></Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="CliApplication.cpp" />
-    <ClCompile Include="ConsoleCancellationHandler.cpp" />
-    <ClCompile Include="ConsoleEventSink.cpp" />
-    <ClCompile Include="ConsoleExecutionControl.cpp" />
-    <ClCompile Include="Program.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="CliApplication.h" />
-    <ClInclude Include="ConsoleCancellationHandler.h" />
-    <ClInclude Include="ConsoleEventSink.h" />
-    <ClInclude Include="ConsoleExecutionControl.h" />
-    <ClInclude Include="..\ARTest.SDK\include\ARTestEngineClient.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\ARTestEngine.Core\ARTestEngine.Core.vcxproj">
-      <Project>{A6B573A1-3A58-4F46-91C0-D2F2EAB65930}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\ARTestEngine\ARTestEngine.vcxproj">
-      <Project>{D47C2447-5B74-4CC8-B915-D73FD7BE85CB}</Project>
-    </ProjectReference>
+    <ClCompile Include="SimPowerExtension.cpp" />
+    <None Include="artest-extension.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets" />
+  <Target Name="PackageExtension" AfterTargets="Build" Condition="'$(Platform)'=='x64'">
+    <PropertyGroup><PackageDir>$(MSBuildThisFileDirectory)..\..\artifacts\extensions\$(Platform)\$(Configuration)\ARTestDrvSimPower\</PackageDir></PropertyGroup>
+    <MakeDir Directories="$(PackageDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PackageDir)" />
+    <Copy SourceFiles="$(ProjectDir)artest-extension.json" DestinationFolder="$(PackageDir)" />
+  </Target>
 </Project>

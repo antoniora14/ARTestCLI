@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://artest.dev/schemas/run-result-v1.schema.json",
+  "title": "ARTest immutable run result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "status", "failureKind", "summary", "diagnostics", "steps"],
+  "properties": {
+    "schema": { "const": "artest.schema.run-result.v1" },
+    "status": {
+      "enum": ["passed", "failed", "error", "cancelled", "timedOut"]
+    },
+    "failureKind": { "type": "integer", "minimum": 0, "maximum": 4 },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plannedSteps", "executedSteps", "passedSteps", "failedSteps",
+        "errorSteps", "cancelledSteps", "timedOutSteps", "skippedSteps",
+        "totalAttempts", "durationMs"
+      ],
+      "properties": {
+        "plannedSteps": { "type": "integer", "minimum": 0 },
+        "executedSteps": { "type": "integer", "minimum": 0 },
+        "passedSteps": { "type": "integer", "minimum": 0 },
+        "failedSteps": { "type": "integer", "minimum": 0 },
+        "errorSteps": { "type": "integer", "minimum": 0 },
+        "cancelledSteps": { "type": "integer", "minimum": 0 },
+        "timedOutSteps": { "type": "integer", "minimum": 0 },
+        "skippedSteps": { "type": "integer", "minimum": 0 },
+        "totalAttempts": { "type": "integer", "minimum": 0 },
+        "durationMs": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/diagnostic" }
+    },
+    "steps": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/step" }
+    }
+  },
+  "$defs": {
+    "status": {
+      "enum": ["passed", "failed", "error", "skipped", "cancelled", "timedOut"]
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severity", "code", "message", "location"],
+      "properties": {
+        "severity": { "enum": ["information", "warning", "error"] },
+        "code": { "type": "string" },
+        "message": { "type": "string" },
+        "location": { "type": "string" }
+      }
+    },
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempt", "status", "message", "durationMs"],
+      "properties": {
+        "attempt": { "type": "integer", "minimum": 1 },
+        "status": { "$ref": "#/$defs/status" },
+        "message": { "type": "string" },
+        "durationMs": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stepId", "command", "status", "message", "durationMs", "attempts"
+      ],
+      "properties": {
+        "stepId": { "type": "integer", "minimum": 1 },
+        "command": { "type": "string", "minLength": 1 },
+        "status": { "$ref": "#/$defs/status" },
+        "message": { "type": "string" },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "attempts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/attempt" }
+        }
+      }
+    }
+  }
+}

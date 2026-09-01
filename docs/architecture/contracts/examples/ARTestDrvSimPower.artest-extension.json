@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "extensionId": "com.artest.extension.sim-power",
+  "displayName": "ARTest Simulated Power Driver",
+  "version": "0.1.0",
+  "publisher": "ARTest",
+  "description": "Reference Instrument Driver used by the Stage D native vertical slice.",
+  "runtime": {
+    "kind": "native",
+    "entry": "ARTestDrvSimPower.dll",
+    "isolation": "inProcess",
+    "architecture": "x64",
+    "abi": {
+      "major": 0,
+      "minor": 1
+    }
+  },
+  "components": [
+    {
+      "kind": "instrumentDriver",
+      "typeId": "com.artest.driver.sim.power",
+      "contractId": "artest.contract.instrument.power-supply.v1",
+      "version": "0.1.0",
+      "displayName": "Simulated Power Supply",
+      "description": "Deterministic power-supply driver for tests and development.",
+      "capabilities": [
+        "artest.contract.instrument.power-supply.v1"
+      ],
+      "schemas": [
+        {
+          "role": "configuration",
+          "schemaId": "artest.schema.driver.sim-power.configuration.v1",
+          "path": "schemas/sim-power.configuration.schema.json",
+          "mediaType": "application/schema+json"
+        },
+        {
+          "role": "setVoltageRequest",
+          "schemaId": "artest.schema.instrument.power-supply.set-voltage.request.v1",
+          "path": "schemas/power-supply.set-voltage.request.schema.json",
+          "mediaType": "application/schema+json"
+        }
+      ],
+      "flags": [
+        "simulated"
+      ]
+    }
+  ]
+}

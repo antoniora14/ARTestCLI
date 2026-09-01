@@ -31,6 +31,7 @@ namespace artest
 
         [[nodiscard]] OperationResult Start();
         void Cancel() noexcept;
+        [[nodiscard]] bool WaitFor(std::chrono::milliseconds timeout);
         [[nodiscard]] RunResult Wait();
         [[nodiscard]] ExecutionState State() const noexcept;
 

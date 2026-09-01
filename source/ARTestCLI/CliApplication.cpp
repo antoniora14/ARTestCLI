@@ -3,6 +3,7 @@
 #include "ConsoleEventSink.h"
 #include "ConsoleExecutionControl.h"
 #include "ConsoleCancellationHandler.h"
+#include "../ARTest.SDK/include/ARTestEngineClient.h"
 #include "../ARTestEngine.Core/Commands/BuiltIn/RegisterBuiltInCommands.h"
 #include "../ARTestEngine.Core/Commands/CommandRegistry.h"
 #include "../ARTestEngine.Core/Compilation/TestPlanCompiler.h"
@@ -15,8 +16,10 @@
 
 #include <exception>
 #include <filesystem>
+#include <fstream>
 #include <istream>
 #include <ostream>
+#include <sstream>
 #include <unordered_set>
 
 namespace artest::cli
@@ -44,6 +47,58 @@ namespace artest::cli
             {
                 PrintHelp();
                 return static_cast<int>(ExitCode::Success);
+            }
+            if (command == "extension-run")
+            {
+                if (arguments.size() != 3)
+                {
+                    m_error << "Usage: ARTestCLI extension-run <script.json> <extensions-root>\n";
+                    return static_cast<int>(ExitCode::InvalidArguments);
+                }
+                std::ifstream input{std::filesystem::path{arguments[1]}, std::ios::binary};
+                if (!input)
+                {
+                    m_error << "The JSON script could not be opened.\n";
+                    return static_cast<int>(ExitCode::InvalidScript);
+                }
+                std::ostringstream content;
+                content << input.rdbuf();
+
+                sdk::EngineClient engine;
+                auto status = engine.Create();
+                if (status.Succeeded())
+                    status = engine.SubscribeEvents([this](std::string_view eventText)
+                    {
+                        const auto event = nlohmann::json::parse(eventText);
+                        m_output << "[Engine] " << event.value("source", std::string{})
+                                 << ": " << event.value("message", std::string{}) << '\n';
+                    });
+                if (status.Succeeded())
+                    status = engine.RefreshCatalog(arguments[2]);
+                if (status.Succeeded())
+                    status = engine.Compile(content.str());
+                if (status.Succeeded())
+                    status = engine.Start();
+                bool completed = false;
+                if (status.Succeeded())
+                {
+                    ConsoleCancellationHandler cancellationHandler(engine);
+                    status = engine.Wait(UINT32_MAX, completed);
+                }
+                std::string report;
+                if (status.Succeeded() && completed)
+                    status = engine.SerializeResult(report);
+                if (!status.Succeeded())
+                {
+                    m_error << "ARTestEngine failure [" << status.code
+                            << "]: " << status.message << '\n';
+                    return static_cast<int>(ExitCode::ExecutionFailed);
+                }
+                m_output << report << '\n';
+                const auto result = nlohmann::json::parse(report);
+                return result.value("status", std::string{}) == "passed"
+                    ? static_cast<int>(ExitCode::Success)
+                    : static_cast<int>(ExitCode::ExecutionFailed);
             }
             if (command != "compile" && command != "run" && command != "debug" && command != "break")
             {
@@ -179,6 +234,7 @@ namespace artest::cli
             << "  run                     Execute the complete script.\n"
             << "  debug                   Pause before every step.\n"
             << "  break idx1 idx2 ...     Pause at zero-based command indices.\n"
+            << "  extension-run           Run a script through ARTestEngine.dll and an approved extension root.\n"
             << "  help                    Display this help.\n\n"
             << "During run, debug, or break, press Ctrl+C to request cooperative cancellation.\n"
             << "The engine always attempts instrument cleanup before returning.\n\n"
@@ -187,6 +243,9 @@ namespace artest::cli
             << "  ARTestCLI run source/Scripts/TestScript.json\n"
             << "  ARTestCLI debug source/Scripts/TestScript.json\n"
             << "  ARTestCLI break source/Scripts/TestScript.json 1 3\n";
+        m_output
+            << "  ARTestCLI extension-run source/Scripts/ExtensionScript.json "
+            << "artifacts/extensions/x64/Release\n";
     }
 
     void CliApplication::PrintDiagnostics(const std::vector<Diagnostic>& diagnostics) const

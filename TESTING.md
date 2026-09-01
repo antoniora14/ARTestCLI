@@ -14,8 +14,11 @@ The `tests\ARTestCLI.UnitTests.vcxproj` project uses Google Test 1.18, is part o
   containment, and execution context.
 - `StageCExecutionTests.cpp`: state transitions, cancellation deadlines, retry,
   timeout, failure policies, asynchronous sessions, and cleanup guarantees.
+- `StageDExtensionTests.cpp`: ABI negotiation, manifest validation, native
+  loading, command-to-driver services, host wait semantics, cancellation,
+  cleanup override, handle ownership, and unload safety.
 
-The Stage C baseline contains 41 test cases across 11 suites.
+The Stage D1 baseline contains 49 test cases across 14 suites.
 
 ## Run from PowerShell
 
@@ -46,9 +49,27 @@ To compile without running tests:
 2. Select `x64` and `Debug` or `Release`.
 3. Open **Test > Test Explorer**.
 4. Build the solution with **Build > Build Solution**.
-5. Confirm that 41 tests from 11 suites are discovered.
+5. Confirm that 49 tests from 14 suites are discovered.
 6. Select **Run All Tests**.
-7. Verify that all 41 tests finish with a `Passed` verdict.
+7. Verify that all 49 tests finish with a `Passed` verdict.
+
+## Stage D1 native vertical slice
+
+Build packages both reference extensions under
+`artifacts\extensions\<Platform>\<Configuration>`. Run the public Engine
+path from the repository root:
+
+```powershell
+$cli = '.\artifacts\bin\x64\Release\ARTestCLI.exe'
+$extensions = '.\artifacts\extensions\x64\Release'
+
+& $cli extension-run '.\source\Scripts\ExtensionScript.json' $extensions
+```
+
+The process exit code must be 0, the JSON result must report a passed status,
+and the step must be com.artest.command.sample.power-cycle. The command resolves
+SimPower1 through artest.contract.instrument.power-supply.v1, and cleanup shuts
+the driver down before the Engine releases its native modules.
 
 ## Reports
 

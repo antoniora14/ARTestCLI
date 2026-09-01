@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://artest.dev/schemas/extension-catalog-v1.schema.json",
+  "title": "ARTest extension catalog snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "abi", "extensions"],
+  "properties": {
+    "schema": { "const": "artest.schema.extension-catalog.v1" },
+    "abi": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["major", "minor"],
+      "properties": {
+        "major": { "type": "integer", "minimum": 0 },
+        "minor": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "extensions": {
+      "type": "array",
+      "items": { "type": "object" }
+    }
+  }
+}

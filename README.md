@@ -4,9 +4,10 @@ ARTestCLI is the command-line prototype of the ARTest test-sequencing engine.
 It loads versioned JSON scripts, validates commands and instrument bindings,
 initializes the required instruments, and executes each test step in sequence.
 
-The project is still under active development. Stage B extracts the sequencing
-engine into a reusable library that can later be consumed by ARTestStudio and
-future command or instrument adapters.
+The project is still under active development. Stage D1 now provides a native
+vertical slice in which ARTestCLI calls a versioned C ABI exposed by
+ARTestEngine.dll, and a command DLL consumes an Instrument Driver service
+without linking to the driver binary.
 
 ## Current capabilities
 
@@ -32,10 +33,16 @@ future command or instrument adapters.
 - Per-step retry, retry-delay, and stop/continue failure policies.
 - Guaranteed reverse-order instrument cleanup with cleanup diagnostics.
 - Attempt-level, step-level, and aggregate execution reports.
+- Experimental ARTestEngine host C ABI and first-party C++ RAII facade.
+- Manifest-first catalog restricted to an explicitly approved extension root.
+- Native Command Plugin and Instrument Driver packages with opaque handles.
+- Service routing by stable instance and contract IDs.
+- ABI-safe cancellation, diagnostics, result sinks, cleanup, and module unload.
 
-The current instrument implementations are deterministic fakes. Production
-hardware drivers, parallel execution, persistent report files, and the final
-DLL plugin ABI remain later-stage work.
+The native ABI remains experimental at version 0.1. D2 will harden the SDK and
+compatibility suite before any 1.0 stability promise. Production hardware
+drivers, managed runtime hosts, parallel execution, and persistent report files
+remain later-stage work.
 
 ## Requirements
 
@@ -55,6 +62,10 @@ DLL plugin ABI remain later-stage work.
 | Path | Purpose |
 |---|---|
 | `source/ARTestEngine.Core/` | Reusable parser, compiler, executor, models, commands, events, registries, and fake instruments |
+| `source/ARTestEngine/` | Public Engine DLL, native catalog, loader, and runtime adapter |
+| `source/ARTest.SDK/` | C ABI contracts and first-party C++ facade |
+| `source/ARTestCmdSample/` | Reference native Command Plugin |
+| `source/ARTestDrvSimPower/` | Reference simulated Instrument Driver |
 | `source/ARTestCLI/` | Thin command-line host and console adapters |
 | `source/Scripts/` | Versioned sample test plans |
 | `tests/` | Google Test project and characterization tests |
@@ -112,6 +123,7 @@ $cli = '.\artifacts\bin\x64\Debug\ARTestCLI.exe'
 & $cli run     '.\source\Scripts\TestScript.json'
 & $cli debug   '.\source\Scripts\TestScript.json'
 & $cli break   '.\source\Scripts\TestScript.json' 0 2
+& $cli extension-run '.\source\Scripts\ExtensionScript.json' '.\artifacts\extensions\x64\Debug'
 ```
 
 | Command | Behavior |
@@ -121,6 +133,7 @@ $cli = '.\artifacts\bin\x64\Debug\ARTestCLI.exe'
 | `run` | Initializes instruments and executes the complete sequence |
 | `debug` | Pauses before every command and accepts next, continue, or quit |
 | `break` | Pauses at the supplied zero-based command indexes |
+| `extension-run` | Loads an approved catalog and executes through ARTestEngine.dll |
 
 Breakpoint arguments currently refer to positions in the `commands` array,
 starting at zero. They do not refer to the script's `stepId` values.
@@ -207,7 +220,7 @@ The HTML generator is tested with synthetic passed, failed, and skipped cases.
 It also compares the aggregate Google Test counters with every individual test
 case. A contradictory report causes the build workflow to fail.
 
-The current Stage C baseline contains 41 tests across 11 suites. See
+The current Stage D1 baseline contains 49 tests across 14 suites. See
 [TESTING.md](TESTING.md) for the regression procedure.
 
 ## Architecture and roadmap
@@ -223,3 +236,13 @@ for the current architecture boundary, dependency rules, and deferred decisions.
 See also
 [Stage C - Robust execution](docs/architecture/stage-c-robust-execution.md)
 for the execution lifecycle, policy contract, and safety guarantees.
+
+Stage D1 implements the first trusted-native vertical slice. The extension
+platform uses a versioned C ABI for native DLLs and preserves isolated runtime
+bridges for future Python and .NET packages. See
+[Stage D - Extension platform](docs/architecture/stage-d-extension-platform.md),
+[Engine host API 0.x](docs/architecture/stage-d-engine-api-v0.md),
+[Native ABI 0.x](docs/architecture/stage-d-native-abi-v0.md), and
+[Managed runtime bridges](docs/architecture/stage-d-managed-runtime-bridges.md).
+The implemented slice and current limitations are recorded in
+[Stage D1 - Native vertical slice](docs/architecture/stage-d1-native-vertical-slice.md).

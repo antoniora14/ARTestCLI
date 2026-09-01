@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "extensionId": "com.artest.extension.sample-command",
+  "displayName": "ARTest Sample Command",
+  "version": "0.1.0",
+  "publisher": "ARTest",
+  "description": "Reference command package for the Stage D native vertical slice.",
+  "runtime": {
+    "kind": "native",
+    "entry": "ARTestCmdSample.dll",
+    "isolation": "inProcess",
+    "architecture": "x64",
+    "abi": { "major": 0, "minor": 1 }
+  },
+  "components": [
+    {
+      "kind": "command",
+      "typeId": "com.artest.command.sample.power-cycle",
+      "contractId": "artest.contract.command.v1",
+      "version": "0.1.0",
+      "displayName": "Sample Power Cycle",
+      "description": "Invokes a configured power-supply service without linking to its driver.",
+      "capabilities": ["artest.contract.command.v1"],
+      "requires": [
+        {
+          "contractId": "artest.contract.instrument.power-supply.v1",
+          "selection": "configured"
+        }
+      ],
+      "schemas": [],
+      "flags": []
+    }
+  ]
+}

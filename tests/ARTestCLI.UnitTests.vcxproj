@@ -59,10 +59,22 @@
     <ClCompile Include="CommandFactoryTests.cpp" />
     <ClCompile Include="ScriptExecutorTests.cpp" />
     <ClCompile Include="StageCExecutionTests.cpp" />
+    <ClCompile Include="StageDExtensionTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\source\ARTestEngine.Core\ARTestEngine.Core.vcxproj">
       <Project>{A6B573A1-3A58-4F46-91C0-D2F2EAB65930}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\source\ARTestEngine\ARTestEngine.vcxproj">
+      <Project>{D47C2447-5B74-4CC8-B915-D73FD7BE85CB}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\source\ARTestDrvSimPower\ARTestDrvSimPower.vcxproj">
+      <Project>{377B03F6-3D71-47A5-8A52-D3028BB8254B}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+    <ProjectReference Include="..\source\ARTestCmdSample\ARTestCmdSample.vcxproj">
+      <Project>{65CB4028-280C-4470-AB00-68B0F8EEA13F}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
