@@ -1,0 +1,38 @@
+{
+  "format": "ARTest.Script",
+  "version": 1,
+  "instruments": [
+    {
+      "type": "PowerSupply",
+      "id": "PS_CONTINUE",
+      "config": {
+        "hw-rsrc": "FAKE::PS",
+        "failTurnOnAttempts": 1
+      }
+    }
+  ],
+  "commands": [
+    {
+      "stepId": 1,
+      "name": "PowerSupply.TurnOn",
+      "instrument": "PS_CONTINUE",
+      "params": {
+        "channel": 1,
+        "voltage": 12.0,
+        "currentLimit": 2.0
+      },
+      "policy": {
+        "maxAttempts": 1,
+        "onFailure": "continue"
+      }
+    },
+    {
+      "stepId": 2,
+      "name": "Time.WaitMs",
+      "instrument": "NoInstrument",
+      "params": {
+        "milliseconds": 0
+      }
+    }
+  ]
+}

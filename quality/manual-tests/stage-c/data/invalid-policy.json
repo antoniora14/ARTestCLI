@@ -1,0 +1,21 @@
+{
+  "format": "ARTest.Script",
+  "version": 1,
+  "instruments": [],
+  "commands": [
+    {
+      "stepId": 1,
+      "name": "Time.WaitMs",
+      "instrument": "NoInstrument",
+      "params": {
+        "milliseconds": 1
+      },
+      "policy": {
+        "maxAttempts": 0,
+        "retryDelayMs": -1,
+        "timeoutMs": -1,
+        "onFailure": "stop"
+      }
+    }
+  ]
+}

@@ -36,6 +36,14 @@ namespace artest
                     "POWER_SUPPLY_INITIALIZATION_FORCED_FAILURE",
                     "Fake PowerSupply initialization was configured to fail.");
             }
+            m_remainingTurnOnFailures = configuration.value("failTurnOnAttempts", 0);
+            if (m_remainingTurnOnFailures < 0)
+            {
+                return OperationResult::Failure(
+                    "POWER_SUPPLY_CONFIGURATION_INVALID",
+                    "failTurnOnAttempts must be zero or greater.");
+            }
+            m_failShutdown = configuration.value("failShutdown", false);
             m_initialized = true;
             Publish("[PowerSupply:" + m_id + "] Initialize " + resource);
             return OperationResult::Success();
@@ -46,14 +54,21 @@ namespace artest
         }
     }
 
-    void FakePowerSupply::Shutdown() noexcept
+    OperationResult FakePowerSupply::Shutdown()
     {
+        const bool failShutdown = m_failShutdown;
         if (m_initialized)
         {
             Publish("[PowerSupply:" + m_id + "] Shutdown");
         }
         m_initialized = false;
         m_channelState.clear();
+        m_failShutdown = false;
+        return failShutdown
+            ? OperationResult::Failure(
+                "POWER_SUPPLY_SHUTDOWN_FORCED_FAILURE",
+                "Fake PowerSupply shutdown was configured to fail.")
+            : OperationResult::Success();
     }
 
     OperationResult FakePowerSupply::TurnOn(int channel)
@@ -61,6 +76,15 @@ namespace artest
         if (const auto result = EnsureReady(channel); !result.Succeeded())
         {
             return result;
+        }
+        if (m_remainingTurnOnFailures > 0)
+        {
+            --m_remainingTurnOnFailures;
+            Publish("[PowerSupply:" + m_id + "] TurnOn simulated failure on channel "
+                + std::to_string(channel));
+            return OperationResult::Failure(
+                "POWER_SUPPLY_TURN_ON_SIMULATED_FAILURE",
+                "Fake PowerSupply TurnOn was configured to fail.");
         }
         m_channelState[channel] = true;
         Publish("[PowerSupply:" + m_id + "] TurnOn channel " + std::to_string(channel));

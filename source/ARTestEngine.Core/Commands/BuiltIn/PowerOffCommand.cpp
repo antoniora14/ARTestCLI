@@ -38,8 +38,14 @@ namespace artest
         return OperationResult::Success();
     }
 
-    StepResult PowerOffCommand::Execute(ExecutionContext&)
+    StepResult PowerOffCommand::Execute(
+        ExecutionContext&,
+        const CancellationToken& cancellation)
     {
+        if (cancellation.Reason() != CancellationReason::None)
+        {
+            return cancellation.IsTimedOut() ? StepResult::Timeout() : StepResult::Cancel();
+        }
         if (!m_powerSupply)
         {
             return StepResult::Error("The bound instrument is not a PowerSupply.");

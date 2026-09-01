@@ -18,18 +18,18 @@ $solutionPath = Join-Path $repositoryRoot 'source\ARTestCLI.sln'
 $msbuildPath = Join-Path $VisualStudioPath 'MSBuild\Current\Bin\MSBuild.exe'
 
 if (-not (Test-Path -LiteralPath $msbuildPath)) {
-    throw "No se encontro MSBuild de Visual Studio Insiders en: $msbuildPath"
+    throw "Visual Studio Insiders MSBuild was not found at: $msbuildPath"
 }
 
 & $msbuildPath $solutionPath /m "/p:Configuration=$Configuration" "/p:Platform=$Platform" /verbosity:minimal
 if ($LASTEXITCODE -ne 0) {
-    throw "La compilacion fallo con codigo $LASTEXITCODE."
+    throw "The build failed with exit code $LASTEXITCODE."
 }
 
 if (-not $SkipTests) {
     $testExecutable = Join-Path $repositoryRoot "artifacts\bin\$Platform\$Configuration\ARTestCLI.UnitTests.exe"
     if (-not (Test-Path -LiteralPath $testExecutable)) {
-        throw "No se encontro el ejecutable de pruebas: $testExecutable"
+        throw "The test executable was not found: $testExecutable"
     }
 
     $testResultsDirectory = Join-Path $repositoryRoot "artifacts\test-results\$Platform\$Configuration"
@@ -48,9 +48,9 @@ if (-not $SkipTests) {
     }
 
     if ($testExitCode -ne 0) {
-        throw "Las pruebas fallaron con codigo $testExitCode. Reporte: $htmlReportPath"
+        throw "The test suite failed with exit code $testExitCode. Report: $htmlReportPath"
     }
 
-    Write-Host "Reporte XML: $xmlReportPath"
-    Write-Host "Reporte HTML: $htmlReportPath"
+    Write-Host "XML report: $xmlReportPath"
+    Write-Host "HTML report: $htmlReportPath"
 }

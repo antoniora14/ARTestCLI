@@ -1,0 +1,26 @@
+{
+  "format": "ARTest.Script",
+  "version": 1,
+  "instruments": [],
+  "commands": [
+    {
+      "stepId": 1,
+      "name": "Time.WaitMs",
+      "instrument": "NoInstrument",
+      "params": {
+        "milliseconds": 5000
+      },
+      "policy": {
+        "timeoutMs": 50
+      }
+    },
+    {
+      "stepId": 2,
+      "name": "Time.WaitMs",
+      "instrument": "NoInstrument",
+      "params": {
+        "milliseconds": 0
+      }
+    }
+  ]
+}

@@ -12,8 +12,10 @@ The `tests\ARTestCLI.UnitTests.vcxproj` project uses Google Test 1.18, is part o
   validation, and atomic rejection.
 - `ScriptExecutorTests.cpp`: execution results, events, cancellation, exception
   containment, and execution context.
+- `StageCExecutionTests.cpp`: state transitions, cancellation deadlines, retry,
+  timeout, failure policies, asynchronous sessions, and cleanup guarantees.
 
-The Stage B baseline contains 25 test cases across seven suites.
+The Stage C baseline contains 41 test cases across 11 suites.
 
 ## Run from PowerShell
 
@@ -44,9 +46,9 @@ To compile without running tests:
 2. Select `x64` and `Debug` or `Release`.
 3. Open **Test > Test Explorer**.
 4. Build the solution with **Build > Build Solution**.
-5. Confirm that 25 tests from seven suites are discovered.
+5. Confirm that 41 tests from 11 suites are discovered.
 6. Select **Run All Tests**.
-7. Verify that all 25 tests finish with a `Passed` verdict.
+7. Verify that all 41 tests finish with a `Passed` verdict.
 
 ## Reports
 
@@ -61,6 +63,26 @@ every individual case verdict. A contradiction stops the build.
 
 Reports are local artifacts excluded from Git. Attach them as execution evidence;
 do not commit them.
+
+## Stage C end-to-end regression
+
+Use the fixtures in `quality\manual-tests\stage-c\data` with the Debug CLI:
+
+```powershell
+$cli = '.\artifacts\bin\x64\Debug\ARTestCLI.exe'
+
+& $cli run '.\quality\manual-tests\stage-c\data\retry-success.json'
+& $cli run '.\quality\manual-tests\stage-c\data\timeout-stop.json'
+& $cli run '.\quality\manual-tests\stage-c\data\continue-on-failure.json'
+& $cli run '.\quality\manual-tests\stage-c\data\cleanup-failure.json'
+& $cli compile '.\quality\manual-tests\stage-c\data\invalid-policy.json'
+```
+
+Expected exit codes are `0`, `5`, `5`, `5`, and `3`, respectively. For the
+interactive cancellation case, run `cancel-cleanup.json`, wait until
+`Time.WaitMs` starts, and press Ctrl+C. The output must show `CANCELLING`, then
+`CLEANING_UP`, the fake power supply `Shutdown`, and final `CANCELLED`; the
+process returns `5`.
 
 ## Add a test
 

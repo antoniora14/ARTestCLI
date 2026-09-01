@@ -17,7 +17,7 @@ $resolvedXmlPath = (Resolve-Path -LiteralPath $XmlPath).Path
 [xml]$document = [System.IO.File]::ReadAllText($resolvedXmlPath)
 $root = $document.testsuites
 if ($null -eq $root) {
-    throw "El archivo no contiene un reporte Google Test valido: $resolvedXmlPath"
+    throw "The file does not contain a valid Google Test report: $resolvedXmlPath"
 }
 
 function Encode-Html([object]$value) {
@@ -46,7 +46,7 @@ $testResults = foreach ($suite in @($root.testsuite)) {
             'PASSED'
         }
         else {
-            throw "Veredicto Google Test desconocido para '$($suite.name).$($testCase.name)': status='$caseStatus', result='$caseResult'."
+            throw "Unknown Google Test verdict for '$($suite.name).$($testCase.name)': status='$caseStatus', result='$caseResult'."
         }
 
         $details = if ($failedNodes.Count -gt 0) {
@@ -83,13 +83,13 @@ $passed = @($testResults | Where-Object Status -eq 'PASSED').Count
 $reportedFailedTotal = $reportedFailures + $reportedErrors
 
 if ($tests -ne $reportedTests) {
-    throw "Reporte Google Test inconsistente: el XML declara $reportedTests casos, pero contiene $tests."
+    throw "Inconsistent Google Test report: the XML declares $reportedTests test cases but contains $tests."
 }
 if ($failures -ne $reportedFailedTotal) {
-    throw "Reporte Google Test inconsistente: el XML declara $reportedFailedTotal fallos/errores, pero los casos contienen $failures."
+    throw "Inconsistent Google Test report: the XML declares $reportedFailedTotal failures/errors but the test cases contain $failures."
 }
 if (($passed + $failures + $skipped) -ne $tests) {
-    throw "Reporte Google Test inconsistente: no fue posible asignar un veredicto unico a cada caso."
+    throw "Inconsistent Google Test report: a unique verdict could not be assigned to every test case."
 }
 
 $rows = foreach ($testResult in $testResults) {
@@ -113,7 +113,7 @@ if (-not $titleContext) {
 
 $html = @"
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -175,5 +175,5 @@ if ($outputDirectory) {
     $html,
     [System.Text.UTF8Encoding]::new($false))
 
-Write-Host "Reporte HTML generado: $([System.IO.Path]::GetFullPath($HtmlPath))"
-Write-Host "Consistencia validada: $tests casos, $passed aprobados, $failures fallidos, $skipped omitidos."
+Write-Host "HTML report generated: $([System.IO.Path]::GetFullPath($HtmlPath))"
+Write-Host "Consistency validated: $tests total, $passed passed, $failures failed, $skipped skipped."

@@ -2,11 +2,12 @@
 
 #include "ConsoleEventSink.h"
 #include "ConsoleExecutionControl.h"
+#include "ConsoleCancellationHandler.h"
 #include "../ARTestEngine.Core/Commands/BuiltIn/RegisterBuiltInCommands.h"
 #include "../ARTestEngine.Core/Commands/CommandRegistry.h"
 #include "../ARTestEngine.Core/Compilation/TestPlanCompiler.h"
 #include "../ARTestEngine.Core/Execution/ExecutionContext.h"
-#include "../ARTestEngine.Core/Execution/TestExecutor.h"
+#include "../ARTestEngine.Core/Execution/ExecutionSession.h"
 #include "../ARTestEngine.Core/Instruments/Fakes/RegisterFakeInstruments.h"
 #include "../ARTestEngine.Core/Instruments/InstrumentManager.h"
 #include "../ARTestEngine.Core/Instruments/InstrumentRegistry.h"
@@ -122,22 +123,34 @@ namespace artest::cli
                 return static_cast<int>(ExitCode::Success);
             }
 
-            auto initialization = instruments.InitializeAll();
-            if (!initialization.Succeeded())
-            {
-                PrintDiagnostics(initialization.diagnostics);
-                return static_cast<int>(ExitCode::InstrumentInitializationFailed);
-            }
-
             ConsoleExecutionControl control(
                 command == "debug",
                 std::move(breakpoints),
                 m_input,
                 m_output);
-            ExecutionContext context;
-            TestExecutor executor(eventSink);
-            const auto run = executor.Execute(*compiled.value, context, control);
-            return static_cast<int>(run.Succeeded() ? ExitCode::Success : ExitCode::ExecutionFailed);
+            ExecutionSession session(
+                std::move(*compiled.value),
+                instruments,
+                eventSink,
+                control);
+            const auto start = session.Start();
+            if (!start.Succeeded())
+            {
+                PrintDiagnostics(start.diagnostics);
+                return static_cast<int>(ExitCode::UnexpectedFailure);
+            }
+
+            ConsoleCancellationHandler cancellationHandler(session);
+            const auto run = session.Wait();
+            if (run.Succeeded())
+            {
+                return static_cast<int>(ExitCode::Success);
+            }
+            if (run.failureKind == RunFailureKind::Initialization)
+            {
+                return static_cast<int>(ExitCode::InstrumentInitializationFailed);
+            }
+            return static_cast<int>(ExitCode::ExecutionFailed);
         }
         catch (const std::invalid_argument& exception)
         {
@@ -167,6 +180,8 @@ namespace artest::cli
             << "  debug                   Pause before every step.\n"
             << "  break idx1 idx2 ...     Pause at zero-based command indices.\n"
             << "  help                    Display this help.\n\n"
+            << "During run, debug, or break, press Ctrl+C to request cooperative cancellation.\n"
+            << "The engine always attempts instrument cleanup before returning.\n\n"
             << "Examples:\n"
             << "  ARTestCLI compile source/Scripts/TestScript.json\n"
             << "  ARTestCLI run source/Scripts/TestScript.json\n"

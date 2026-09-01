@@ -58,6 +58,7 @@
     <ClCompile Include="InstrumentFactoryTests.cpp" />
     <ClCompile Include="CommandFactoryTests.cpp" />
     <ClCompile Include="ScriptExecutorTests.cpp" />
+    <ClCompile Include="StageCExecutionTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\source\ARTestEngine.Core\ARTestEngine.Core.vcxproj">

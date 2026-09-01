@@ -24,7 +24,7 @@ namespace artest
         [[nodiscard]] std::string GetId() const override;
         void SetId(std::string id) override;
         [[nodiscard]] OperationResult Initialize(const nlohmann::json& configuration) override;
-        void Shutdown() noexcept override;
+        [[nodiscard]] OperationResult Shutdown() override;
         [[nodiscard]] OperationResult SendMessage(
             int channel,
             std::uint32_t messageId,

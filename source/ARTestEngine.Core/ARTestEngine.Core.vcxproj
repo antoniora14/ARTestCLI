@@ -42,7 +42,10 @@
     <ClCompile Include="Commands\BuiltIn\WaitCommand.cpp" />
     <ClCompile Include="Commands\CommandRegistry.cpp" />
     <ClCompile Include="Compilation\TestPlanCompiler.cpp" />
+    <ClCompile Include="Execution\Cancellation.cpp" />
     <ClCompile Include="Execution\ExecutionContext.cpp" />
+    <ClCompile Include="Execution\ExecutionSession.cpp" />
+    <ClCompile Include="Execution\ExecutionStateMachine.cpp" />
     <ClCompile Include="Execution\TestExecutor.cpp" />
     <ClCompile Include="Instruments\Fakes\FakeCanDevice.cpp" />
     <ClCompile Include="Instruments\Fakes\FakePowerSupply.cpp" />
@@ -62,7 +65,10 @@
     <ClInclude Include="Commands\ICommand.h" />
     <ClInclude Include="Compilation\TestPlanCompiler.h" />
     <ClInclude Include="Diagnostics.h" />
+    <ClInclude Include="Execution\Cancellation.h" />
     <ClInclude Include="Execution\ExecutionContext.h" />
+    <ClInclude Include="Execution\ExecutionSession.h" />
+    <ClInclude Include="Execution\ExecutionStateMachine.h" />
     <ClInclude Include="Execution\ExecutionResult.h" />
     <ClInclude Include="Execution\IEventSink.h" />
     <ClInclude Include="Execution\IExecutionControl.h" />
@@ -76,6 +82,7 @@
     <ClInclude Include="Instruments\InstrumentRegistry.h" />
     <ClInclude Include="Instruments\IPowerSupply.h" />
     <ClInclude Include="Model\CompiledStep.h" />
+    <ClInclude Include="Model\ExecutionPolicy.h" />
     <ClInclude Include="Model\TestPlan.h" />
     <ClInclude Include="Parsing\JsonTestPlanParser.h" />
   </ItemGroup>

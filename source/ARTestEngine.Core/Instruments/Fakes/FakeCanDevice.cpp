@@ -44,13 +44,14 @@ namespace artest
         }
     }
 
-    void FakeCanDevice::Shutdown() noexcept
+    OperationResult FakeCanDevice::Shutdown()
     {
         if (m_initialized)
         {
             Publish("[CAN:" + m_id + "] Shutdown");
         }
         m_initialized = false;
+        return OperationResult::Success();
     }
 
     OperationResult FakeCanDevice::SendMessage(

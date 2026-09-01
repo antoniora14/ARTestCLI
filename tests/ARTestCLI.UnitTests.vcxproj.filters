@@ -14,5 +14,6 @@
     <ClCompile Include="InstrumentFactoryTests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="CommandFactoryTests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="ScriptExecutorTests.cpp"><Filter>Tests</Filter></ClCompile>
+    <ClCompile Include="StageCExecutionTests.cpp"><Filter>Tests</Filter></ClCompile>
   </ItemGroup>
 </Project>

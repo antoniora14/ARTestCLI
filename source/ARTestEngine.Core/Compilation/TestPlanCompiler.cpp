@@ -6,6 +6,8 @@
 
 namespace
 {
+    constexpr int MaximumAttempts = 100;
+
     void AppendDiagnostics(
         std::vector<artest::Diagnostic>& target,
         artest::OperationResult source,
@@ -60,6 +62,34 @@ namespace artest
                 continue;
             }
 
+            if (definition.policy.maxAttempts < 1 || definition.policy.maxAttempts > MaximumAttempts)
+            {
+                result.diagnostics.push_back({
+                    DiagnosticSeverity::Error,
+                    "COMMAND_POLICY_ATTEMPTS_INVALID",
+                    "maxAttempts must be between 1 and 100.",
+                    location + ":policy.maxAttempts"});
+                continue;
+            }
+            if (definition.policy.retryDelay.count() < 0)
+            {
+                result.diagnostics.push_back({
+                    DiagnosticSeverity::Error,
+                    "COMMAND_POLICY_RETRY_DELAY_INVALID",
+                    "retryDelayMs must be zero or greater.",
+                    location + ":policy.retryDelayMs"});
+                continue;
+            }
+            if (definition.policy.timeout.count() < 0)
+            {
+                result.diagnostics.push_back({
+                    DiagnosticSeverity::Error,
+                    "COMMAND_POLICY_TIMEOUT_INVALID",
+                    "timeoutMs must be zero or greater.",
+                    location + ":policy.timeoutMs"});
+                continue;
+            }
+
             std::shared_ptr<IInstrument> instrument;
             if (definition.instrumentId.has_value())
             {
@@ -110,7 +140,8 @@ namespace artest
                 compiledSteps.push_back({
                     definition.stepId,
                     definition.commandName,
-                    std::move(command)});
+                    std::move(command),
+                    definition.policy});
             }
             catch (const std::exception& exception)
             {

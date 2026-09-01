@@ -93,3 +93,51 @@ TEST(JsonTestPlanParserTests, RejectsOutOfRangeVersionsWithoutThrowing)
     ASSERT_FALSE(result.Succeeded());
     EXPECT_EQ(result.diagnostics.front().code, "SCRIPT_VERSION_UNSUPPORTED");
 }
+
+TEST(JsonTestPlanParserTests, ParsesOptionalStepExecutionPolicy)
+{
+    const auto result = JsonTestPlanParser{}.ParseText(R"({
+        "format":"ARTest.Script","version":1,"instruments":[],
+        "commands":[{
+            "stepId":1,"name":"Time.WaitMs","instrument":"NoInstrument",
+            "params":{"milliseconds":0},
+            "policy":{"maxAttempts":3,"retryDelayMs":25,"timeoutMs":500,"onFailure":"continue"}
+        }]
+    })");
+
+    ASSERT_TRUE(result.Succeeded());
+    const auto& policy = result.value->steps.front().policy;
+    EXPECT_EQ(policy.maxAttempts, 3);
+    EXPECT_EQ(policy.retryDelay.count(), 25);
+    EXPECT_EQ(policy.timeout.count(), 500);
+    EXPECT_EQ(policy.onFailure, FailureAction::Continue);
+}
+
+TEST(JsonTestPlanParserTests, LegacyStepsReceiveSafeDefaultPolicy)
+{
+    const auto result = JsonTestPlanParser{}.ParseText(R"({
+        "format":"ARTest.Script","version":1,"instruments":[],
+        "commands":[{"stepId":1,"name":"Time.WaitMs","instrument":"NoInstrument","params":{"milliseconds":0}}]
+    })");
+
+    ASSERT_TRUE(result.Succeeded());
+    const auto& policy = result.value->steps.front().policy;
+    EXPECT_EQ(policy.maxAttempts, 1);
+    EXPECT_EQ(policy.retryDelay.count(), 0);
+    EXPECT_EQ(policy.timeout.count(), 0);
+    EXPECT_EQ(policy.onFailure, FailureAction::Stop);
+}
+
+TEST(JsonTestPlanParserTests, RejectsInvalidPolicySchema)
+{
+    const auto result = JsonTestPlanParser{}.ParseText(R"({
+        "format":"ARTest.Script","version":1,"instruments":[],
+        "commands":[{
+            "stepId":1,"name":"Time.WaitMs","instrument":"NoInstrument","params":{"milliseconds":0},
+            "policy":{"onFailure":"ignore"}
+        }]
+    })");
+
+    ASSERT_FALSE(result.Succeeded());
+    EXPECT_EQ(result.diagnostics.front().code, "COMMAND_POLICY_SCHEMA_INVALID");
+}

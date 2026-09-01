@@ -113,8 +113,14 @@ namespace artest
         return OperationResult::Success();
     }
 
-    StepResult SendCanMessageCommand::Execute(ExecutionContext&)
+    StepResult SendCanMessageCommand::Execute(
+        ExecutionContext&,
+        const CancellationToken& cancellation)
     {
+        if (cancellation.Reason() != CancellationReason::None)
+        {
+            return cancellation.IsTimedOut() ? StepResult::Timeout() : StepResult::Cancel();
+        }
         if (!m_canDevice)
         {
             return StepResult::Error("The bound instrument is not a CAN device.");

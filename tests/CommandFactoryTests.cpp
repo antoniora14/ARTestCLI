@@ -128,3 +128,19 @@ TEST(RegistryTests, DuplicateRegistrationsAreRejected)
     EXPECT_FALSE(duplicate.Succeeded());
     EXPECT_EQ(duplicate.diagnostics.size(), 5U);
 }
+
+TEST(TestPlanCompilerTests, RejectsUnsafeExecutionPolicyValues)
+{
+    CompilerEnvironment environment;
+    TestPlan plan;
+    auto definition = Wait(1);
+    definition.policy.maxAttempts = 0;
+    definition.policy.retryDelay = std::chrono::milliseconds{-1};
+    plan.steps.push_back(std::move(definition));
+    ASSERT_TRUE(environment.instruments.LoadDefinitions({}).Succeeded());
+
+    const auto result = environment.compiler.Compile(plan);
+
+    ASSERT_FALSE(result.Succeeded());
+    EXPECT_EQ(result.diagnostics.front().code, "COMMAND_POLICY_ATTEMPTS_INVALID");
+}

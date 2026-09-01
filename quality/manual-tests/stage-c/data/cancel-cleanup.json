@@ -1,0 +1,41 @@
+{
+  "format": "ARTest.Script",
+  "version": 1,
+  "instruments": [
+    {
+      "type": "PowerSupply",
+      "id": "PS_CANCEL",
+      "config": {
+        "hw-rsrc": "FAKE::PS"
+      }
+    }
+  ],
+  "commands": [
+    {
+      "stepId": 1,
+      "name": "PowerSupply.TurnOn",
+      "instrument": "PS_CANCEL",
+      "params": {
+        "channel": 1,
+        "voltage": 12.0,
+        "currentLimit": 2.0
+      }
+    },
+    {
+      "stepId": 2,
+      "name": "Time.WaitMs",
+      "instrument": "NoInstrument",
+      "params": {
+        "milliseconds": 60000
+      }
+    },
+    {
+      "stepId": 3,
+      "name": "PowerSupply.TurnOff",
+      "instrument": "PS_CANCEL",
+      "params": {
+        "channel": 1
+      }
+    }
+  ]
+}

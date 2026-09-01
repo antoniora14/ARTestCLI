@@ -36,12 +36,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CliApplication.cpp" />
+    <ClCompile Include="ConsoleCancellationHandler.cpp" />
     <ClCompile Include="ConsoleEventSink.cpp" />
     <ClCompile Include="ConsoleExecutionControl.cpp" />
     <ClCompile Include="Program.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CliApplication.h" />
+    <ClInclude Include="ConsoleCancellationHandler.h" />
     <ClInclude Include="ConsoleEventSink.h" />
     <ClInclude Include="ConsoleExecutionControl.h" />
   </ItemGroup>

@@ -27,10 +27,15 @@ future command or instrument adapters.
 - Injectable command and instrument registries with explicit registration.
 - Structured engine events through `IEventSink`.
 - Fake power supply and CAN instruments for deterministic development and tests.
+- Validated execution state machine with asynchronous session ownership.
+- Cooperative Ctrl+C cancellation and per-step timeouts.
+- Per-step retry, retry-delay, and stop/continue failure policies.
+- Guaranteed reverse-order instrument cleanup with cleanup diagnostics.
+- Attempt-level, step-level, and aggregate execution reports.
 
 The current instrument implementations are deterministic fakes. Production
-hardware drivers, asynchronous cancellation, timeouts, parallel execution, and
-the final DLL plugin ABI remain later-stage work.
+hardware drivers, parallel execution, persistent report files, and the final
+DLL plugin ABI remain later-stage work.
 
 ## Requirements
 
@@ -147,6 +152,12 @@ Every script must use the canonical root object:
         "channel": 1,
         "voltage": 12.0,
         "currentLimit": 3.0
+      },
+      "policy": {
+        "maxAttempts": 3,
+        "retryDelayMs": 250,
+        "timeoutMs": 5000,
+        "onFailure": "stop"
       }
     }
   ]
@@ -157,6 +168,17 @@ The loader rejects malformed JSON, unsupported versions, files larger than
 4 MiB, duplicate identifiers, unknown commands, missing instrument bindings,
 and invalid command parameters. Validation is atomic: an invalid definition
 prevents the entire sequence from running.
+
+The optional `policy` object is backward compatible with existing version 1
+scripts. Its defaults are one attempt, no retry delay, no timeout, and stop on
+failure. `maxAttempts` must be from 1 through 100; delay and timeout values are
+non-negative milliseconds; `onFailure` is either `stop` or `continue`.
+
+Cancellation and timeout are cooperative. Commands receive a cancellation
+token and must observe it during long-running operations. The built-in wait
+command wakes immediately on cancellation or timeout. The engine does not
+detach command threads or forcibly terminate driver code because doing so could
+leave physical instruments in an unsafe state.
 
 ## Exit codes
 
@@ -185,16 +207,19 @@ The HTML generator is tested with synthetic passed, failed, and skipped cases.
 It also compares the aggregate Google Test counters with every individual test
 case. A contradictory report causes the build workflow to fail.
 
-The current Stage B baseline contains 25 tests across seven suites. See
+The current Stage C baseline contains 41 tests across 11 suites. See
 [TESTING.md](TESTING.md) for the regression procedure.
 
 ## Architecture and roadmap
 
-Stage B separates parsing, semantic compilation, and execution behind a
-console-independent `ARTestEngine.Core`. ARTestCLI is now a composition root and
-host adapter instead of the engine itself. Static self-registration was removed
-in favor of explicit, injectable registries.
+Stage C adds robust session execution on top of the Stage B boundaries.
+ARTestCLI remains a thin composition root and console adapter while
+`ARTestEngine.Core` owns state, policy evaluation, cancellation, reporting, and
+cleanup orchestration.
 
 See
 [Stage B - ARTestEngine.Core](docs/architecture/stage-b-engine-core.md)
 for the current architecture boundary, dependency rules, and deferred decisions.
+See also
+[Stage C - Robust execution](docs/architecture/stage-c-robust-execution.md)
+for the execution lifecycle, policy contract, and safety guarantees.

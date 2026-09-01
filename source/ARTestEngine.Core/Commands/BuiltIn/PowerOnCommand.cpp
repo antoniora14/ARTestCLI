@@ -63,8 +63,14 @@ namespace artest
         return OperationResult::Success();
     }
 
-    StepResult PowerOnCommand::Execute(ExecutionContext&)
+    StepResult PowerOnCommand::Execute(
+        ExecutionContext&,
+        const CancellationToken& cancellation)
     {
+        if (cancellation.Reason() != CancellationReason::None)
+        {
+            return cancellation.IsTimedOut() ? StepResult::Timeout() : StepResult::Cancel();
+        }
         if (!m_powerSupply)
         {
             return StepResult::Error("The bound instrument is not a PowerSupply.");
@@ -75,10 +81,18 @@ namespace artest
         {
             return ToStepResult(result);
         }
+        if (cancellation.Reason() != CancellationReason::None)
+        {
+            return cancellation.IsTimedOut() ? StepResult::Timeout() : StepResult::Cancel();
+        }
         result = m_powerSupply->SetCurrent(m_channel, m_currentLimit);
         if (!result.Succeeded())
         {
             return ToStepResult(result);
+        }
+        if (cancellation.Reason() != CancellationReason::None)
+        {
+            return cancellation.IsTimedOut() ? StepResult::Timeout() : StepResult::Cancel();
         }
         return ToStepResult(m_powerSupply->TurnOn(m_channel));
     }

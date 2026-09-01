@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ExecutionPolicy.h"
 #include "../Commands/ICommand.h"
 
 #include <cstdint>
@@ -13,5 +14,6 @@ namespace artest
         std::uint64_t stepId = 0;
         std::string commandName;
         std::unique_ptr<ICommand> command;
+        StepExecutionPolicy policy;
     };
 }

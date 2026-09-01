@@ -51,7 +51,7 @@ TEST(InstrumentManagerTests, InitializeAndShutdownAreExplicitAndObservable)
     EXPECT_TRUE(can->IsInitialized());
     EXPECT_EQ(sink.Count(EngineEventKind::InstrumentInitialized), 2U);
 
-    manager.ShutdownAll();
+    ASSERT_TRUE(manager.ShutdownAll().Succeeded());
     EXPECT_FALSE(power->IsInitialized());
     EXPECT_FALSE(can->IsInitialized());
     EXPECT_EQ(sink.Count(EngineEventKind::InstrumentShutdown), 2U);

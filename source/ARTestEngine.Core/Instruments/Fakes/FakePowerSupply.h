@@ -17,7 +17,7 @@ namespace artest
         [[nodiscard]] std::string GetId() const override;
         void SetId(std::string id) override;
         [[nodiscard]] OperationResult Initialize(const nlohmann::json& configuration) override;
-        void Shutdown() noexcept override;
+        [[nodiscard]] OperationResult Shutdown() override;
         [[nodiscard]] OperationResult TurnOn(int channel) override;
         [[nodiscard]] OperationResult TurnOff(int channel) override;
         [[nodiscard]] OperationResult SetVoltage(int channel, double voltage) override;
@@ -35,6 +35,8 @@ namespace artest
         IEventSink& m_eventSink;
         std::string m_id;
         bool m_initialized = false;
+        int m_remainingTurnOnFailures = 0;
+        bool m_failShutdown = false;
         std::unordered_map<int, bool> m_channelState;
         std::unordered_map<int, double> m_voltages;
         std::unordered_map<int, double> m_currentLimits;

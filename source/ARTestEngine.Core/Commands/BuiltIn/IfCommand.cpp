@@ -29,7 +29,7 @@ namespace artest
             "IF is reserved but is not implemented in script version 1.");
     }
 
-    StepResult IfCommand::Execute(ExecutionContext&)
+    StepResult IfCommand::Execute(ExecutionContext&, const CancellationToken&)
     {
         return StepResult::Error("IF execution is not implemented.");
     }

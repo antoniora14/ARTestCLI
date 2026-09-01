@@ -1,0 +1,40 @@
+{
+  "format": "ARTest.Script",
+  "version": 1,
+  "instruments": [
+    {
+      "type": "PowerSupply",
+      "id": "PS_RETRY",
+      "config": {
+        "hw-rsrc": "FAKE::PS",
+        "failTurnOnAttempts": 2
+      }
+    }
+  ],
+  "commands": [
+    {
+      "stepId": 1,
+      "name": "PowerSupply.TurnOn",
+      "instrument": "PS_RETRY",
+      "params": {
+        "channel": 1,
+        "voltage": 12.0,
+        "currentLimit": 2.0
+      },
+      "policy": {
+        "maxAttempts": 3,
+        "retryDelayMs": 10,
+        "timeoutMs": 500,
+        "onFailure": "stop"
+      }
+    },
+    {
+      "stepId": 2,
+      "name": "PowerSupply.TurnOff",
+      "instrument": "PS_RETRY",
+      "params": {
+        "channel": 1
+      }
+    }
+  ]
+}

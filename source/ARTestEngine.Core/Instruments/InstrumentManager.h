@@ -25,7 +25,7 @@ namespace artest
         [[nodiscard]] OperationResult LoadDefinitions(
             const std::vector<InstrumentDefinition>& definitions);
         [[nodiscard]] OperationResult InitializeAll();
-        void ShutdownAll() noexcept;
+        [[nodiscard]] OperationResult ShutdownAll();
         [[nodiscard]] std::shared_ptr<IInstrument> GetInstrument(const std::string& id) const;
 
     private:

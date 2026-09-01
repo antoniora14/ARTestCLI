@@ -4,6 +4,23 @@
 
 namespace artest::cli
 {
+    namespace
+    {
+        const char* StepStatusText(StepStatus status)
+        {
+            switch (status)
+            {
+            case StepStatus::Passed: return "PASSED";
+            case StepStatus::Failed: return "FAILED";
+            case StepStatus::Error: return "ERROR";
+            case StepStatus::Skipped: return "SKIPPED";
+            case StepStatus::Cancelled: return "CANCELLED";
+            case StepStatus::TimedOut: return "TIMED_OUT";
+            }
+            return "UNKNOWN";
+        }
+    }
+
     ConsoleEventSink::ConsoleEventSink(std::ostream& output, std::ostream& error) noexcept
         : m_output(output), m_error(error)
     {
@@ -21,16 +38,35 @@ namespace artest::cli
             case EngineEventKind::InstrumentOperation:
                 m_output << event.message << '\n';
                 break;
+            case EngineEventKind::RunStateChanged:
+                m_output << "[State] " << event.message << '\n';
+                break;
             case EngineEventKind::StepStarted:
                 m_output << "|> Executing step " << event.stepId.value_or(0)
                          << ": " << event.source << '\n';
                 break;
-            case EngineEventKind::StepCompleted:
-                if (event.stepStatus.has_value() && *event.stepStatus != StepStatus::Passed)
+            case EngineEventKind::StepAttemptStarted:
+                if (event.attempt.value_or(1) > 1)
                 {
-                    m_error << "Step " << event.stepId.value_or(0)
-                            << " failed: " << event.message << '\n';
+                    m_output << "   Attempt " << event.attempt.value() << '\n';
                 }
+                break;
+            case EngineEventKind::StepRetryScheduled:
+                m_output << "   Retry scheduled after attempt " << event.attempt.value_or(0)
+                         << " in " << event.duration.value_or(std::chrono::milliseconds{0}).count()
+                         << " ms\n";
+                break;
+            case EngineEventKind::StepCompleted:
+                m_output << "|< Step " << event.stepId.value_or(0) << ' '
+                         << StepStatusText(event.stepStatus.value_or(StepStatus::Error))
+                         << " | attempts=" << event.attempt.value_or(0)
+                         << " durationMs="
+                         << event.duration.value_or(std::chrono::milliseconds{0}).count();
+                if (!event.message.empty())
+                {
+                    m_output << " | " << event.message;
+                }
+                m_output << '\n';
                 break;
             case EngineEventKind::RunCompleted:
                 m_output << "\nExecution finished with " << event.message << ".\n";

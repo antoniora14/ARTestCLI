@@ -1,6 +1,7 @@
 #include "InstrumentManager.h"
 
 #include <exception>
+#include <iterator>
 #include <utility>
 
 namespace artest
@@ -12,7 +13,13 @@ namespace artest
 
     InstrumentManager::~InstrumentManager()
     {
-        ShutdownAll();
+        try
+        {
+            static_cast<void>(ShutdownAll());
+        }
+        catch (...)
+        {
+        }
     }
 
     OperationResult InstrumentManager::LoadDefinitions(
@@ -77,7 +84,7 @@ namespace artest
 
         if (result.Succeeded())
         {
-            ShutdownAll();
+            static_cast<void>(ShutdownAll());
             m_instruments = std::move(loaded);
         }
         return result;
@@ -142,13 +149,18 @@ namespace artest
 
         if (!result.Succeeded())
         {
-            ShutdownAll();
+            auto cleanup = ShutdownAll();
+            result.diagnostics.insert(
+                result.diagnostics.end(),
+                std::make_move_iterator(cleanup.diagnostics.begin()),
+                std::make_move_iterator(cleanup.diagnostics.end()));
         }
         return result;
     }
 
-    void InstrumentManager::ShutdownAll() noexcept
+    OperationResult InstrumentManager::ShutdownAll()
     {
+        OperationResult result;
         for (auto iterator = m_initializationOrder.rbegin();
              iterator != m_initializationOrder.rend();
              ++iterator)
@@ -161,10 +173,31 @@ namespace artest
 
             try
             {
-                entry->second.instrument->Shutdown();
+                auto shutdown = entry->second.instrument->Shutdown();
+                for (auto& diagnostic : shutdown.diagnostics)
+                {
+                    if (diagnostic.location.empty())
+                    {
+                        diagnostic.location = "instrument=" + entry->first;
+                    }
+                    result.diagnostics.push_back(std::move(diagnostic));
+                }
+            }
+            catch (const std::exception& exception)
+            {
+                result.diagnostics.push_back({
+                    DiagnosticSeverity::Error,
+                    "INSTRUMENT_SHUTDOWN_EXCEPTION",
+                    exception.what(),
+                    "instrument=" + entry->first});
             }
             catch (...)
             {
+                result.diagnostics.push_back({
+                    DiagnosticSeverity::Error,
+                    "INSTRUMENT_SHUTDOWN_EXCEPTION",
+                    "Unknown exception while shutting down the instrument.",
+                    "instrument=" + entry->first});
             }
             entry->second.initialized = false;
             m_eventSink.Publish({
@@ -174,6 +207,7 @@ namespace artest
                 "Instrument shut down."});
         }
         m_initializationOrder.clear();
+        return result;
     }
 
     std::shared_ptr<IInstrument> InstrumentManager::GetInstrument(const std::string& id) const

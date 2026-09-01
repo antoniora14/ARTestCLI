@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 
 function Assert-ReportCondition([bool]$condition, [string]$message) {
     if (-not $condition) {
-        throw "Fallo de regresion del generador HTML: $message"
+        throw "HTML report generator regression failure: $message"
     }
 }
 
@@ -38,11 +38,11 @@ try {
     & $generatorPath -XmlPath $mixedXmlPath -HtmlPath $mixedHtmlPath -Configuration Regression -Platform Synthetic | Out-Null
 
     $html = [System.IO.File]::ReadAllText($mixedHtmlPath)
-    Assert-ReportCondition ($html.Contains('Overall<strong class="failed">FAILED</strong>')) 'el veredicto general debe ser FAILED cuando existe un caso fallido.'
-    Assert-ReportCondition (([regex]::Matches($html, 'class="passed">PASSED</td>')).Count -eq 1) 'debe existir exactamente una fila PASSED.'
-    Assert-ReportCondition (([regex]::Matches($html, 'class="failed">FAILED</td>')).Count -eq 1) 'debe existir exactamente una fila FAILED.'
-    Assert-ReportCondition (([regex]::Matches($html, 'class="skipped">SKIPPED</td>')).Count -eq 1) 'debe existir exactamente una fila SKIPPED.'
-    Assert-ReportCondition ($html.Contains('Synthetic failure detail')) 'el detalle del fallo debe conservarse.'
+    Assert-ReportCondition ($html.Contains('Overall<strong class="failed">FAILED</strong>')) 'the overall verdict must be FAILED when any test case fails.'
+    Assert-ReportCondition (([regex]::Matches($html, 'class="passed">PASSED</td>')).Count -eq 1) 'exactly one PASSED row must be present.'
+    Assert-ReportCondition (([regex]::Matches($html, 'class="failed">FAILED</td>')).Count -eq 1) 'exactly one FAILED row must be present.'
+    Assert-ReportCondition (([regex]::Matches($html, 'class="skipped">SKIPPED</td>')).Count -eq 1) 'exactly one SKIPPED row must be present.'
+    Assert-ReportCondition ($html.Contains('Synthetic failure detail')) 'the failure details must be preserved.'
 
     $inconsistentXmlPath = Join-Path $temporaryDirectory 'inconsistent-results.xml'
     $inconsistentHtmlPath = Join-Path $temporaryDirectory 'inconsistent-results.html'
@@ -59,11 +59,11 @@ try {
         & $generatorPath -XmlPath $inconsistentXmlPath -HtmlPath $inconsistentHtmlPath -Configuration Regression -Platform Synthetic | Out-Null
     }
     catch {
-        $inconsistencyRejected = $_.Exception.Message -like '*inconsistente*'
+        $inconsistencyRejected = $_.Exception.Message -like '*Inconsistent*'
     }
 
-    Assert-ReportCondition $inconsistencyRejected 'un resumen que contradice los casos debe detener la generacion.'
-    Write-Host 'Validacion del generador HTML: PASSED (pass/fail/skip e inconsistencia).'
+    Assert-ReportCondition $inconsistencyRejected 'a summary that contradicts the test cases must stop report generation.'
+    Write-Host 'HTML report generator validation: PASSED (pass/fail/skip and inconsistency detection).'
 }
 finally {
     if ([System.IO.Directory]::Exists($temporaryDirectory)) {

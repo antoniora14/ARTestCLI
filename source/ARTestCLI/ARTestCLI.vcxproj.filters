@@ -8,11 +8,13 @@
     <ClCompile Include="CliApplication.cpp"><Filter>Application</Filter></ClCompile>
     <ClCompile Include="Program.cpp"><Filter>Application</Filter></ClCompile>
     <ClCompile Include="ConsoleEventSink.cpp"><Filter>Console</Filter></ClCompile>
+    <ClCompile Include="ConsoleCancellationHandler.cpp"><Filter>Console</Filter></ClCompile>
     <ClCompile Include="ConsoleExecutionControl.cpp"><Filter>Console</Filter></ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CliApplication.h"><Filter>Application</Filter></ClInclude>
     <ClInclude Include="ConsoleEventSink.h"><Filter>Console</Filter></ClInclude>
+    <ClInclude Include="ConsoleCancellationHandler.h"><Filter>Console</Filter></ClInclude>
     <ClInclude Include="ConsoleExecutionControl.h"><Filter>Console</Filter></ClInclude>
   </ItemGroup>
 </Project>

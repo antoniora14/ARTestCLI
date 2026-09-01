@@ -26,7 +26,7 @@ namespace
             return OperationResult::Success();
         }
         OperationResult Validate() const override { return OperationResult::Success(); }
-        StepResult Execute(ExecutionContext&) override
+        StepResult Execute(ExecutionContext&, const CancellationToken&) override
         {
             ++m_executionCount;
             if (m_throws)

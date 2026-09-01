@@ -1,7 +1,6 @@
 #include "WaitCommand.h"
 
 #include <chrono>
-#include <thread>
 
 namespace artest
 {
@@ -36,9 +35,16 @@ namespace artest
         return OperationResult::Success();
     }
 
-    StepResult WaitCommand::Execute(ExecutionContext&)
+    StepResult WaitCommand::Execute(
+        ExecutionContext&,
+        const CancellationToken& cancellation)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(m_milliseconds));
+        if (cancellation.WaitFor(std::chrono::milliseconds(m_milliseconds)))
+        {
+            return cancellation.Reason() == CancellationReason::TimedOut
+                ? StepResult::Timeout()
+                : StepResult::Cancel();
+        }
         return StepResult::Pass();
     }
 }

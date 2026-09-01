@@ -15,7 +15,10 @@ namespace artest
         InstrumentInitialized,
         InstrumentShutdown,
         InstrumentOperation,
+        RunStateChanged,
         StepStarted,
+        StepAttemptStarted,
+        StepRetryScheduled,
         StepCompleted,
         RunCompleted
     };
@@ -37,6 +40,8 @@ namespace artest
         std::optional<std::uint64_t> stepId;
         std::optional<StepStatus> stepStatus;
         std::optional<RunStatus> runStatus;
+        std::optional<std::size_t> attempt;
+        std::optional<std::chrono::milliseconds> duration;
     };
 
     class IEventSink

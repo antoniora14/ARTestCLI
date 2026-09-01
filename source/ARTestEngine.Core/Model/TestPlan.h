@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ExecutionPolicy.h"
 #include "../../ThirdParty/json.hpp"
 
 #include <cstdint>
@@ -22,6 +23,7 @@ namespace artest
         std::string commandName;
         std::optional<std::string> instrumentId;
         nlohmann::json parameters = nlohmann::json::object();
+        StepExecutionPolicy policy;
     };
 
     struct TestPlan

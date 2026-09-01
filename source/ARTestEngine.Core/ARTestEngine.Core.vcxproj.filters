@@ -20,6 +20,9 @@
     <ClCompile Include="Commands\CommandRegistry.cpp"><Filter>Commands</Filter></ClCompile>
     <ClCompile Include="Compilation\TestPlanCompiler.cpp"><Filter>Compilation</Filter></ClCompile>
     <ClCompile Include="Execution\ExecutionContext.cpp"><Filter>Execution</Filter></ClCompile>
+    <ClCompile Include="Execution\Cancellation.cpp"><Filter>Execution</Filter></ClCompile>
+    <ClCompile Include="Execution\ExecutionSession.cpp"><Filter>Execution</Filter></ClCompile>
+    <ClCompile Include="Execution\ExecutionStateMachine.cpp"><Filter>Execution</Filter></ClCompile>
     <ClCompile Include="Execution\TestExecutor.cpp"><Filter>Execution</Filter></ClCompile>
     <ClCompile Include="Instruments\Fakes\FakeCanDevice.cpp"><Filter>Instruments\Fakes</Filter></ClCompile>
     <ClCompile Include="Instruments\Fakes\FakePowerSupply.cpp"><Filter>Instruments\Fakes</Filter></ClCompile>
@@ -39,6 +42,9 @@
     <ClInclude Include="Commands\ICommand.h"><Filter>Commands</Filter></ClInclude>
     <ClInclude Include="Compilation\TestPlanCompiler.h"><Filter>Compilation</Filter></ClInclude>
     <ClInclude Include="Execution\ExecutionContext.h"><Filter>Execution</Filter></ClInclude>
+    <ClInclude Include="Execution\Cancellation.h"><Filter>Execution</Filter></ClInclude>
+    <ClInclude Include="Execution\ExecutionSession.h"><Filter>Execution</Filter></ClInclude>
+    <ClInclude Include="Execution\ExecutionStateMachine.h"><Filter>Execution</Filter></ClInclude>
     <ClInclude Include="Execution\ExecutionResult.h"><Filter>Execution</Filter></ClInclude>
     <ClInclude Include="Execution\IEventSink.h"><Filter>Execution</Filter></ClInclude>
     <ClInclude Include="Execution\IExecutionControl.h"><Filter>Execution</Filter></ClInclude>
@@ -52,6 +58,7 @@
     <ClInclude Include="Instruments\InstrumentRegistry.h"><Filter>Instruments</Filter></ClInclude>
     <ClInclude Include="Instruments\IPowerSupply.h"><Filter>Instruments</Filter></ClInclude>
     <ClInclude Include="Model\CompiledStep.h"><Filter>Model</Filter></ClInclude>
+    <ClInclude Include="Model\ExecutionPolicy.h"><Filter>Model</Filter></ClInclude>
     <ClInclude Include="Model\TestPlan.h"><Filter>Model</Filter></ClInclude>
     <ClInclude Include="Parsing\JsonTestPlanParser.h"><Filter>Parsing</Filter></ClInclude>
     <ClInclude Include="Diagnostics.h" />
