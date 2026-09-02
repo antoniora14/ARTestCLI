@@ -2,9 +2,9 @@
 
 ## Status
 
-Design baseline for the public boundary between `ARTestEngine.dll` and its host
+Implemented public boundary between `ARTestEngine.dll` and its host
 applications. It is separate from the extension ABI and has independent version
-negotiation. API/ABI `0.x` remains experimental through D1.
+negotiation. Engine API `0.2` remains experimental through D2.
 
 ## Decision
 
@@ -116,6 +116,11 @@ Compilation consumes an `ARTest.Script` payload, resolves catalog component IDs,
 validates schemas and bindings atomically, and returns either an immutable plan
 handle or structured diagnostics. It never initializes hardware.
 
+API 0.2 appends `compile_plan_detailed`. It returns a canonical
+`artest.schema.compile-result.v1` payload for both valid and invalid plans. A
+valid report includes a plan handle; an invalid report includes every available
+diagnostic and a null handle. Transport or ABI failures remain status codes.
+
 ### Event subscription
 
 ```text
@@ -141,6 +146,11 @@ destroy_session
 signals cooperative cancellation. `wait_session` supports a host wait timeout,
 which is distinct from a test-step timeout and does not cancel the run
 automatically.
+
+API 0.2 appends `start_session_controlled`. A size-versioned session-options
+structure contains a synchronous `before_step` callback. The callback receives
+only public POD data and returns Continue or Cancel. This supports CLI debug and
+breakpoints without exposing `IExecutionControl` or any Core C++ type.
 
 Destroying an active session first requests cancellation and waits according to
 the documented shutdown policy. Hosts should explicitly cancel and wait so that
@@ -217,3 +227,13 @@ Before implementing the Engine host table, D1 must define:
 6. Canonical JSON schemas for catalog, diagnostics, and run results.
 7. C/C++ layout fingerprints and warnings-as-errors compilation.
 8. A C++ facade used by ARTestCLI without exposing internal Engine classes.
+
+## D2 implementation status
+
+- `compile`, `run`, `debug`, `break`, and `extension-run` use EngineClient.
+- ARTestCLI has no project, header, or linker dependency on ARTestEngine.Core.
+- API 0.2 appends detailed compilation and controlled-session functions.
+- Hosts compiled for API 0.1 may still provide a 144-byte table; query writes
+  exactly that negotiated size and does not touch subsequent bytes.
+- The C++ facade owns callback lifetime and contains host exceptions.
+- MSBuild and Google Test enforce the thin-host dependency rule.

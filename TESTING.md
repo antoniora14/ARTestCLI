@@ -17,8 +17,12 @@ The `tests\ARTestCLI.UnitTests.vcxproj` project uses Google Test 1.18, is part o
 - `StageDExtensionTests.cpp`: ABI negotiation, manifest validation, native
   loading, command-to-driver services, host wait semantics, cancellation,
   cleanup override, handle ownership, and unload safety.
+- `StageDThinHostTests.cpp`: Engine API 0.1/0.2 compatibility, detailed
+  compilation, controlled sessions, and source-level dependency enforcement.
+- `CliThinHostTests.cpp`: compile, run, debug, break, validation, initialization
+  failure, cancellation, legacy output, and process exit-code contracts.
 
-The Stage D1 baseline contains 49 test cases across 14 suites.
+The Stage D2 baseline contains 61 test cases across 18 suites.
 
 ## Run from PowerShell
 
@@ -49,9 +53,33 @@ To compile without running tests:
 2. Select `x64` and `Debug` or `Release`.
 3. Open **Test > Test Explorer**.
 4. Build the solution with **Build > Build Solution**.
-5. Confirm that 49 tests from 14 suites are discovered.
+5. Confirm that 61 tests from 18 suites are discovered.
 6. Select **Run All Tests**.
-7. Verify that all 49 tests finish with a `Passed` verdict.
+7. Verify that all 61 tests finish with a `Passed` verdict.
+
+## Stage D2 thin-host boundary
+
+Every ARTestCLI build executes `scripts\verify-thin-host.ps1` before compilation.
+The build fails if a CLI source or project file references ARTestEngine.Core.
+Google Test independently checks the same dependency rule and executes every
+legacy command through `ARTestEngine.dll`.
+
+From the repository root, the supported command regression is:
+
+```powershell
+$cli = '.\artifacts\bin\x64\Release\ARTestCLI.exe'
+$script = '.\source\Scripts\TestScript.json'
+
+& $cli compile $script
+& $cli run $script
+& $cli debug $script
+& $cli break $script 1
+```
+
+For `debug`, enter `c` at the first prompt. For `break ... 1`, step 1 executes
+without a prompt and the CLI pauses at script step 2. All four commands must
+return 0. Invalid scripts retain exit code 3, initialization failures retain 4,
+and cancelled/failed executions retain 5.
 
 ## Stage D1 native vertical slice
 

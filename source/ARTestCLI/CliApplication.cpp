@@ -3,16 +3,8 @@
 #include "ConsoleEventSink.h"
 #include "ConsoleExecutionControl.h"
 #include "ConsoleCancellationHandler.h"
-#include "../ARTest.SDK/include/ARTestEngineClient.h"
-#include "../ARTestEngine.Core/Commands/BuiltIn/RegisterBuiltInCommands.h"
-#include "../ARTestEngine.Core/Commands/CommandRegistry.h"
-#include "../ARTestEngine.Core/Compilation/TestPlanCompiler.h"
-#include "../ARTestEngine.Core/Execution/ExecutionContext.h"
-#include "../ARTestEngine.Core/Execution/ExecutionSession.h"
-#include "../ARTestEngine.Core/Instruments/Fakes/RegisterFakeInstruments.h"
-#include "../ARTestEngine.Core/Instruments/InstrumentManager.h"
-#include "../ARTestEngine.Core/Instruments/InstrumentRegistry.h"
-#include "../ARTestEngine.Core/Parsing/JsonTestPlanParser.h"
+#include "ARTestEngineClient.h"
+#include "../ThirdParty/json.hpp"
 
 #include <exception>
 #include <filesystem>
@@ -20,7 +12,7 @@
 #include <istream>
 #include <ostream>
 #include <sstream>
-#include <unordered_set>
+#include <utility>
 
 namespace artest::cli
 {
@@ -50,55 +42,7 @@ namespace artest::cli
             }
             if (command == "extension-run")
             {
-                if (arguments.size() != 3)
-                {
-                    m_error << "Usage: ARTestCLI extension-run <script.json> <extensions-root>\n";
-                    return static_cast<int>(ExitCode::InvalidArguments);
-                }
-                std::ifstream input{std::filesystem::path{arguments[1]}, std::ios::binary};
-                if (!input)
-                {
-                    m_error << "The JSON script could not be opened.\n";
-                    return static_cast<int>(ExitCode::InvalidScript);
-                }
-                std::ostringstream content;
-                content << input.rdbuf();
-
-                sdk::EngineClient engine;
-                auto status = engine.Create();
-                if (status.Succeeded())
-                    status = engine.SubscribeEvents([this](std::string_view eventText)
-                    {
-                        const auto event = nlohmann::json::parse(eventText);
-                        m_output << "[Engine] " << event.value("source", std::string{})
-                                 << ": " << event.value("message", std::string{}) << '\n';
-                    });
-                if (status.Succeeded())
-                    status = engine.RefreshCatalog(arguments[2]);
-                if (status.Succeeded())
-                    status = engine.Compile(content.str());
-                if (status.Succeeded())
-                    status = engine.Start();
-                bool completed = false;
-                if (status.Succeeded())
-                {
-                    ConsoleCancellationHandler cancellationHandler(engine);
-                    status = engine.Wait(UINT32_MAX, completed);
-                }
-                std::string report;
-                if (status.Succeeded() && completed)
-                    status = engine.SerializeResult(report);
-                if (!status.Succeeded())
-                {
-                    m_error << "ARTestEngine failure [" << status.code
-                            << "]: " << status.message << '\n';
-                    return static_cast<int>(ExitCode::ExecutionFailed);
-                }
-                m_output << report << '\n';
-                const auto result = nlohmann::json::parse(report);
-                return result.value("status", std::string{}) == "passed"
-                    ? static_cast<int>(ExitCode::Success)
-                    : static_cast<int>(ExitCode::ExecutionFailed);
+                return RunExtensionCommand(arguments);
             }
             if (command != "compile" && command != "run" && command != "debug" && command != "break")
             {
@@ -131,81 +75,8 @@ namespace artest::cli
                 throw std::invalid_argument("Unexpected command-line arguments.");
             }
 
-            ConsoleEventSink eventSink(m_output, m_error);
-            CommandRegistry commandRegistry;
-            InstrumentRegistry instrumentRegistry;
-
-            auto registration = RegisterBuiltInCommands(commandRegistry);
-            if (!registration.Succeeded())
-            {
-                PrintDiagnostics(registration.diagnostics);
-                return static_cast<int>(ExitCode::UnexpectedFailure);
-            }
-            registration = RegisterFakeInstruments(instrumentRegistry);
-            if (!registration.Succeeded())
-            {
-                PrintDiagnostics(registration.diagnostics);
-                return static_cast<int>(ExitCode::UnexpectedFailure);
-            }
-
-            JsonTestPlanParser parser;
-            auto plan = parser.ParseFile(std::filesystem::path{arguments[1]});
-            if (!plan.Succeeded())
-            {
-                PrintDiagnostics(plan.diagnostics);
-                return static_cast<int>(ExitCode::InvalidScript);
-            }
-
-            InstrumentManager instruments(instrumentRegistry, eventSink);
-            auto definitions = instruments.LoadDefinitions(plan.value->instruments);
-            if (!definitions.Succeeded())
-            {
-                PrintDiagnostics(definitions.diagnostics);
-                return static_cast<int>(ExitCode::InvalidScript);
-            }
-
-            TestPlanCompiler compiler(commandRegistry, instruments);
-            auto compiled = compiler.Compile(*plan.value);
-            if (!compiled.Succeeded())
-            {
-                PrintDiagnostics(compiled.diagnostics);
-                return static_cast<int>(ExitCode::InvalidScript);
-            }
-
-            if (command == "compile")
-            {
-                m_output << "Valid script. No instruments were initialized.\n";
-                return static_cast<int>(ExitCode::Success);
-            }
-
-            ConsoleExecutionControl control(
-                command == "debug",
-                std::move(breakpoints),
-                m_input,
-                m_output);
-            ExecutionSession session(
-                std::move(*compiled.value),
-                instruments,
-                eventSink,
-                control);
-            const auto start = session.Start();
-            if (!start.Succeeded())
-            {
-                PrintDiagnostics(start.diagnostics);
-                return static_cast<int>(ExitCode::UnexpectedFailure);
-            }
-
-            ConsoleCancellationHandler cancellationHandler(session);
-            const auto run = session.Wait();
-            if (run.Succeeded())
-            {
-                return static_cast<int>(ExitCode::Success);
-            }
-            if (run.failureKind == RunFailureKind::Initialization)
-            {
-                return static_cast<int>(ExitCode::InstrumentInitializationFailed);
-            }
-            return static_cast<int>(ExitCode::ExecutionFailed);
+            return RunBuiltInCommand(
+                command, arguments[1], std::move(breakpoints));
         }
         catch (const std::invalid_argument& exception)
         {
@@ -222,6 +93,167 @@ namespace artest::cli
             m_error << "Unexpected non-standard failure.\n";
             return static_cast<int>(ExitCode::UnexpectedFailure);
         }
+    }
+
+    int CliApplication::RunExtensionCommand(
+        const std::vector<std::string>& arguments)
+    {
+        if (arguments.size() != 3)
+        {
+            m_error << "Usage: ARTestCLI extension-run <script.json> <extensions-root>\n";
+            return static_cast<int>(ExitCode::InvalidArguments);
+        }
+        std::string content;
+        if (!ReadScript(arguments[1], content))
+            return static_cast<int>(ExitCode::InvalidScript);
+
+        sdk::EngineClient engine;
+        auto status = engine.Create();
+        if (status.Succeeded())
+            status = engine.SubscribeEvents([this](std::string_view eventText)
+            {
+                const auto event = nlohmann::json::parse(eventText);
+                m_output << "[Engine] " << event.value("source", std::string{})
+                         << ": " << event.value("message", std::string{}) << '\n';
+            });
+        if (status.Succeeded()) status = engine.RefreshCatalog(arguments[2]);
+        if (status.Succeeded()) status = engine.Compile(content);
+        if (status.Succeeded()) status = engine.Start();
+        bool completed = false;
+        if (status.Succeeded())
+        {
+            ConsoleCancellationHandler cancellationHandler(engine);
+            status = engine.Wait(UINT32_MAX, completed);
+        }
+        std::string report;
+        if (status.Succeeded() && completed)
+            status = engine.SerializeResult(report);
+        if (!status.Succeeded())
+        {
+            PrintEngineFailure({}, status.code, status.message);
+            return static_cast<int>(ExitCode::ExecutionFailed);
+        }
+        m_output << report << '\n';
+        const auto result = nlohmann::json::parse(report);
+        return result.value("status", std::string{}) == "passed"
+            ? static_cast<int>(ExitCode::Success)
+            : static_cast<int>(ExitCode::ExecutionFailed);
+    }
+
+    int CliApplication::RunBuiltInCommand(
+        const std::string& command,
+        const std::string& scriptPath,
+        std::unordered_set<std::size_t> breakpoints)
+    {
+        std::string content;
+        if (!ReadScript(scriptPath, content))
+            return static_cast<int>(ExitCode::InvalidScript);
+
+        sdk::EngineClient engine;
+        auto status = engine.Create();
+        if (!status.Succeeded())
+        {
+            PrintEngineFailure("create", status.code, status.message);
+            return static_cast<int>(ExitCode::UnexpectedFailure);
+        }
+
+        ConsoleEventSink eventSink(m_output, m_error);
+        if (command != "compile")
+        {
+            status = engine.SubscribeEvents(
+                [&eventSink](std::string_view eventText)
+                {
+                    eventSink.Publish(eventText);
+                });
+            if (!status.Succeeded())
+            {
+                PrintEngineFailure("subscribe", status.code, status.message);
+                return static_cast<int>(ExitCode::UnexpectedFailure);
+            }
+        }
+
+        std::string compileReport;
+        status = engine.CompileDetailed(content, compileReport);
+        if (!status.Succeeded())
+        {
+            PrintEngineFailure("compile", status.code, status.message);
+            return static_cast<int>(ExitCode::UnexpectedFailure);
+        }
+        const auto compilation = nlohmann::json::parse(compileReport);
+        if (!compilation.value("valid", false))
+        {
+            PrintCompileDiagnostics(compileReport, scriptPath);
+            return static_cast<int>(ExitCode::InvalidScript);
+        }
+        if (command == "compile")
+        {
+            m_output << "Valid script. No instruments were initialized.\n";
+            return static_cast<int>(ExitCode::Success);
+        }
+
+        ConsoleExecutionControl control(
+            command == "debug",
+            std::move(breakpoints),
+            m_input,
+            m_output);
+        if (command == "debug" || command == "break")
+        {
+            status = engine.Start(
+                [&control](const sdk::StepExecutionInfo& step)
+                {
+                    return control.BeforeStep(step);
+                });
+        }
+        else
+        {
+            status = engine.Start();
+        }
+        if (!status.Succeeded())
+        {
+            PrintEngineFailure("start", status.code, status.message);
+            return static_cast<int>(ExitCode::UnexpectedFailure);
+        }
+
+        bool completed = false;
+        {
+            ConsoleCancellationHandler cancellationHandler(engine);
+            status = engine.Wait(UINT32_MAX, completed);
+        }
+        if (!status.Succeeded() || !completed)
+        {
+            PrintEngineFailure("wait", status.code, status.message);
+            return static_cast<int>(ExitCode::UnexpectedFailure);
+        }
+
+        std::string runReport;
+        status = engine.SerializeResult(runReport);
+        if (!status.Succeeded())
+        {
+            PrintEngineFailure("result", status.code, status.message);
+            return static_cast<int>(ExitCode::UnexpectedFailure);
+        }
+        const auto result = nlohmann::json::parse(runReport);
+        if (result.value("status", std::string{}) == "passed")
+            return static_cast<int>(ExitCode::Success);
+        if (result.value("failureKind", 4) == 1)
+            return static_cast<int>(ExitCode::InstrumentInitializationFailed);
+        return static_cast<int>(ExitCode::ExecutionFailed);
+    }
+
+    bool CliApplication::ReadScript(
+        const std::string& scriptPath,
+        std::string& content) const
+    {
+        std::ifstream input{std::filesystem::path{scriptPath}, std::ios::binary};
+        if (!input)
+        {
+            m_error << "The JSON script could not be opened.\n";
+            return false;
+        }
+        std::ostringstream buffer;
+        buffer << input.rdbuf();
+        content = std::move(buffer).str();
+        return true;
     }
 
     void CliApplication::PrintHelp() const
@@ -248,16 +280,31 @@ namespace artest::cli
             << "artifacts/extensions/x64/Release\n";
     }
 
-    void CliApplication::PrintDiagnostics(const std::vector<Diagnostic>& diagnostics) const
+    void CliApplication::PrintCompileDiagnostics(
+        std::string_view reportJson,
+        std::string_view scriptPath) const
     {
-        for (const auto& diagnostic : diagnostics)
+        const auto report = nlohmann::json::parse(reportJson);
+        for (const auto& diagnostic : report.at("diagnostics"))
         {
-            m_error << '[' << diagnostic.code << ']';
-            if (!diagnostic.location.empty())
+            m_error << '[' << diagnostic.value("code", std::string{"UNKNOWN"}) << ']';
+            auto location = diagnostic.value("location", std::string{});
+            if (location == "engine-api") location = scriptPath;
+            if (!location.empty())
             {
-                m_error << ' ' << diagnostic.location;
+                m_error << ' ' << location;
             }
-            m_error << ": " << diagnostic.message << '\n';
+            m_error << ": " << diagnostic.value("message", std::string{}) << '\n';
         }
+    }
+
+    void CliApplication::PrintEngineFailure(
+        std::string_view operation,
+        int code,
+        std::string_view message) const
+    {
+        m_error << "ARTestEngine";
+        if (!operation.empty()) m_error << ' ' << operation;
+        m_error << " failure [" << code << "]: " << message << '\n';
     }
 }

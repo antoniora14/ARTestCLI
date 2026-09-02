@@ -35,7 +35,7 @@
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\source;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\source;$(ProjectDir)..\source\ARTest.SDK\include;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
@@ -60,6 +60,12 @@
     <ClCompile Include="ScriptExecutorTests.cpp" />
     <ClCompile Include="StageCExecutionTests.cpp" />
     <ClCompile Include="StageDExtensionTests.cpp" />
+    <ClCompile Include="StageDThinHostTests.cpp" />
+    <ClCompile Include="CliThinHostTests.cpp" />
+    <ClCompile Include="..\source\ARTestCLI\CliApplication.cpp" />
+    <ClCompile Include="..\source\ARTestCLI\ConsoleCancellationHandler.cpp" />
+    <ClCompile Include="..\source\ARTestCLI\ConsoleEventSink.cpp" />
+    <ClCompile Include="..\source\ARTestCLI\ConsoleExecutionControl.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\source\ARTestEngine.Core\ARTestEngine.Core.vcxproj">

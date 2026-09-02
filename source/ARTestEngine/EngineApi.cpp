@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstring>
 #include <filesystem>
 #include <memory>
 #include <mutex>
@@ -18,6 +19,7 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 namespace
 {
@@ -112,6 +114,24 @@ namespace
             {"code", value.code},
             {"message", value.message},
             {"location", value.location}};
+    }
+
+    [[nodiscard]] nlohmann::json SerializeCompileResult(
+        bool valid,
+        std::size_t instrumentCount,
+        std::size_t stepCount,
+        const std::vector<artest::Diagnostic>& diagnostics)
+    {
+        nlohmann::json result{
+            {"schema", "artest.schema.compile-result.v1"},
+            {"valid", valid},
+            {"summary", {
+                {"instrumentDefinitions", instrumentCount},
+                {"steps", stepCount}}},
+            {"diagnostics", nlohmann::json::array()}};
+        for (const auto& diagnostic : diagnostics)
+            result["diagnostics"].push_back(SerializeDiagnostic(diagnostic));
+        return result;
     }
 
     [[nodiscard]] nlohmann::json SerializeResult(const artest::RunResult& value)
@@ -224,6 +244,63 @@ namespace
         std::uint64_t m_nextId = 1U;
     };
 
+    class HostExecutionControl final : public artest::IExecutionControl
+    {
+    public:
+        HostExecutionControl(
+            const ARTestSessionOptionsV0& options,
+            EventHub& events) noexcept
+            : m_options(options), m_events(events)
+        {
+        }
+
+        [[nodiscard]] artest::ExecutionDecision BeforeStep(
+            const artest::StepExecutionInfo& step) override
+        {
+            if (m_options.before_step == nullptr)
+                return artest::ExecutionDecision::Continue;
+
+            ARTestStepExecutionInfoV0 info{
+                sizeof(ARTestStepExecutionInfoV0),
+                0U,
+                static_cast<std::uint64_t>(step.commandIndex),
+                step.stepId,
+                View(step.commandName)};
+            ARTestExecutionDecision decision = ARTEST_EXECUTION_CONTINUE;
+            char errorText[1024]{};
+            ARTestErrorBuffer error{
+                sizeof(ARTestErrorBuffer), 0U,
+                errorText, sizeof(errorText), 0U};
+            const auto status = m_options.before_step(
+                m_options.control_context, &info, &decision, &error);
+            if (status == ARTEST_STATUS_OK
+                && (decision == ARTEST_EXECUTION_CONTINUE
+                    || decision == ARTEST_EXECUTION_CANCEL))
+            {
+                return decision == ARTEST_EXECUTION_CONTINUE
+                    ? artest::ExecutionDecision::Continue
+                    : artest::ExecutionDecision::Cancel;
+            }
+
+            const std::string message = status == ARTEST_STATUS_OK
+                ? "The host execution-control callback returned an invalid decision."
+                : errorText[0] == '\0'
+                    ? "The host execution-control callback failed."
+                    : std::string{errorText};
+            m_events.Publish({
+                artest::EngineEventKind::Diagnostic,
+                artest::EngineEventSeverity::Error,
+                "execution-control",
+                message,
+                step.stepId});
+            return artest::ExecutionDecision::Cancel;
+        }
+
+    private:
+        ARTestSessionOptionsV0 m_options{};
+        EventHub& m_events;
+    };
+
     struct EngineContext
     {
         EngineContext()
@@ -256,7 +333,7 @@ struct ARTestSessionOpaque
 {
     EngineContext* owner = nullptr;
     std::unique_ptr<artest::InstrumentManager> instruments;
-    artest::RunToCompletionControl control;
+    std::unique_ptr<artest::IExecutionControl> control;
     std::unique_ptr<artest::ExecutionSession> execution;
     std::optional<artest::RunResult> result;
     std::mutex mutex;
@@ -265,6 +342,54 @@ struct ARTestResultOpaque { artest::RunResult value; };
 
 namespace
 {
+    struct CompileAttempt
+    {
+        std::unique_ptr<ARTestCompiledPlanOpaque> plan;
+        std::vector<artest::Diagnostic> diagnostics;
+        std::size_t instrumentCount = 0U;
+        std::size_t stepCount = 0U;
+
+        [[nodiscard]] bool Succeeded() const noexcept
+        {
+            return plan != nullptr && !artest::ContainsErrors(diagnostics);
+        }
+    };
+
+    void AppendDiagnostics(
+        std::vector<artest::Diagnostic>& destination,
+        const std::vector<artest::Diagnostic>& source)
+    {
+        destination.insert(destination.end(), source.begin(), source.end());
+    }
+
+    [[nodiscard]] CompileAttempt CompileForEngine(
+        EngineContext& engine,
+        const ARTestPayloadView* payload)
+    {
+        CompileAttempt attempt;
+        artest::JsonTestPlanParser parser;
+        auto parsed = parser.ParseText(PayloadText(payload), "engine-api");
+        AppendDiagnostics(attempt.diagnostics, parsed.diagnostics);
+        if (!parsed.Succeeded()) return attempt;
+
+        attempt.instrumentCount = parsed.value->instruments.size();
+        attempt.stepCount = parsed.value->steps.size();
+        artest::InstrumentManager instruments{engine.instruments, engine.events};
+        auto definitions = instruments.LoadDefinitions(parsed.value->instruments);
+        AppendDiagnostics(attempt.diagnostics, definitions.diagnostics);
+        if (!definitions.Succeeded()) return attempt;
+
+        artest::TestPlanCompiler compiler{engine.commands, instruments};
+        auto compiled = compiler.Compile(*parsed.value);
+        AppendDiagnostics(attempt.diagnostics, compiled.diagnostics);
+        if (!compiled.Succeeded()) return attempt;
+
+        attempt.plan = std::make_unique<ARTestCompiledPlanOpaque>();
+        attempt.plan->owner = &engine;
+        attempt.plan->plan = std::move(*parsed.value);
+        return attempt;
+    }
+
     ARTestStatus ARTEST_ABI_CALL CreateEngine(
         const ARTestPayloadView* configuration,
         ARTestEngineHandle* output,
@@ -382,33 +507,57 @@ namespace
         }
         try
         {
-            artest::JsonTestPlanParser parser;
-            auto parsed = parser.ParseText(PayloadText(payload), "engine-api");
-            if (!parsed.Succeeded())
+            *output = nullptr;
+            auto attempt = CompileForEngine(*engine->value, payload);
+            if (!attempt.Succeeded())
             {
-                SetError(error, DiagnosticsText(parsed.diagnostics));
+                SetError(error, DiagnosticsText(attempt.diagnostics));
                 return ARTEST_STATUS_INVALID_ARGUMENT;
             }
-            artest::InstrumentManager instruments{
-                engine->value->instruments, engine->value->events};
-            auto definitions = instruments.LoadDefinitions(parsed.value->instruments);
-            if (!definitions.Succeeded())
-            {
-                SetError(error, DiagnosticsText(definitions.diagnostics));
-                return ARTEST_STATUS_INVALID_ARGUMENT;
-            }
-            artest::TestPlanCompiler compiler{
-                engine->value->commands, instruments};
-            auto compiled = compiler.Compile(*parsed.value);
-            if (!compiled.Succeeded())
-            {
-                SetError(error, DiagnosticsText(compiled.diagnostics));
-                return ARTEST_STATUS_INVALID_ARGUMENT;
-            }
-            auto handle = std::make_unique<ARTestCompiledPlanOpaque>();
-            handle->owner = engine->value.get();
-            handle->plan = std::move(*parsed.value);
-            *output = handle.release();
+            *output = attempt.plan.release();
+            return ARTEST_STATUS_OK;
+        }
+        catch (const std::invalid_argument& exception)
+        {
+            SetError(error, exception.what());
+            return ARTEST_STATUS_INVALID_ARGUMENT;
+        }
+        catch (const std::exception& exception)
+        {
+            SetError(error, exception.what());
+            return ARTEST_STATUS_INTERNAL_FAILURE;
+        }
+        catch (...)
+        {
+            SetError(error, "Unknown failure while compiling the plan.");
+            return ARTEST_STATUS_INTERNAL_FAILURE;
+        }
+    }
+
+    ARTestStatus ARTEST_ABI_CALL CompilePlanDetailed(
+        ARTestEngineHandle engine,
+        const ARTestPayloadView* payload,
+        ARTestCompiledPlanHandle* output,
+        const ARTestResultSinkV0* reportSink,
+        ARTestErrorBuffer* error)
+    {
+        if (engine == nullptr || output == nullptr)
+        {
+            SetError(error, "Engine and compiled-plan output handles are required.");
+            return ARTEST_STATUS_INVALID_ARGUMENT;
+        }
+        try
+        {
+            *output = nullptr;
+            auto attempt = CompileForEngine(*engine->value, payload);
+            const auto report = SerializeCompileResult(
+                attempt.Succeeded(),
+                attempt.instrumentCount,
+                attempt.stepCount,
+                attempt.diagnostics);
+            const auto writeStatus = WriteJson(report, reportSink, error);
+            if (writeStatus != ARTEST_STATUS_OK) return writeStatus;
+            if (attempt.Succeeded()) *output = attempt.plan.release();
             return ARTEST_STATUS_OK;
         }
         catch (const std::invalid_argument& exception)
@@ -470,22 +619,24 @@ namespace
         delete subscription;
     }
 
-    ARTestStatus ARTEST_ABI_CALL StartSession(
+    ARTestStatus StartSessionInternal(
         ARTestEngineHandle engine,
         ARTestCompiledPlanHandle plan,
+        std::unique_ptr<artest::IExecutionControl> control,
         ARTestSessionHandle* output,
         ARTestErrorBuffer* error)
     {
         if (engine == nullptr || plan == nullptr || output == nullptr
-            || plan->owner != engine->value.get())
+            || plan->owner != engine->value.get() || control == nullptr)
         {
-            SetError(error, "Engine and compiled plan handles are invalid or unrelated.");
+            SetError(error, "Engine, compiled plan, and execution control are invalid or unrelated.");
             return ARTEST_STATUS_INVALID_ARGUMENT;
         }
         try
         {
             auto session = std::make_unique<ARTestSessionOpaque>();
             session->owner = engine->value.get();
+            session->control = std::move(control);
             session->instruments = std::make_unique<artest::InstrumentManager>(
                 engine->value->instruments, engine->value->events);
             auto definitions =
@@ -505,7 +656,7 @@ namespace
             }
             session->execution = std::make_unique<artest::ExecutionSession>(
                 std::move(*compiled.value), *session->instruments,
-                engine->value->events, session->control);
+                engine->value->events, *session->control);
             auto started = session->execution->Start();
             if (!started.Succeeded())
             {
@@ -523,6 +674,58 @@ namespace
         catch (...)
         {
             SetError(error, "Unknown failure while starting the session.");
+            return ARTEST_STATUS_INTERNAL_FAILURE;
+        }
+    }
+
+    ARTestStatus ARTEST_ABI_CALL StartSession(
+        ARTestEngineHandle engine,
+        ARTestCompiledPlanHandle plan,
+        ARTestSessionHandle* output,
+        ARTestErrorBuffer* error)
+    {
+        try
+        {
+            return StartSessionInternal(
+                engine,
+                plan,
+                std::make_unique<artest::RunToCompletionControl>(),
+                output,
+                error);
+        }
+        catch (...)
+        {
+            SetError(error, "The run-to-completion control could not be created.");
+            return ARTEST_STATUS_INTERNAL_FAILURE;
+        }
+    }
+
+    ARTestStatus ARTEST_ABI_CALL StartSessionControlled(
+        ARTestEngineHandle engine,
+        ARTestCompiledPlanHandle plan,
+        const ARTestSessionOptionsV0* options,
+        ARTestSessionHandle* output,
+        ARTestErrorBuffer* error)
+    {
+        if (engine == nullptr || options == nullptr
+            || options->struct_size < sizeof(ARTestSessionOptionsV0)
+            || options->reserved != 0U || options->before_step == nullptr)
+        {
+            SetError(error, "Complete API 0.2 session options and a before-step callback are required.");
+            return ARTEST_STATUS_INVALID_ARGUMENT;
+        }
+        try
+        {
+            return StartSessionInternal(
+                engine,
+                plan,
+                std::make_unique<HostExecutionControl>(*options, engine->value->events),
+                output,
+                error);
+        }
+        catch (...)
+        {
+            SetError(error, "The host execution control could not be created.");
             return ARTEST_STATUS_INTERNAL_FAILURE;
         }
     }
@@ -676,9 +879,9 @@ extern "C" ARTEST_ENGINE_EXPORT ARTestStatus ARTEST_ABI_CALL
         ARTestEngineApiV0* api,
         ARTestErrorBuffer* error)
 {
-    if (api == nullptr || api->struct_size < sizeof(ARTestEngineApiV0))
+    if (api == nullptr)
     {
-        SetError(error, "A complete ARTestEngineApiV0 output table is required.");
+        SetError(error, "An ARTestEngineApiV0 output table is required.");
         return ARTEST_STATUS_INVALID_ARGUMENT;
     }
     if (requestedMajor != ARTEST_ENGINE_API_MAJOR
@@ -687,10 +890,19 @@ extern "C" ARTEST_ENGINE_EXPORT ARTestStatus ARTEST_ABI_CALL
         SetError(error, "The requested ARTestEngine API version is incompatible.");
         return ARTEST_STATUS_INCOMPATIBLE_ABI;
     }
-    *api = {
-        sizeof(ARTestEngineApiV0),
+    const auto negotiatedSize = requestedMinor >= 2U
+        ? static_cast<std::uint32_t>(sizeof(ARTestEngineApiV0))
+        : ARTEST_ENGINE_API_V0_1_SIZE;
+    if (api->struct_size < negotiatedSize)
+    {
+        SetError(error, "The Engine API output table is smaller than the requested minor version.");
+        return ARTEST_STATUS_INVALID_ARGUMENT;
+    }
+
+    ARTestEngineApiV0 table{
+        negotiatedSize,
         ARTEST_ENGINE_API_MAJOR,
-        ARTEST_ENGINE_API_MINOR,
+        requestedMinor,
         0U,
         &CreateEngine,
         &DestroyEngine,
@@ -707,6 +919,13 @@ extern "C" ARTEST_ENGINE_EXPORT ARTestStatus ARTEST_ABI_CALL
         &GetSessionResult,
         &DestroySession,
         &SerializeRunResult,
-        &DestroyRunResult};
+        &DestroyRunResult,
+        &CompilePlanDetailed,
+        &StartSessionControlled};
+    const auto callerSize = api->struct_size;
+    const auto clearSize = (std::min)(
+        static_cast<std::size_t>(callerSize), sizeof(ARTestEngineApiV0));
+    std::memset(api, 0, clearSize);
+    std::memcpy(api, &table, negotiatedSize);
     return ARTEST_STATUS_OK;
 }

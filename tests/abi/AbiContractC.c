@@ -3,7 +3,9 @@
 #if UINTPTR_MAX == UINT64_MAX
 _Static_assert(sizeof(ARTestStringView) == 16, "Unexpected string-view layout.");
 _Static_assert(sizeof(ARTestExtensionApiV0) == 104, "Unexpected extension API layout.");
-_Static_assert(sizeof(ARTestEngineApiV0) == 144, "Unexpected Engine API layout.");
+_Static_assert(sizeof(ARTestStepExecutionInfoV0) == 40, "Unexpected step-info layout.");
+_Static_assert(sizeof(ARTestSessionOptionsV0) == 24, "Unexpected session-options layout.");
+_Static_assert(sizeof(ARTestEngineApiV0) == 160, "Unexpected Engine API layout.");
 #endif
 
 int ARTestAbi_CLayoutFingerprint(void)

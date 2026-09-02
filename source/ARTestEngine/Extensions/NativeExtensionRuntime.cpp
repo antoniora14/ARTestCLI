@@ -327,6 +327,7 @@ namespace artest::extensions
         {
             if (!m_implementation->modules.empty())
                 return OperationResult::Failure("EXTENSION_CATALOG_ALREADY_LOADED", "D1 catalogs are immutable after the first successful refresh.");
+
             const auto root = std::filesystem::weakly_canonical(approvedRoot);
             if (!std::filesystem::is_directory(root))
                 return OperationResult::Failure("EXTENSION_ROOT_INVALID", "The approved extension root is not a directory.", root.string());
@@ -379,9 +380,7 @@ namespace artest::extensions
                 }
 
                 const auto packageRoot = std::filesystem::weakly_canonical(entry.path());
-                const auto libraryPath = std::filesystem::weakly_canonical(
-                    packageRoot / std::filesystem::path{
-                        runtime.value("entry", std::string{})});
+                const auto libraryPath = std::filesystem::weakly_canonical(packageRoot / std::filesystem::path{ runtime.value("entry", std::string{})});
 
                 if (!IsContained(packageRoot, libraryPath) || !std::filesystem::is_regular_file(libraryPath))
                 {
@@ -405,8 +404,8 @@ namespace artest::extensions
                         "LoadLibrary failed for the extension entry.", libraryPath.string()});
                     continue;
                 }
-                const auto query = reinterpret_cast<ARTestExtensionQueryFn>(
-                    GetProcAddress(module->library, "ARTestExtension_Query"));
+
+                const auto query = reinterpret_cast<ARTestExtensionQueryFn>(GetProcAddress(module->library, "ARTestExtension_Query"));
                 if (query == nullptr)
                 {
                     result.diagnostics.push_back({
@@ -417,9 +416,7 @@ namespace artest::extensions
 
                 module->api.struct_size = sizeof(ARTestExtensionApiV0);
                 ErrorStorage queryError;
-                auto status = query(
-                    ARTEST_EXTENSION_ABI_MAJOR, ARTEST_EXTENSION_ABI_MINOR,
-                    &module->api, &queryError.buffer);
+                auto status = query(ARTEST_EXTENSION_ABI_MAJOR, ARTEST_EXTENSION_ABI_MINOR,&module->api, &queryError.buffer);
                 if (status != ARTEST_STATUS_OK
                     || module->api.abi_major != ARTEST_EXTENSION_ABI_MAJOR
                     || module->api.abi_minor > ARTEST_EXTENSION_ABI_MINOR
@@ -447,9 +444,7 @@ namespace artest::extensions
 
                 const auto manifestPayload = JsonPayload(module->manifestText);
                 ErrorStorage createError;
-                status = module->api.create_extension(
-                    &m_implementation->hostApi, &manifestPayload,
-                    &module->extension, &createError.buffer);
+                status = module->api.create_extension(&m_implementation->hostApi, &manifestPayload, &module->extension, &createError.buffer);
                 if (status != ARTEST_STATUS_OK || module->extension == nullptr)
                 {
                     result.diagnostics.push_back({
@@ -459,8 +454,7 @@ namespace artest::extensions
                     continue;
                 }
 
-                const auto count =
-                    module->api.get_component_type_count(module->extension);
+                const auto count = module->api.get_component_type_count(module->extension);
                 if (count != manifest["components"].size())
                 {
                     result.diagnostics.push_back({
@@ -470,14 +464,14 @@ namespace artest::extensions
                         manifestPath.string()});
                     continue;
                 }
+
                 bool descriptorFailure = false;
                 for (std::size_t index = 0; index < count; ++index)
                 {
                     ARTestComponentDescriptorV0 descriptor{};
                     descriptor.struct_size = sizeof(descriptor);
                     ErrorStorage descriptorError;
-                    status = module->api.get_component_descriptor(
-                        module->extension, index, &descriptor, &descriptorError.buffer);
+                    status = module->api.get_component_descriptor(module->extension, index, &descriptor, &descriptorError.buffer);
                     const auto& declared = manifest["components"][index];
                     ComponentRecord record{
                         ParseKind(declared.value("kind", std::string{})),
@@ -522,8 +516,7 @@ namespace artest::extensions
                     }
                     const auto typeKey = record.typeId;
                     module->components.push_back(record);
-                    types.emplace(
-                        typeKey, std::make_pair(module, std::move(record)));
+                    types.emplace(typeKey, std::make_pair(module, std::move(record)));
                 }
                 if (!descriptorFailure) loaded.push_back(std::move(module));
             }
@@ -532,6 +525,7 @@ namespace artest::extensions
                 return OperationResult::Failure(
                     "EXTENSION_CATALOG_EMPTY",
                     "No valid extension packages were found.", root.string());
+
             m_implementation->modules = std::move(loaded);
             m_implementation->types = std::move(types);
             m_implementation->eventSink.Publish({
@@ -550,22 +544,16 @@ namespace artest::extensions
     OperationResult NativeExtensionRuntime::RegisterComponents(CommandRegistry& commands, InstrumentRegistry& instruments)
     {
         if (m_implementation->registered)
-            return OperationResult::Failure(
-                "EXTENSION_COMPONENTS_ALREADY_REGISTERED",
-                "Extension components were already registered.");
+            return OperationResult::Failure("EXTENSION_COMPONENTS_ALREADY_REGISTERED","Extension components were already registered.");
+
         OperationResult result;
         const auto self = shared_from_this();
         for (const auto& [typeId, entry] : m_implementation->types)
         {
-            if ((entry.second.kind == ARTEST_COMPONENT_KIND_COMMAND
-                    && commands.Contains(typeId))
-                || (entry.second.kind == ARTEST_COMPONENT_KIND_INSTRUMENT_DRIVER
-                    && instruments.Contains(typeId)))
+            if ((entry.second.kind == ARTEST_COMPONENT_KIND_COMMAND && commands.Contains(typeId))
+                || (entry.second.kind == ARTEST_COMPONENT_KIND_INSTRUMENT_DRIVER && instruments.Contains(typeId)))
             {
-                return OperationResult::Failure(
-                    "EXTENSION_COMPONENT_DUPLICATE",
-                    "The component type conflicts with an existing registration.",
-                    typeId);
+                return OperationResult::Failure("EXTENSION_COMPONENT_DUPLICATE", "The component type conflicts with an existing registration.", typeId);
             }
         }
         for (const auto& [typeId, entry] : m_implementation->types)
@@ -585,10 +573,7 @@ namespace artest::extensions
                     return std::make_unique<NativeInstrumentAdapter>(self, typeId);
                 });
             }
-            if (!registration.Succeeded())
-                result.diagnostics.insert(
-                    result.diagnostics.end(),
-                    registration.diagnostics.begin(), registration.diagnostics.end());
+            if (!registration.Succeeded()) result.diagnostics.insert(result.diagnostics.end(),registration.diagnostics.begin(), registration.diagnostics.end());
         }
         if (result.Succeeded()) m_implementation->registered = true;
         return result;
@@ -602,8 +587,10 @@ namespace artest::extensions
                 {"major", ARTEST_EXTENSION_ABI_MAJOR},
                 {"minor", ARTEST_EXTENSION_ABI_MINOR}}},
             {"extensions", nlohmann::json::array()}};
+
         for (const auto& module : m_implementation->modules)
             snapshot["extensions"].push_back(module->manifest);
+
         return snapshot;
     }
 
@@ -620,15 +607,15 @@ namespace artest::extensions
         }
         const auto text = configuration.dump();
         const auto payload = JsonPayload(text);
+
         ARTestComponentHandle handle = nullptr;
         ErrorStorage error;
         ARTestStatus status;
         {
             std::scoped_lock lock{found->second.first->invocationMutex};
-            status = found->second.first->api.create_component(
-                found->second.first->extension, View(typeId),
-                &payload, &handle, &error.buffer);
+            status = found->second.first->api.create_component(found->second.first->extension, View(typeId), &payload, &handle, &error.buffer);
         }
+
         if (status != ARTEST_STATUS_OK || handle == nullptr)
         {
             result.diagnostics.push_back({
@@ -637,8 +624,8 @@ namespace artest::extensions
                 error.Message("The extension component could not be created."), typeId});
             return result;
         }
-        result.value = std::make_shared<NativeComponentInstance>(
-            found->second.first, found->second.second, handle);
+
+        result.value = std::make_shared<NativeComponentInstance>(found->second.first, found->second.second, handle);
         return result;
     }
 

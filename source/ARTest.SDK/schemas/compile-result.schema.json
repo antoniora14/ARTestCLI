@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://artest.dev/schemas/compile-result-v1.schema.json",
+  "title": "ARTest compile result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "valid", "summary", "diagnostics"],
+  "properties": {
+    "schema": { "const": "artest.schema.compile-result.v1" },
+    "valid": { "type": "boolean" },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["instrumentDefinitions", "steps"],
+      "properties": {
+        "instrumentDefinitions": { "type": "integer", "minimum": 0 },
+        "steps": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "code", "message", "location"],
+        "properties": {
+          "severity": { "enum": ["information", "warning", "error"] },
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "location": { "type": "string" }
+        }
+      }
+    }
+  }
+}

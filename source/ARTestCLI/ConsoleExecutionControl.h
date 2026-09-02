@@ -1,13 +1,13 @@
 #pragma once
 
-#include "../ARTestEngine.Core/Execution/IExecutionControl.h"
+#include "ARTestEngineClient.h"
 
 #include <iosfwd>
 #include <unordered_set>
 
 namespace artest::cli
 {
-    class ConsoleExecutionControl final : public IExecutionControl
+    class ConsoleExecutionControl final
     {
     public:
         ConsoleExecutionControl(
@@ -16,7 +16,8 @@ namespace artest::cli
             std::istream& input,
             std::ostream& output) noexcept;
 
-        [[nodiscard]] ExecutionDecision BeforeStep(const StepExecutionInfo& step) override;
+        [[nodiscard]] sdk::ExecutionDecision BeforeStep(
+            const sdk::StepExecutionInfo& step);
 
     private:
         bool m_stepByStep;

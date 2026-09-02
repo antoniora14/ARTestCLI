@@ -18,11 +18,12 @@ namespace artest::cli
     {
     }
 
-    ExecutionDecision ConsoleExecutionControl::BeforeStep(const StepExecutionInfo& step)
+    sdk::ExecutionDecision ConsoleExecutionControl::BeforeStep(
+        const sdk::StepExecutionInfo& step)
     {
         if (!m_stepByStep && !m_breakpoints.contains(step.commandIndex))
         {
-            return ExecutionDecision::Continue;
+            return sdk::ExecutionDecision::Continue;
         }
 
         while (true)
@@ -33,21 +34,21 @@ namespace artest::cli
             std::string answer;
             if (!std::getline(m_input, answer))
             {
-                return ExecutionDecision::Cancel;
+                return sdk::ExecutionDecision::Cancel;
             }
             if (answer == "n" || answer == "N")
             {
                 m_stepByStep = true;
-                return ExecutionDecision::Continue;
+                return sdk::ExecutionDecision::Continue;
             }
             if (answer == "c" || answer == "C")
             {
                 m_stepByStep = false;
-                return ExecutionDecision::Continue;
+                return sdk::ExecutionDecision::Continue;
             }
             if (answer == "q" || answer == "Q")
             {
-                return ExecutionDecision::Cancel;
+                return sdk::ExecutionDecision::Cancel;
             }
             m_output << "Invalid option. Enter 'n', 'c', or 'q'.\n";
         }

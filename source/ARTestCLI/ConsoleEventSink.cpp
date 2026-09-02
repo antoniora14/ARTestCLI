@@ -1,23 +1,25 @@
 #include "ConsoleEventSink.h"
 
+#include "ARTestEngineApi.h"
+#include "../ThirdParty/json.hpp"
+
+#include <cctype>
+#include <cstdint>
 #include <ostream>
+#include <string>
 
 namespace artest::cli
 {
     namespace
     {
-        const char* StepStatusText(StepStatus status)
+        std::string StepStatusText(const nlohmann::json& event)
         {
-            switch (status)
-            {
-            case StepStatus::Passed: return "PASSED";
-            case StepStatus::Failed: return "FAILED";
-            case StepStatus::Error: return "ERROR";
-            case StepStatus::Skipped: return "SKIPPED";
-            case StepStatus::Cancelled: return "CANCELLED";
-            case StepStatus::TimedOut: return "TIMED_OUT";
-            }
-            return "UNKNOWN";
+            auto value = event.value("stepStatus", std::string{"error"});
+            if (value == "timedOut") return "TIMED_OUT";
+            for (auto& character : value)
+                character = static_cast<char>(std::toupper(
+                    static_cast<unsigned char>(character)));
+            return value;
         }
     }
 
@@ -26,59 +28,68 @@ namespace artest::cli
     {
     }
 
-    void ConsoleEventSink::Publish(const EngineEvent& event) noexcept
+    void ConsoleEventSink::Publish(std::string_view eventJson) noexcept
     {
         try
         {
-            switch (event.kind)
+            const auto event = nlohmann::json::parse(eventJson);
+            const auto kind = event.value(
+                "kind", static_cast<std::uint32_t>(ARTEST_ENGINE_EVENT_DIAGNOSTIC));
+            const auto source = event.value("source", std::string{});
+            const auto message = event.value("message", std::string{});
+            switch (kind)
             {
-            case EngineEventKind::Diagnostic:
-                m_error << "[" << event.source << "]: " << event.message << '\n';
+            case ARTEST_ENGINE_EVENT_DIAGNOSTIC:
+                m_error << '[' << source << "]: " << message << '\n';
                 break;
-            case EngineEventKind::InstrumentOperation:
-                m_output << event.message << '\n';
+            case ARTEST_ENGINE_EVENT_INSTRUMENT_OPERATION:
+                m_output << message << '\n';
                 break;
-            case EngineEventKind::RunStateChanged:
-                m_output << "[State] " << event.message << '\n';
+            case ARTEST_ENGINE_EVENT_RUN_STATE_CHANGED:
+                m_output << "[State] " << message << '\n';
                 break;
-            case EngineEventKind::StepStarted:
-                m_output << "|> Executing step " << event.stepId.value_or(0)
-                         << ": " << event.source << '\n';
+            case ARTEST_ENGINE_EVENT_STEP_STARTED:
+                m_output << "|> Executing step " << event.value("stepId", 0U)
+                         << ": " << source << '\n';
                 break;
-            case EngineEventKind::StepAttemptStarted:
-                if (event.attempt.value_or(1) > 1)
+            case ARTEST_ENGINE_EVENT_STEP_ATTEMPT_STARTED:
+                if (event.value("attempt", 1U) > 1U)
                 {
-                    m_output << "   Attempt " << event.attempt.value() << '\n';
+                    m_output << "   Attempt " << event.value("attempt", 1U) << '\n';
                 }
                 break;
-            case EngineEventKind::StepRetryScheduled:
-                m_output << "   Retry scheduled after attempt " << event.attempt.value_or(0)
-                         << " in " << event.duration.value_or(std::chrono::milliseconds{0}).count()
+            case ARTEST_ENGINE_EVENT_STEP_RETRY_SCHEDULED:
+                m_output << "   Retry scheduled after attempt " << event.value("attempt", 0U)
+                         << " in " << event.value("durationMs", 0LL)
                          << " ms\n";
                 break;
-            case EngineEventKind::StepCompleted:
-                m_output << "|< Step " << event.stepId.value_or(0) << ' '
-                         << StepStatusText(event.stepStatus.value_or(StepStatus::Error))
-                         << " | attempts=" << event.attempt.value_or(0)
-                         << " durationMs="
-                         << event.duration.value_or(std::chrono::milliseconds{0}).count();
-                if (!event.message.empty())
+            case ARTEST_ENGINE_EVENT_STEP_COMPLETED:
+                m_output << "|< Step " << event.value("stepId", 0U) << ' '
+                         << StepStatusText(event)
+                         << " | attempts=" << event.value("attempt", 0U)
+                         << " durationMs=" << event.value("durationMs", 0LL);
+                if (!message.empty())
                 {
-                    m_output << " | " << event.message;
+                    m_output << " | " << message;
                 }
                 m_output << '\n';
                 break;
-            case EngineEventKind::RunCompleted:
-                m_output << "\nExecution finished with " << event.message << ".\n";
+            case ARTEST_ENGINE_EVENT_RUN_COMPLETED:
+                m_output << "\nExecution finished with " << message << ".\n";
                 break;
-            case EngineEventKind::InstrumentInitializing:
-            case EngineEventKind::InstrumentInitialized:
-            case EngineEventKind::InstrumentShutdown:
+            case ARTEST_ENGINE_EVENT_INSTRUMENT_INITIALIZING:
+            case ARTEST_ENGINE_EVENT_INSTRUMENT_INITIALIZED:
+            case ARTEST_ENGINE_EVENT_INSTRUMENT_SHUTDOWN:
                 break;
             }
         }
         catch (...)
         {
+            try
+            {
+                m_error << "[ENGINE_EVENT_INVALID]: The Engine emitted an invalid event payload.\n";
+            }
+            catch (...) {}
         }
     }
 }

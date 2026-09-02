@@ -27,7 +27,7 @@
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir)..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\ARTest.SDK\include;$(ProjectDir)..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
@@ -49,13 +49,13 @@
     <ClInclude Include="..\ARTest.SDK\include\ARTestEngineClient.h" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ARTestEngine.Core\ARTestEngine.Core.vcxproj">
-      <Project>{A6B573A1-3A58-4F46-91C0-D2F2EAB65930}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\ARTestEngine\ARTestEngine.vcxproj">
       <Project>{D47C2447-5B74-4CC8-B915-D73FD7BE85CB}</Project>
     </ProjectReference>
   </ItemGroup>
+  <Target Name="VerifyThinHostBoundary" BeforeTargets="PrepareForBuild">
+    <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(ProjectDir)..\..\scripts\verify-thin-host.ps1&quot; -ProjectDirectory &quot;$(MSBuildProjectDirectory)&quot;" />
+  </Target>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
 </Project>

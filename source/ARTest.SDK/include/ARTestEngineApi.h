@@ -10,7 +10,8 @@
 #endif
 
 #define ARTEST_ENGINE_API_MAJOR UINT32_C(0)
-#define ARTEST_ENGINE_API_MINOR UINT32_C(1)
+#define ARTEST_ENGINE_API_MINOR UINT32_C(2)
+#define ARTEST_ENGINE_API_V0_1_SIZE ((uint32_t)144)
 
 typedef struct ARTestEngineOpaque* ARTestEngineHandle;
 typedef struct ARTestCompiledPlanOpaque* ARTestCompiledPlanHandle;
@@ -29,8 +30,45 @@ typedef uint32_t ARTestSessionState;
 #define ARTEST_SESSION_CANCELLED UINT32_C(7)
 #define ARTEST_SESSION_TIMED_OUT UINT32_C(8)
 
+typedef uint32_t ARTestEngineEventKind;
+#define ARTEST_ENGINE_EVENT_DIAGNOSTIC UINT32_C(0)
+#define ARTEST_ENGINE_EVENT_INSTRUMENT_INITIALIZING UINT32_C(1)
+#define ARTEST_ENGINE_EVENT_INSTRUMENT_INITIALIZED UINT32_C(2)
+#define ARTEST_ENGINE_EVENT_INSTRUMENT_SHUTDOWN UINT32_C(3)
+#define ARTEST_ENGINE_EVENT_INSTRUMENT_OPERATION UINT32_C(4)
+#define ARTEST_ENGINE_EVENT_RUN_STATE_CHANGED UINT32_C(5)
+#define ARTEST_ENGINE_EVENT_STEP_STARTED UINT32_C(6)
+#define ARTEST_ENGINE_EVENT_STEP_ATTEMPT_STARTED UINT32_C(7)
+#define ARTEST_ENGINE_EVENT_STEP_RETRY_SCHEDULED UINT32_C(8)
+#define ARTEST_ENGINE_EVENT_STEP_COMPLETED UINT32_C(9)
+#define ARTEST_ENGINE_EVENT_RUN_COMPLETED UINT32_C(10)
+
+typedef uint32_t ARTestExecutionDecision;
+#define ARTEST_EXECUTION_CONTINUE UINT32_C(0)
+#define ARTEST_EXECUTION_CANCEL UINT32_C(1)
+
 #pragma pack(push, 8)
 typedef void (ARTEST_ABI_CALL *ARTestEngineEventFn)(void*, const ARTestPayloadView*);
+
+typedef struct ARTestStepExecutionInfoV0
+{
+    uint32_t struct_size;
+    uint32_t reserved;
+    uint64_t command_index;
+    uint64_t step_id;
+    ARTestStringView command_name;
+} ARTestStepExecutionInfoV0;
+
+typedef ARTestStatus (ARTEST_ABI_CALL *ARTestBeforeStepFn)(void*, const ARTestStepExecutionInfoV0*, ARTestExecutionDecision*, ARTestErrorBuffer*);
+
+typedef struct ARTestSessionOptionsV0
+{
+    uint32_t struct_size;
+    uint32_t reserved;
+    ARTestBeforeStepFn before_step;
+    void* control_context;
+} ARTestSessionOptionsV0;
+
 typedef ARTestStatus (ARTEST_ABI_CALL *ARTestCreateEngineFn)(const ARTestPayloadView*, ARTestEngineHandle*, ARTestErrorBuffer*);
 typedef void (ARTEST_ABI_CALL *ARTestDestroyEngineFn)(ARTestEngineHandle);
 typedef ARTestStatus (ARTEST_ABI_CALL *ARTestRefreshCatalogFn)(ARTestEngineHandle, ARTestStringView, ARTestErrorBuffer*);
@@ -47,8 +85,11 @@ typedef ARTestStatus (ARTEST_ABI_CALL *ARTestGetSessionResultFn)(ARTestSessionHa
 typedef void (ARTEST_ABI_CALL *ARTestDestroySessionFn)(ARTestSessionHandle);
 typedef ARTestStatus (ARTEST_ABI_CALL *ARTestSerializeResultFn)(ARTestResultHandle, const ARTestResultSinkV0*, ARTestErrorBuffer*);
 typedef void (ARTEST_ABI_CALL *ARTestDestroyResultFn)(ARTestResultHandle);
+typedef ARTestStatus (ARTEST_ABI_CALL *ARTestCompilePlanDetailedFn)(ARTestEngineHandle, const ARTestPayloadView*, ARTestCompiledPlanHandle*, const ARTestResultSinkV0*, ARTestErrorBuffer*);
+typedef ARTestStatus (ARTEST_ABI_CALL *ARTestStartSessionControlledFn)(ARTestEngineHandle, ARTestCompiledPlanHandle, const ARTestSessionOptionsV0*, ARTestSessionHandle*, ARTestErrorBuffer*);
 
-typedef struct ARTestEngineApiV0 {
+typedef struct ARTestEngineApiV0
+{
     uint32_t struct_size;
     uint32_t api_major;
     uint32_t api_minor;
@@ -69,6 +110,9 @@ typedef struct ARTestEngineApiV0 {
     ARTestDestroySessionFn destroy_session;
     ARTestSerializeResultFn serialize_result;
     ARTestDestroyResultFn destroy_result;
+    /* Added in API 0.2. Callers requesting API 0.1 provide only 144 bytes. */
+    ARTestCompilePlanDetailedFn compile_plan_detailed;
+    ARTestStartSessionControlledFn start_session_controlled;
 } ARTestEngineApiV0;
 #pragma pack(pop)
 
@@ -83,7 +127,9 @@ ARTEST_ENGINE_EXPORT ARTestStatus ARTEST_ABI_CALL ARTestEngine_QueryApi(uint32_t
 #endif
 
 #if defined(__cplusplus) && UINTPTR_MAX == UINT64_MAX
-static_assert(sizeof(ARTestEngineApiV0) == 144);
+static_assert(sizeof(ARTestStepExecutionInfoV0) == 40);
+static_assert(sizeof(ARTestSessionOptionsV0) == 24);
+static_assert(sizeof(ARTestEngineApiV0) == 160);
 #endif
 
 #endif

@@ -6,14 +6,6 @@ namespace artest::cli
     std::atomic<ConsoleCancellationHandler::CancelFunction>
         ConsoleCancellationHandler::s_cancel{nullptr};
 
-    ConsoleCancellationHandler::ConsoleCancellationHandler(ExecutionSession& session) noexcept
-        : m_context(&session)
-    {
-        s_context.store(m_context, std::memory_order_release);
-        s_cancel.store(&ConsoleCancellationHandler::CancelSession, std::memory_order_release);
-        m_registered = SetConsoleCtrlHandler(&ConsoleCancellationHandler::HandleControl, TRUE) != FALSE;
-    }
-
     ConsoleCancellationHandler::ConsoleCancellationHandler(
         sdk::EngineClient& engine) noexcept
         : m_context(&engine)
@@ -52,11 +44,6 @@ namespace artest::cli
             return TRUE;
         }
         return FALSE;
-    }
-
-    void ConsoleCancellationHandler::CancelSession(void* context) noexcept
-    {
-        static_cast<ExecutionSession*>(context)->Cancel();
     }
 
     void ConsoleCancellationHandler::CancelEngine(void* context) noexcept
