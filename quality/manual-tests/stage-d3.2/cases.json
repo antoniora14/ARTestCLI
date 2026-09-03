@@ -1,0 +1,206 @@
+[
+  {
+    "id": "MT-D3.2-001",
+    "title": "Official Debug and Release regression",
+    "objective": "Confirm the build, architecture gates, ABI layout and every automated verdict.",
+    "preconditions": "Open PowerShell at D:\\GitHub\\main\\ARTestCLI. Visual Studio 18 Insiders / v145 is installed.",
+    "steps": [
+      [
+        1,
+        "Run .\\scripts\\build.ps1 -Configuration Debug -Platform x64.",
+        "Both architecture checks and ABI contract pass. Google Test: 98 passed, 0 failed, 0 skipped, 25 suites."
+      ],
+      [
+        2,
+        "Open artifacts\\test-results\\x64\\Debug\\ARTestCLI.UnitTests.html.",
+        "Overall PASSED; Total=98, Passed=98, Failed=0. All individual verdicts agree."
+      ],
+      [
+        3,
+        "Run .\\scripts\\build.ps1 -Configuration Release -Platform x64.",
+        "Release passes the same 98 tests. The XML/HTML consistency validator passes."
+      ],
+      [
+        4,
+        "Open artifacts\\test-results\\x64\\Release\\ARTestCLI.UnitTests.html. Attach both report screenshots.",
+        "Configuration, platform, counts and final verdict are visible. Record build/commit identification."
+      ]
+    ]
+  },
+  {
+    "id": "MT-D3.2-002",
+    "title": "Discover and activate four packages",
+    "objective": "Distinguish non-loading validation from deliberate DLL activation.",
+    "preconditions": "Release regression passed. Define $cli and $extensions as shown on the environment page.",
+    "steps": [
+      [
+        1,
+        "Run & $cli extensions list $extensions; $LASTEXITCODE.",
+        "Four VALID packages; all sha256=verified. Exit code 0."
+      ],
+      [
+        2,
+        "Run & $cli extensions validate $extensions; $LASTEXITCODE.",
+        "schema is artest.schema.extension-catalog.v2; valid=true; status=validated; generation=0; extensions is empty. Exit 0."
+      ],
+      [
+        3,
+        "Run & $cli extensions doctor $extensions; $LASTEXITCODE.",
+        "Catalog activation event followed by status=active, generation=1 and four active extensions. Exit 0."
+      ]
+    ]
+  },
+  {
+    "id": "MT-D3.2-003",
+    "title": "Legacy script through migrated DLLs",
+    "objective": "Verify existing command names and instrument aliases still work after moving implementations out of Core.",
+    "preconditions": "Release binaries and their packaged extensions are present.",
+    "steps": [
+      [
+        1,
+        "Run & $cli compile .\\source\\Scripts\\TestScript.json; $LASTEXITCODE.",
+        "Only 'Valid script. No instruments were initialized.' and exit 0. No initialization or activation events."
+      ],
+      [
+        2,
+        "Run & $cli run .\\source\\Scripts\\TestScript.json; $LASTEXITCODE.",
+        "PowerSupply, CAN and Wait steps pass. State sequence includes INITIALIZING, RUNNING, CLEANING_UP, COMPLETED. Final PASSED; exit 0."
+      ],
+      [
+        3,
+        "Inspect artifacts\\extensions\\x64\\Release in File Explorer.",
+        "ARTestCmdHardware, ARTestCmdSample, ARTestDrvSimCAN and ARTestDrvSimPower each contain a DLL, artest-extension.json and schemas."
+      ]
+    ]
+  },
+  {
+    "id": "MT-D3.2-004",
+    "title": "Unified extension execution and debugging",
+    "objective": "Verify compile/run/debug/break use the same extension-aware path.",
+    "preconditions": "Define $sample = '.\\source\\Scripts\\ExtensionScript.json'. $cli and $extensions are defined.",
+    "steps": [
+      [
+        1,
+        "Run & $cli compile $sample --extensions $extensions; $LASTEXITCODE.",
+        "Compilation succeeds without activation or driver initialization. Exit 0."
+      ],
+      [
+        2,
+        "Run & $cli run $sample --extensions $extensions; $LASTEXITCODE.",
+        "The sample power-cycle command passes through the simulated driver service; shutdown occurs; exit 0."
+      ],
+      [
+        3,
+        "Run & $cli debug $sample --extensions $extensions. At the pause enter c, then inspect $LASTEXITCODE.",
+        "Pause identifies step 1 before execution. Continue completes PASSED; exit 0."
+      ],
+      [
+        4,
+        "Run & $cli break $sample 0 --extensions $extensions. At the pause enter q, then inspect $LASTEXITCODE.",
+        "Breakpoint index 0 pauses at step 1. Quit requests cancellation; cleanup occurs; final CANCELLED; exit 5."
+      ]
+    ]
+  },
+  {
+    "id": "MT-D3.2-005",
+    "title": "Reject invalid input while offline",
+    "objective": "Confirm parameter and binding validation fail before DLL activation or instrument initialization.",
+    "preconditions": "Use the versioned fixtures under quality\\manual-tests\\stage-d3.2\\data.",
+    "steps": [
+      [
+        1,
+        "Run & $cli compile .\\quality\\manual-tests\\stage-d3.2\\data\\invalid-parameters.json --extensions $extensions; $LASTEXITCODE.",
+        "PARAMETER_RANGE_INVALID identifies voltage in step parameters. Exit 3; no activation/initialization events."
+      ],
+      [
+        2,
+        "Run & $cli compile .\\quality\\manual-tests\\stage-d3.2\\data\\wrong-contract.json --extensions $extensions; $LASTEXITCODE.",
+        "COMMAND_INSTRUMENT_CONTRACT_MISMATCH. A CAN driver cannot satisfy the power-supply requirement. Exit 3."
+      ],
+      [
+        3,
+        "Run & $cli run .\\quality\\manual-tests\\stage-d3.2\\data\\invalid-parameters.json --extensions $extensions; $LASTEXITCODE.",
+        "The same compile diagnostic and exit 3. Execution never enters INITIALIZING."
+      ]
+    ]
+  },
+  {
+    "id": "MT-D3.2-006",
+    "title": "Retry and cleanup failure regression",
+    "objective": "Verify the migrated simulated driver preserves retry controls and cleanup verdicts.",
+    "preconditions": "Stage C fixture files are unchanged. No physical equipment is connected.",
+    "steps": [
+      [
+        1,
+        "Run & $cli run .\\quality\\manual-tests\\stage-c\\data\\retry-success.json; $LASTEXITCODE.",
+        "Step 1 passes on attempt 3; step 2 passes on attempt 1. Final PASSED, planned=2, passed=2, attempts=4. Exit 0."
+      ],
+      [
+        2,
+        "Run & $cli run .\\quality\\manual-tests\\stage-c\\data\\cleanup-failure.json; $LASTEXITCODE.",
+        "The step passes, then shutdown reports EXTENSION_INVOCATION_FAILED. State FAILED; overall ERROR; exit 5."
+      ],
+      [
+        3,
+        "Repeat the retry-success command.",
+        "Again 3 attempts on step 1 and 4 total. No state from the previous process leaks into the next run."
+      ]
+    ]
+  },
+  {
+    "id": "MT-D3.2-007",
+    "title": "Compatibility alias and final JSON",
+    "objective": "Confirm extension-run remains compatible without creating a second execution implementation.",
+    "preconditions": "$sample, $cli and $extensions are defined.",
+    "steps": [
+      [
+        1,
+        "Run & $cli extension-run $sample $extensions; $LASTEXITCODE.",
+        "Engine events show initialization, running, cleanup and completion. Exit 0."
+      ],
+      [
+        2,
+        "Inspect the final JSON object printed before the exit-code line.",
+        "status=passed; summary.plannedSteps=1, executedSteps=1, passedSteps=1. Command is com.artest.command.sample.power-cycle."
+      ],
+      [
+        3,
+        "Attach a screenshot of the final JSON and exit code.",
+        "The result is console output. No automatic JSON result file is expected or required."
+      ]
+    ]
+  },
+  {
+    "id": "MT-D3.2-008",
+    "title": "Lifetime and offline-boundary evidence",
+    "objective": "Record direct evidence for cases not observable from the CLI alone.",
+    "preconditions": "Full Release regression passed. Do not modify packaged production binaries.",
+    "steps": [
+      [
+        1,
+        "Run .\\scripts\\test-d3.2.ps1 -Configuration Release; $LASTEXITCODE.",
+        "All 18 selected cases pass; exit 0. This focused run does not overwrite the full HTML report."
+      ],
+      [
+        2,
+        "In the full Release HTML report, use Ctrl+F for \"CompilesMetadataEvenWhenEntry\" and \"ChangedSchemaInvalidatesActivation\".",
+        "Both PASSED. Invalid binaries remain unloadable at runtime; changed schemas cannot silently rebind a prepared plan."
+      ],
+      [
+        3,
+        "Search for \"RepeatedRunsUseFreshDriver\" and \"OneSessionOwnsTheEngine\".",
+        "Both PASSED. Sequential reuse gets fresh instances; a live session prevents another from acquiring its Engine."
+      ],
+      [
+        4,
+        "Search for \"ConflictInDriverBatch\" and \"MinorThreeNegotiation\".",
+        "Both PASSED. Registration is atomic and an API 0.3 consumer's table is not overwritten."
+      ],
+      [
+        5,
+        "Record screenshots and complete the final acceptance fields.",
+        "All 8 manual cases must be Passed before acceptance. Record real results; do not infer manual completion from this template."
+      ]
+    ]
+  }
+]

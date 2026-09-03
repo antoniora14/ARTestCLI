@@ -16,10 +16,10 @@ stage-specific architecture documents before changing a public contract.
 
 ## Contract status
 
-- Engine host API: experimental `0.3`. API additions are append-only.
+- Engine host API: experimental `0.4`. API additions are append-only.
 - Native extension ABI: experimental `0.1`.
 - Script document: `ARTest.Script` version `1`.
-- Extension manifest: `schemaVersion` `1`.
+- Extension manifest: version `2` for new packages; version `1` discovery remains supported.
 - Catalog report: `artest.schema.extension-catalog.v2`.
 - Do not claim ABI `1.0` stability until external consumer compatibility has
   been validated and a formal freeze decision is recorded.
@@ -38,6 +38,21 @@ stage-specific architecture documents before changing a public contract.
    the same Engine instance.
 
 ## Verification
+
+Read `docs/architecture/stage-d3-2-offline-compilation.md` and
+`docs/architecture/schema-profile-v1.md` before modifying compilation or loading.
+CompiledStep is data-only. Native loading, factories and component validation may
+run only at activation/execution, never during offline compilation. Keep Wait
+and reserved IF in Core; concrete commands/drivers belong to packages. Test
+doubles belong only in tests/TestSupport/Fakes. Do not equate capability tags
+with additional callable service contracts in ABI 0.1.
+
+Engine API code lives in Api/ modules, and native loading, service brokerage,
+invocation, schema binding and integrity each have dedicated Extensions/ modules.
+Do not rebuild the former EngineApi.cpp or NativeExtensionRuntime.cpp monoliths.
+One live session handle owns an Engine lease; commands must be destroyed before
+drivers and the lease must be released last. Do not call extension code while
+holding registry/catalog locks.
 
 Run both commands from the repository root before integration:
 

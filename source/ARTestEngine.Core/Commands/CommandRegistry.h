@@ -11,17 +11,20 @@
 
 namespace artest
 {
+    class RegistryTransaction;
+    class RegistrationOwner;
     class CommandRegistry
     {
     public:
         using Creator = std::function<std::unique_ptr<ICommand>()>;
 
         [[nodiscard]] OperationResult Register(std::string commandName, Creator creator);
-        [[nodiscard]] bool Unregister(const std::string& commandName) noexcept;
         [[nodiscard]] std::unique_ptr<ICommand> Create(const std::string& commandName) const;
         [[nodiscard]] bool Contains(const std::string& commandName) const;
 
     private:
+        friend class RegistryTransaction;
+        std::unordered_map<std::string, std::shared_ptr<const RegistrationOwner>> m_owners;
         mutable std::shared_mutex m_mutex;
         std::unordered_map<std::string, Creator> m_creators;
     };

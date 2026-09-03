@@ -62,15 +62,49 @@ namespace
 namespace artest
 {
     ExecutionSession::ExecutionSession(
-        std::vector<CompiledStep> steps,
+        std::vector<RuntimeStep> steps,
         InstrumentManager& instruments,
         IEventSink& eventSink,
         IExecutionControl& executionControl)
         : m_steps(std::move(steps)),
+          m_plannedSteps(m_steps.size()),
           m_instruments(instruments),
           m_eventSink(eventSink),
           m_executionControl(executionControl)
     {
+    }
+
+    ExecutionSession::ExecutionSession(std::vector<CompiledStep> steps,
+        CommandRegistry& commands, InstrumentManager& instruments,
+        IEventSink& eventSink, IExecutionControl& executionControl,
+        std::function<OperationResult()> prepareRuntime)
+        : m_compiledSteps(std::move(steps)), m_commands(&commands),
+          m_plannedSteps(m_compiledSteps.size()), m_prepareRuntime(std::move(prepareRuntime)),
+          m_instruments(instruments),
+          m_eventSink(eventSink), m_executionControl(executionControl)
+    {
+    }
+
+    OperationResult ExecutionSession::BindCommands()
+    {
+        if (!m_commands) return OperationResult::Success();
+        // Only the session worker crosses the executable factory boundary.
+        // Every run obtains fresh instances; compilation owns metadata only.
+        std::vector<RuntimeStep> pending;
+        for (const auto& step : m_compiledSteps)
+        {
+            auto command = m_commands->Create(step.componentType);
+            if (!command) return OperationResult::Failure("COMMAND_TYPE_UNAVAILABLE",
+                "The compiled component is not active.", step.componentType);
+            auto configured = command->Configure(step.parameters,
+                step.instrumentId ? m_instruments.GetInstrument(*step.instrumentId) : nullptr);
+            if (!configured.Succeeded()) return configured;
+            auto validated = command->Validate();
+            if (!validated.Succeeded()) return validated;
+            pending.push_back({step.stepId, step.commandName, std::move(command), step.policy});
+        }
+        m_steps = std::move(pending);
+        return OperationResult::Success();
     }
 
     ExecutionSession::~ExecutionSession()
@@ -157,8 +191,8 @@ namespace artest
             RunResult result;
             result.status = RunStatus::Error;
             result.failureKind = RunFailureKind::Internal;
-            result.summary.plannedSteps = m_steps.size();
-            result.summary.skippedSteps = m_steps.size();
+            result.summary.plannedSteps = m_plannedSteps;
+            result.summary.skippedSteps = m_plannedSteps;
             result.diagnostics.push_back({
                 DiagnosticSeverity::Error,
                 "EXECUTION_SESSION_NOT_STARTED",
@@ -180,12 +214,15 @@ namespace artest
     {
         const auto sessionStart = std::chrono::steady_clock::now();
         RunResult run;
-        run.summary.plannedSteps = m_steps.size();
-        run.summary.skippedSteps = m_steps.size();
+        run.summary.plannedSteps = m_plannedSteps;
+        run.summary.skippedSteps = m_plannedSteps;
 
         try
         {
-            auto initialization = m_instruments.InitializeAll();
+            auto initialization = m_prepareRuntime ? m_prepareRuntime() : OperationResult::Success();
+            if (initialization.Succeeded()) initialization = m_instruments.InitializeAll();
+            if (initialization.Succeeded() && !m_cancellation.IsCancellationRequested())
+                initialization = BindCommands();
             if (!initialization.Succeeded())
             {
                 run.status = RunStatus::Error;
@@ -267,6 +304,8 @@ namespace artest
         }
 
         OperationResult cleanup;
+        // Destroy commands (and service leases) before shutting down their drivers.
+        m_steps.clear();
         try
         {
             cleanup = m_instruments.ShutdownAll();

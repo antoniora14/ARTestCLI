@@ -61,7 +61,7 @@ TEST(TestExecutorTests, ExecutionStopsAtTheFirstFailedStep)
 {
     int firstExecutions = 0;
     int secondExecutions = 0;
-    std::vector<CompiledStep> steps;
+    std::vector<RuntimeStep> steps;
     steps.push_back({1, "fail", std::make_unique<TestCommand>("fail", StepResult::Fail("expected"), firstExecutions)});
     steps.push_back({2, "must-not-run", std::make_unique<TestCommand>("must-not-run", StepResult::Pass(), secondExecutions)});
     RecordingEventSink sink;
@@ -79,7 +79,7 @@ TEST(TestExecutorTests, SuccessfulRunReturnsRecordsAndTypedEvents)
 {
     int firstExecutions = 0;
     int secondExecutions = 0;
-    std::vector<CompiledStep> steps;
+    std::vector<RuntimeStep> steps;
     steps.push_back({5, "first", std::make_unique<TestCommand>("first", StepResult::Pass(), firstExecutions)});
     steps.push_back({7, "second", std::make_unique<TestCommand>("second", StepResult::Pass(), secondExecutions)});
     RecordingEventSink sink;
@@ -97,7 +97,7 @@ TEST(TestExecutorTests, CancellationOccursBeforeTheSelectedStep)
 {
     int firstExecutions = 0;
     int secondExecutions = 0;
-    std::vector<CompiledStep> steps;
+    std::vector<RuntimeStep> steps;
     steps.push_back({1, "first", std::make_unique<TestCommand>("first", StepResult::Pass(), firstExecutions)});
     steps.push_back({2, "second", std::make_unique<TestCommand>("second", StepResult::Pass(), secondExecutions)});
     RecordingEventSink sink;
@@ -115,7 +115,7 @@ TEST(TestExecutorTests, CancellationOccursBeforeTheSelectedStep)
 TEST(TestExecutorTests, CommandExceptionsBecomeErrorResults)
 {
     int executions = 0;
-    std::vector<CompiledStep> steps;
+    std::vector<RuntimeStep> steps;
     steps.push_back({9, "throws", std::make_unique<TestCommand>("throws", StepResult::Pass(), executions, true)});
     RecordingEventSink sink;
 

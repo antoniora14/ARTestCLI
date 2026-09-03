@@ -29,7 +29,9 @@ namespace artest::cli
 
         [[nodiscard]] int RunExtensionCommand(const std::vector<std::string>& arguments);
         [[nodiscard]] int RunCatalogCommand(const std::vector<std::string>& arguments);
-        [[nodiscard]] int RunBuiltInCommand(const std::string& command, const std::string& scriptPath, std::unordered_set<std::size_t> breakpoints);
+        [[nodiscard]] int RunPlan(const std::string& command, const std::string& scriptPath,
+            std::unordered_set<std::size_t> breakpoints, const std::string& extensionRoot = {},
+            bool compatibilityJson = false);
         [[nodiscard]] bool ReadScript(const std::string& scriptPath, std::string& content) const;
 
         void PrintHelp() const;

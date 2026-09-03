@@ -103,7 +103,7 @@ namespace artest
     {
     }
 
-    RunResult TestExecutor::Execute(std::vector<CompiledStep>& steps)
+    RunResult TestExecutor::Execute(std::vector<RuntimeStep>& steps)
     {
         ExecutionContext context;
         RunToCompletionControl control;
@@ -112,7 +112,7 @@ namespace artest
     }
 
     RunResult TestExecutor::Execute(
-        std::vector<CompiledStep>& steps,
+        std::vector<RuntimeStep>& steps,
         ExecutionContext& context,
         IExecutionControl& control)
     {
@@ -121,7 +121,7 @@ namespace artest
     }
 
     RunResult TestExecutor::Execute(
-        std::vector<CompiledStep>& steps,
+        std::vector<RuntimeStep>& steps,
         ExecutionContext& context,
         IExecutionControl& control,
         const CancellationToken& cancellation)
@@ -190,7 +190,7 @@ namespace artest
             record.stepId = step.stepId;
             record.commandName = step.commandName;
 
-            // CompiledStep is a public model. The compiler rejects invalid
+            // RuntimeStep is a public model. The compiler rejects invalid
             // policies, but the executor still protects direct API callers.
             const int maximumAttempts = step.policy.maxAttempts < 1
                 ? 1

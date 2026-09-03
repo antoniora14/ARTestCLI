@@ -1,0 +1,18 @@
+{
+  "type": "object",
+  "properties": {
+    "model": {
+      "type": "string"
+    },
+    "hw-rsrc": {
+      "type": "string"
+    },
+    "failInitialize": {
+      "type": "boolean"
+    },
+    "failShutdown": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": false
+}

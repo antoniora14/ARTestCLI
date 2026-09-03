@@ -1,9 +1,7 @@
 #include "TestSupport/RecordingEventSink.h"
 
-#include "ARTestEngine.Core/Commands/BuiltIn/RegisterBuiltInCommands.h"
+#include "ARTestEngine.Core/Commands/BuiltIn/IntrinsicCommands.h"
 #include "ARTestEngine.Core/Compilation/TestPlanCompiler.h"
-#include "ARTestEngine.Core/Instruments/Fakes/FakePowerSupply.h"
-#include "ARTestEngine.Core/Instruments/Fakes/RegisterFakeInstruments.h"
 
 #include <gtest/gtest.h>
 
@@ -19,16 +17,29 @@ namespace
     struct CompilerEnvironment
     {
         CompilerEnvironment()
-            : instruments(instrumentRegistry, sink), compiler(commands, instruments)
+            : compiler(catalog)
         {
-            EXPECT_TRUE(RegisterBuiltInCommands(commands).Succeeded());
-            EXPECT_TRUE(RegisterFakeInstruments(instrumentRegistry).Succeeded());
+            EXPECT_TRUE(RegisterIntrinsicMetadata(catalog).Succeeded());
+            ComponentDescriptor power;
+            power.kind = ComponentKind::InstrumentDriver;
+            power.typeId = "PowerSupply";
+            power.contractId = "artest.contract.instrument.power-supply.v1";
+            power.schemas.push_back({"configuration", "artest.schema.test.configuration.v1",
+                {}, {}, {{"type", "object"}}});
+            ComponentDescriptor on;
+            on.typeId = "PowerSupply.TurnOn";
+            on.requiredContracts = {power.contractId};
+            on.schemas.push_back({"parameters", "artest.schema.test.power.v1", {}, {}, {
+                {"type", "object"}, {"required", {"channel", "voltage", "currentLimit"}},
+                {"properties", {
+                    {"channel", {{"type", "integer"}, {"minimum", 0}}},
+                    {"voltage", {{"type", "number"}, {"minimum", 0}}},
+                    {"currentLimit", {{"type", "number"}, {"minimum", 0}}}}}}});
+            EXPECT_TRUE(catalog.Add({power, on}).Succeeded());
         }
 
         RecordingEventSink sink;
-        CommandRegistry commands;
-        InstrumentRegistry instrumentRegistry;
-        InstrumentManager instruments;
+        ComponentCatalog catalog;
         TestPlanCompiler compiler;
     };
 }
@@ -41,15 +52,15 @@ TEST(TestPlanCompilerTests, CompilesValidTypedDefinitionsWithoutExecutingOrIniti
     plan.steps = {
         {1, "PowerSupply.TurnOn", "PS1", {{"channel", 1}, {"voltage", 12.0}, {"currentLimit", 2.0}}},
         Wait(2)};
-    ASSERT_TRUE(environment.instruments.LoadDefinitions(plan.instruments).Succeeded());
 
     const auto result = environment.compiler.Compile(plan);
 
     ASSERT_TRUE(result.Succeeded());
     EXPECT_EQ(result.value->size(), 2U);
-    const auto power = std::dynamic_pointer_cast<FakePowerSupply>(environment.instruments.GetInstrument("PS1"));
-    ASSERT_NE(power, nullptr);
-    EXPECT_FALSE(power->IsInitialized());
+    EXPECT_EQ(result.value->front().componentType, "PowerSupply.TurnOn");
+    EXPECT_EQ(result.value->front().instrumentId, "PS1");
+    const auto copy = *result.value;
+    EXPECT_EQ(copy.front().parameters, plan.steps.front().parameters);
 }
 
 TEST(TestPlanCompilerTests, UnknownCommandInvalidatesTheWholeCompilation)
@@ -57,7 +68,7 @@ TEST(TestPlanCompilerTests, UnknownCommandInvalidatesTheWholeCompilation)
     CompilerEnvironment environment;
     TestPlan plan;
     plan.steps = {Wait(1), {2, "Unknown.Command", std::nullopt, nlohmann::json::object()}};
-    ASSERT_TRUE(environment.instruments.LoadDefinitions({}).Succeeded());
+
 
     const auto result = environment.compiler.Compile(plan);
 
@@ -71,7 +82,7 @@ TEST(TestPlanCompilerTests, RejectsUnknownInstrument)
     CompilerEnvironment environment;
     TestPlan plan;
     plan.steps = {{1, "PowerSupply.TurnOn", "missing", {{"channel", 1}, {"voltage", 12.0}, {"currentLimit", 2.0}}}};
-    ASSERT_TRUE(environment.instruments.LoadDefinitions({}).Succeeded());
+
 
     const auto result = environment.compiler.Compile(plan);
 
@@ -84,7 +95,7 @@ TEST(TestPlanCompilerTests, RejectsDuplicateStepIdentifiers)
     CompilerEnvironment environment;
     TestPlan plan;
     plan.steps = {Wait(1), Wait(1)};
-    ASSERT_TRUE(environment.instruments.LoadDefinitions({}).Succeeded());
+
 
     const auto result = environment.compiler.Compile(plan);
 
@@ -97,7 +108,7 @@ TEST(TestPlanCompilerTests, MissingParametersFailDuringOfflineCompilation)
     CompilerEnvironment environment;
     TestPlan plan;
     plan.steps = {{1, "Time.WaitMs", std::nullopt, nlohmann::json::object()}};
-    ASSERT_TRUE(environment.instruments.LoadDefinitions({}).Succeeded());
+
 
     const auto result = environment.compiler.Compile(plan);
 
@@ -111,7 +122,7 @@ TEST(TestPlanCompilerTests, IfRemainsReservedAndFailsCompilationExplicitly)
     CompilerEnvironment environment;
     TestPlan plan;
     plan.steps = {{1, "IF", std::nullopt, {{"condition", "x == 1"}}}};
-    ASSERT_TRUE(environment.instruments.LoadDefinitions({}).Succeeded());
+
 
     const auto result = environment.compiler.Compile(plan);
 
@@ -122,11 +133,11 @@ TEST(TestPlanCompilerTests, IfRemainsReservedAndFailsCompilationExplicitly)
 TEST(RegistryTests, DuplicateRegistrationsAreRejected)
 {
     CommandRegistry commands;
-    ASSERT_TRUE(RegisterBuiltInCommands(commands).Succeeded());
-    const auto duplicate = RegisterBuiltInCommands(commands);
+    ASSERT_TRUE(RegisterIntrinsicCommands(commands).Succeeded());
+    const auto duplicate = RegisterIntrinsicCommands(commands);
 
     EXPECT_FALSE(duplicate.Succeeded());
-    EXPECT_EQ(duplicate.diagnostics.size(), 5U);
+    EXPECT_EQ(duplicate.diagnostics.size(), 1U);
 }
 
 TEST(TestPlanCompilerTests, RejectsUnsafeExecutionPolicyValues)
@@ -137,7 +148,7 @@ TEST(TestPlanCompilerTests, RejectsUnsafeExecutionPolicyValues)
     definition.policy.maxAttempts = 0;
     definition.policy.retryDelay = std::chrono::milliseconds{-1};
     plan.steps.push_back(std::move(definition));
-    ASSERT_TRUE(environment.instruments.LoadDefinitions({}).Succeeded());
+
 
     const auto result = environment.compiler.Compile(plan);
 

@@ -71,6 +71,27 @@ namespace artest::sdk
             return {code, error.Message()};
         }
 
+        [[nodiscard]] ClientStatus PrepareCatalog(const std::string& approvedRoot)
+        {
+            if (!m_engine) return InvalidState("The engine was not created.");
+            if (!m_api.prepare_catalog) return {ARTEST_STATUS_OPERATION_NOT_SUPPORTED,
+                "Offline catalog preparation requires Engine API 0.4."};
+            Error error;
+            const auto code = m_api.prepare_catalog(m_engine,
+                {approvedRoot.data(), approvedRoot.size()}, &error.value);
+            return {code, error.Message()};
+        }
+
+        // Retain the immutable compiled plan but retire the preceding session.
+        [[nodiscard]] ClientStatus Restart()
+        {
+            if (!m_plan) return InvalidState("A compiled plan is required.");
+            if (m_result) { m_api.destroy_result(m_result); m_result = nullptr; }
+            if (m_session) { m_api.destroy_session(m_session); m_session = nullptr; }
+            m_beforeStepCallback = {};
+            return Start();
+        }
+
         [[nodiscard]] ClientStatus ValidateCatalog(
             const std::string& approvedRoot,
             std::string& reportJson)

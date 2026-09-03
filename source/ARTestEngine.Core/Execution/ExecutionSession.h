@@ -8,8 +8,11 @@
 #include "../Diagnostics.h"
 #include "../Instruments/InstrumentManager.h"
 #include "../Model/CompiledStep.h"
+#include "RuntimeStep.h"
+#include "../Commands/CommandRegistry.h"
 
 #include <future>
+#include <functional>
 #include <mutex>
 #include <optional>
 #include <vector>
@@ -20,10 +23,17 @@ namespace artest
     {
     public:
         ExecutionSession(
-            std::vector<CompiledStep> steps,
+            std::vector<RuntimeStep> steps,
             InstrumentManager& instruments,
             IEventSink& eventSink,
             IExecutionControl& executionControl);
+        ExecutionSession(
+            std::vector<CompiledStep> steps,
+            CommandRegistry& commands,
+            InstrumentManager& instruments,
+            IEventSink& eventSink,
+            IExecutionControl& executionControl,
+            std::function<OperationResult()> prepareRuntime);
         ~ExecutionSession();
 
         ExecutionSession(const ExecutionSession&) = delete;
@@ -40,7 +50,12 @@ namespace artest
         bool TransitionTo(ExecutionState state) noexcept;
         void PublishDiagnostics(const std::vector<Diagnostic>& diagnostics) noexcept;
 
-        std::vector<CompiledStep> m_steps;
+        std::vector<RuntimeStep> m_steps;
+        std::vector<CompiledStep> m_compiledSteps;
+        CommandRegistry* m_commands = nullptr;
+        std::size_t m_plannedSteps = 0;
+        std::function<OperationResult()> m_prepareRuntime;
+        [[nodiscard]] OperationResult BindCommands();
         InstrumentManager& m_instruments;
         IEventSink& m_eventSink;
         IExecutionControl& m_executionControl;

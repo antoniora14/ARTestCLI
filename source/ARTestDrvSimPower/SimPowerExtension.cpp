@@ -1,4 +1,5 @@
 #define ARTEST_EXTENSION_EXPORTS
+
 #include "../ARTest.SDK/include/ARTestExtensionAbi.h"
 #include "../ThirdParty/json.hpp"
 
@@ -9,11 +10,12 @@
 
 namespace
 {
-    const std::string ExtensionId = "com.artest.extension.sim-power";
-    const std::string ExtensionVersion = "0.1.0";
-    const std::string TypeId = "com.artest.driver.sim.power";
-    const std::string ContractId = "artest.contract.instrument.power-supply.v1";
-    const std::string DisplayName = "ARTest Simulated Power Supply";
+    const std::string ExtensionId           = "com.artest.extension.sim-power";
+    const std::string ExtensionVersion      = "0.1.0";
+    const std::string TypeId                = "com.artest.driver.sim.power";
+    const std::string LegacyTypeId          = "com.artest.driver.sim.power-legacy";
+    const std::string ContractId            = "artest.contract.instrument.power-supply.v1";
+    const std::string DisplayName           = "ARTest Simulated Power Supply";
     const std::string Empty;
 
     [[nodiscard]] ARTestStringView View(const std::string& value) noexcept
@@ -71,17 +73,16 @@ struct ARTestComponentOpaque
 {
     bool initialized = false;
     bool failShutdown = false;
+    bool failInitialize = false;
+    bool missingResource = false;
+    int remainingTurnOnFailures = 0;
     std::map<int, double> voltages;
     std::map<int, bool> outputs;
 };
 
 namespace
 {
-    ARTestStatus ARTEST_ABI_CALL CreateExtension(
-        const ARTestHostApiV0* host,
-        const ARTestPayloadView*,
-        ARTestExtensionHandle* output,
-        ARTestErrorBuffer* error) noexcept
+    ARTestStatus ARTEST_ABI_CALL CreateExtension(const ARTestHostApiV0* host, const ARTestPayloadView*, ARTestExtensionHandle* output, ARTestErrorBuffer* error) noexcept
     {
         if (host == nullptr || output == nullptr
             || host->struct_size < sizeof(ARTestHostApiV0))
@@ -110,7 +111,7 @@ namespace
 
     std::size_t ARTEST_ABI_CALL GetCount(ARTestExtensionHandle) noexcept
     {
-        return 1U;
+        return 2U;
     }
 
     ARTestStatus ARTEST_ABI_CALL GetDescriptor(
@@ -119,7 +120,7 @@ namespace
         ARTestComponentDescriptorV0* descriptor,
         ARTestErrorBuffer* error) noexcept
     {
-        if (index != 0U || descriptor == nullptr
+        if (index > 1U || descriptor == nullptr
             || descriptor->struct_size < sizeof(ARTestComponentDescriptorV0))
         {
             SetError(error, "The driver descriptor index or output is invalid.");
@@ -129,7 +130,7 @@ namespace
             sizeof(ARTestComponentDescriptorV0),
             ARTEST_COMPONENT_KIND_INSTRUMENT_DRIVER,
             ARTEST_COMPONENT_FLAG_SIMULATED,
-            View(TypeId), View(ContractId), View(ExtensionVersion),
+            View(index == 0 ? TypeId : LegacyTypeId), View(ContractId), View(ExtensionVersion),
             View(DisplayName),
             {sizeof(ARTestPayloadView), ARTEST_PAYLOAD_ENCODING_UNSPECIFIED,
                 View(Empty), View(Empty), {nullptr, 0U}}};
@@ -143,7 +144,7 @@ namespace
         ARTestComponentHandle* output,
         ARTestErrorBuffer* error) noexcept
     {
-        if (output == nullptr || ToString(typeId) != TypeId)
+        if (output == nullptr || (ToString(typeId) != TypeId && ToString(typeId) != LegacyTypeId))
         {
             SetError(error, "The simulated power driver type is invalid.");
             return ARTEST_STATUS_INVALID_ARGUMENT;
@@ -153,6 +154,9 @@ namespace
             auto component = std::make_unique<ARTestComponentOpaque>();
             const auto json = Parse(configuration);
             component->failShutdown = json.value("failShutdown", false);
+            component->failInitialize = json.value("failInitialize", false) || json.value("failInitialization", false);
+            component->remainingTurnOnFailures = json.value("failTurnOnAttempts", 0);
+            component->missingResource = ToString(typeId) == LegacyTypeId && json.value("hw-rsrc", std::string{}).empty();
             *output = component.release();
             return ARTEST_STATUS_OK;
         }
@@ -198,6 +202,15 @@ namespace
             const auto json = Parse(request);
             if (operationId == "artest.lifecycle.initialize.v1")
             {
+                if (component->missingResource || component->failInitialize)
+                {
+                    const std::string message = component->missingResource
+                        ? "[POWER_SUPPLY_RESOURCE_MISSING] Power supply resource is missing."
+                        : "Simulated initialization failure requested.";
+                    extension->host.log(extension->host.host_context, ARTEST_LOG_ERROR, View(TypeId), View(message));
+                    SetError(error, message);
+                    return ARTEST_STATUS_RESOURCE_UNAVAILABLE;
+                }
                 component->initialized = true;
                 extension->host.log(
                     extension->host.host_context, ARTEST_LOG_INFORMATION,
@@ -240,8 +253,19 @@ namespace
                 component->voltages[channel] = voltage;
                 return ARTEST_STATUS_OK;
             }
+            if (operationId == "artest.instrument.power-supply.v1/set-current-limit")
+            {
+                if (json.value("currentLimit", -1.0) < 0.0) return ARTEST_STATUS_INVALID_ARGUMENT;
+                return ARTEST_STATUS_OK;
+            }
             if (operationId == "artest.instrument.power-supply.v1/turn-on")
             {
+                if (component->remainingTurnOnFailures > 0)
+                {
+                    --component->remainingTurnOnFailures;
+                    SetError(error, "POWER_SUPPLY_TURN_ON_SIMULATED_FAILURE: Simulated turn-on failure.");
+                    return ARTEST_STATUS_EXTENSION_FAILURE;
+                }
                 component->outputs[channel] = true;
                 return ARTEST_STATUS_OK;
             }
@@ -271,26 +295,21 @@ namespace
     }
 }
 
-extern "C" ARTEST_ABI_EXPORT ARTestStatus ARTEST_ABI_CALL
-    ARTestExtension_Query(
-        std::uint32_t requestedMajor,
-        std::uint32_t requestedMinor,
-        ARTestExtensionApiV0* api,
-        ARTestErrorBuffer* error)
+extern "C" ARTEST_ABI_EXPORT ARTestStatus ARTEST_ABI_CALL ARTestExtension_Query(std::uint32_t requestedMajor, std::uint32_t requestedMinor, ARTestExtensionApiV0* api, ARTestErrorBuffer* error)
 {
-    if (api == nullptr || api->struct_size < sizeof(ARTestExtensionApiV0))
-        return ARTEST_STATUS_INVALID_ARGUMENT;
-    if (requestedMajor != ARTEST_EXTENSION_ABI_MAJOR
-        || requestedMinor > ARTEST_EXTENSION_ABI_MINOR)
+    if (api == nullptr || api->struct_size < sizeof(ARTestExtensionApiV0)) return ARTEST_STATUS_INVALID_ARGUMENT;
+    if (requestedMajor != ARTEST_EXTENSION_ABI_MAJOR || requestedMinor > ARTEST_EXTENSION_ABI_MINOR)
     {
         SetError(error, "The requested extension ABI is incompatible.");
         return ARTEST_STATUS_INCOMPATIBLE_ABI;
     }
+
     *api = {
         sizeof(ARTestExtensionApiV0),
         ARTEST_EXTENSION_ABI_MAJOR, ARTEST_EXTENSION_ABI_MINOR, 0U,
         View(ExtensionId), View(ExtensionVersion),
         &CreateExtension, &DestroyExtension, &GetCount, &GetDescriptor,
         &CreateComponent, &DestroyComponent, &Invoke};
+
     return ARTEST_STATUS_OK;
 }

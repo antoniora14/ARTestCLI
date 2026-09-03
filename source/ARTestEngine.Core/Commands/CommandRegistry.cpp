@@ -27,24 +27,15 @@ namespace artest
         return OperationResult::Success();
     }
 
-    bool CommandRegistry::Unregister(const std::string& commandName) noexcept
-    {
-        try
-        {
-            std::unique_lock lock{m_mutex};
-            return m_creators.erase(commandName) != 0U;
-        }
-        catch (...)
-        {
-            return false;
-        }
-    }
-
     std::unique_ptr<ICommand> CommandRegistry::Create(const std::string& commandName) const
     {
-        std::shared_lock lock{m_mutex};
-        const auto command = m_creators.find(commandName);
-        return command == m_creators.end() ? nullptr : command->second();
+        Creator creator;
+        {
+            std::shared_lock lock{m_mutex};
+            const auto command = m_creators.find(commandName);
+            if (command != m_creators.end()) creator = command->second;
+        }
+        return creator ? creator() : nullptr;
     }
 
     bool CommandRegistry::Contains(const std::string& commandName) const

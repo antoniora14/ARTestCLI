@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "required": ["channel", "voltage"],
+  "properties": {
+    "channel": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+    "voltage": { "type": "number", "minimum": 0 },
+    "holdMs": { "type": "integer", "minimum": 0, "maximum": 60000 }
+  },
+  "additionalProperties": false
+}

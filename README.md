@@ -4,7 +4,7 @@ ARTestCLI is the command-line prototype of the ARTest test-sequencing engine.
 It loads versioned JSON scripts, validates commands and instrument bindings,
 initializes the required instruments, and executes each test step in sequence.
 
-The project is still under active development. Stage D3.1 keeps ARTestCLI a true
+The project is still under active development. Stage D3.2 keeps ARTestCLI a true
 thin host: every CLI command now uses the versioned C ABI exposed by
 ARTestEngine.dll. Command Plugins consume Instrument Driver services without
 linking to driver binaries, while ARTestEngine.Core remains a private static
@@ -20,7 +20,7 @@ implementation detail of the Engine DLL.
 - Typed diagnostics and per-step/run results.
 - Non-zero process exit codes for invalid input, initialization failures,
   execution failures, and unexpected exceptions.
-- Built-in power supply, CAN, wait, and reserved conditional command types.
+- Native power/CAN command packages, a Core wait intrinsic, and reserved IF.
 - Interactive step-by-step execution and command-index breakpoints.
 - Google Test regression suite with XML and validated HTML reports.
 - Reusable `ARTestEngine.Core` static library with no console dependency.
@@ -28,7 +28,7 @@ implementation detail of the Engine DLL.
 - Separate JSON parser, semantic compiler, and runtime executor.
 - Injectable command and instrument registries with explicit registration.
 - Structured engine events through `IEventSink`.
-- Fake power supply and CAN instruments for deterministic development and tests.
+- Simulated driver DLLs for development; private test doubles for unit tests.
 - Validated execution state machine with asynchronous session ownership.
 - Cooperative Ctrl+C cancellation and per-step timeouts.
 - Per-step retry, retry-delay, and stop/continue failure policies.
@@ -43,12 +43,15 @@ implementation detail of the Engine DLL.
 - ARTestEngine API 0.3 side-effect-free catalog validation and report schema v2.
 - Manifest schema, path-containment, duplicate-ID, and optional SHA-256 checks.
 - Failure-contained catalog activation plus `extensions list|validate|doctor`.
-- API 0.1 and 0.2 table-size negotiation retained for compatibility tests.
+- API 0.4 metadata-only preparation, typed schemas, and data-only compiled plans.
+- Fresh per-session native instances and owner-token atomic factory registration.
+- Unified compile/run/debug/break with an optional --extensions root.
+- API 0.1, 0.2 and 0.3 table-size negotiation retained for compatibility tests.
 - Thin-host enforcement in MSBuild and Google Test; ARTestCLI cannot reference Core.
 - Legacy compile, run, debug, break, output, and exit-code contracts preserved.
 
 The extension ABI remains experimental at version 0.1, and the Engine host API
-is experimental at version 0.3. No 1.0 stability promise has been made. Production hardware
+is experimental at version 0.4. No 1.0 stability promise has been made. Production hardware
 drivers, managed runtime hosts, parallel execution, and persistent report files
 remain later-stage work.
 
@@ -69,11 +72,14 @@ remain later-stage work.
 
 | Path | Purpose |
 |---|---|
-| `source/ARTestEngine.Core/` | Reusable parser, compiler, executor, models, commands, events, registries, and fake instruments |
+| `source/ARTestEngine.Core/` | Private parser, metadata compiler, executor, models, intrinsics, events, and registries |
 | `source/ARTestEngine/` | Public Engine DLL, native catalog, loader, and runtime adapter |
 | `source/ARTest.SDK/` | C ABI contracts and first-party C++ facade |
 | `source/ARTestCmdSample/` | Reference native Command Plugin |
 | `source/ARTestDrvSimPower/` | Reference simulated Instrument Driver |
+| `source/ARTestCmdHardware/` | Power and CAN commands using driver services |
+| `source/ARTestDrvSimCAN/` | Simulated CAN Instrument Driver |
+| `tests/TestSupport/Fakes/` | Test-only C++ instrument doubles |
 | `source/ARTestCLI/` | Thin command-line host and console adapters |
 | `source/Scripts/` | Versioned sample test plans |
 | `tests/` | Google Test project and characterization tests |
@@ -233,7 +239,7 @@ The HTML generator is tested with synthetic passed, failed, and skipped cases.
 It also compares the aggregate Google Test counters with every individual test
 case. A contradictory report causes the build workflow to fail.
 
-The current Stage D3.1 baseline contains 72 tests across 19 suites. See
+The current Stage D3.2 baseline contains 98 tests across 25 suites. See
 [TESTING.md](TESTING.md) for the regression procedure.
 
 ## Architecture and roadmap
@@ -250,8 +256,10 @@ See also
 [Stage C - Robust execution](docs/architecture/stage-c-robust-execution.md)
 and
 [Stage D3.1 - Production extension catalog](docs/architecture/stage-d3-production-catalog.md)
-for the current extension discovery, integrity, and activation boundaries.
-for the execution lifecycle, policy contract, and safety guarantees.
+for the extension discovery, integrity, and activation baseline.
+The current boundaries are documented in
+[Stage D3.2 - Offline compilation and session ownership](docs/architecture/stage-d3-2-offline-compilation.md)
+and [Schema Profile 1](docs/architecture/schema-profile-v1.md).
 
 Stage D1 implements the first trusted-native vertical slice. The extension
 platform uses a versioned C ABI for native DLLs and preserves isolated runtime

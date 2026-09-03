@@ -17,6 +17,10 @@ $manifestSource = Get-Item -LiteralPath $ManifestPath
 $null = New-Item -ItemType Directory -Force -Path $PackageDirectory
 $packagedBinary = Join-Path $PackageDirectory $binary.Name
 Copy-Item -LiteralPath $binary.FullName -Destination $packagedBinary -Force
+$schemaDirectory = Join-Path $manifestSource.DirectoryName 'schemas'
+if (Test-Path -LiteralPath $schemaDirectory -PathType Container) {
+    Copy-Item -LiteralPath $schemaDirectory -Destination $PackageDirectory -Recurse -Force
+}
 
 $manifest = Get-Content -LiteralPath $manifestSource.FullName -Raw |
     ConvertFrom-Json

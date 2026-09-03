@@ -14,6 +14,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
+& (Join-Path $PSScriptRoot 'verify-core-boundary.ps1')
 $solutionPath = Join-Path $repositoryRoot 'source\ARTestCLI.sln'
 $msbuildPath = Join-Path $VisualStudioPath 'MSBuild\Current\Bin\MSBuild.exe'
 

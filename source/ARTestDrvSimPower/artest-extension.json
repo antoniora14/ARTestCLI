@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "extensionId": "com.artest.extension.sim-power",
   "displayName": "ARTest Simulated Power Driver",
   "version": "0.1.0",
@@ -21,7 +21,24 @@
       "displayName": "Simulated Power Supply",
       "description": "Deterministic reference Instrument Driver.",
       "capabilities": ["artest.contract.instrument.power-supply.v1"],
-      "schemas": [],
+      "schemas": [
+        { "role": "configuration", "schemaId": "artest.schema.sim-power.configuration.v1",
+          "path": "schemas/configuration.json", "mediaType": "application/json; charset=utf-8" }
+      ],
+      "flags": ["simulated"]
+    },
+    {
+      "kind": "instrumentDriver",
+      "typeId": "com.artest.driver.sim.power-legacy",
+      "aliases": ["PowerSupply"],
+      "contractId": "artest.contract.instrument.power-supply.v1",
+      "version": "0.1.0",
+      "displayName": "Simulated Legacy Power Supply",
+      "capabilities": ["artest.contract.instrument.power-supply.v1"],
+      "schemas": [
+        { "role": "configuration", "schemaId": "artest.schema.sim-power.configuration.v1",
+          "path": "schemas/configuration.json", "mediaType": "application/json; charset=utf-8" }
+      ],
       "flags": ["simulated"]
     }
   ]

@@ -54,12 +54,16 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="TestMain.cpp" />
+    <ClCompile Include="TestSupport\Fakes\FakePowerSupply.cpp" />
+    <ClCompile Include="TestSupport\Fakes\FakeCanDevice.cpp" />
+    <ClCompile Include="TestSupport\Fakes\RegisterFakeInstruments.cpp" />
     <ClCompile Include="ScriptDocumentTests.cpp" />
     <ClCompile Include="InstrumentFactoryTests.cpp" />
     <ClCompile Include="CommandFactoryTests.cpp" />
     <ClCompile Include="ScriptExecutorTests.cpp" />
     <ClCompile Include="StageCExecutionTests.cpp" />
     <ClCompile Include="StageDExtensionTests.cpp" />
+    <ClCompile Include="StageD32Tests.cpp" />
     <ClCompile Include="StageDThinHostTests.cpp" />
     <ClCompile Include="CliThinHostTests.cpp" />
     <ClCompile Include="..\source\ARTestCLI\CliApplication.cpp" />

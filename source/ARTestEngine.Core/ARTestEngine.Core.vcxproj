@@ -35,10 +35,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Commands\BuiltIn\IfCommand.cpp" />
-    <ClCompile Include="Commands\BuiltIn\PowerOffCommand.cpp" />
-    <ClCompile Include="Commands\BuiltIn\PowerOnCommand.cpp" />
-    <ClCompile Include="Commands\BuiltIn\RegisterBuiltInCommands.cpp" />
-    <ClCompile Include="Commands\BuiltIn\SendCanMessageCommand.cpp" />
     <ClCompile Include="Commands\BuiltIn\WaitCommand.cpp" />
     <ClCompile Include="Commands\CommandRegistry.cpp" />
     <ClCompile Include="Compilation\TestPlanCompiler.cpp" />
@@ -47,24 +43,23 @@
     <ClCompile Include="Execution\ExecutionSession.cpp" />
     <ClCompile Include="Execution\ExecutionStateMachine.cpp" />
     <ClCompile Include="Execution\TestExecutor.cpp" />
-    <ClCompile Include="Instruments\Fakes\FakeCanDevice.cpp" />
-    <ClCompile Include="Instruments\Fakes\FakePowerSupply.cpp" />
-    <ClCompile Include="Instruments\Fakes\RegisterFakeInstruments.cpp" />
     <ClCompile Include="Instruments\InstrumentManager.cpp" />
     <ClCompile Include="Instruments\InstrumentRegistry.cpp" />
     <ClCompile Include="Parsing\JsonTestPlanParser.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Commands\BuiltIn\IfCommand.h" />
-    <ClInclude Include="Commands\BuiltIn\PowerOffCommand.h" />
-    <ClInclude Include="Commands\BuiltIn\PowerOnCommand.h" />
-    <ClInclude Include="Commands\BuiltIn\RegisterBuiltInCommands.h" />
-    <ClInclude Include="Commands\BuiltIn\SendCanMessageCommand.h" />
     <ClInclude Include="Commands\BuiltIn\WaitCommand.h" />
     <ClInclude Include="Commands\CommandRegistry.h" />
     <ClInclude Include="Commands\ICommand.h" />
     <ClInclude Include="Compilation\TestPlanCompiler.h" />
     <ClInclude Include="Diagnostics.h" />
+    <ClInclude Include="Catalog\ComponentCatalog.h" />
+    <ClInclude Include="Catalog\ComponentDescriptor.h" />
+    <ClInclude Include="Catalog\RegistryTransaction.h" />
+    <ClInclude Include="Catalog\SchemaValidator.h" />
+    <ClInclude Include="Execution\RuntimeStep.h" />
+    <ClInclude Include="Commands\BuiltIn\IntrinsicCommands.h" />
     <ClInclude Include="Execution\Cancellation.h" />
     <ClInclude Include="Execution\ExecutionContext.h" />
     <ClInclude Include="Execution\ExecutionSession.h" />
@@ -73,14 +68,9 @@
     <ClInclude Include="Execution\IEventSink.h" />
     <ClInclude Include="Execution\IExecutionControl.h" />
     <ClInclude Include="Execution\TestExecutor.h" />
-    <ClInclude Include="Instruments\Fakes\FakeCanDevice.h" />
-    <ClInclude Include="Instruments\Fakes\FakePowerSupply.h" />
-    <ClInclude Include="Instruments\Fakes\RegisterFakeInstruments.h" />
-    <ClInclude Include="Instruments\ICanDevice.h" />
     <ClInclude Include="Instruments\IInstrument.h" />
     <ClInclude Include="Instruments\InstrumentManager.h" />
     <ClInclude Include="Instruments\InstrumentRegistry.h" />
-    <ClInclude Include="Instruments\IPowerSupply.h" />
     <ClInclude Include="Model\CompiledStep.h" />
     <ClInclude Include="Model\ExecutionPolicy.h" />
     <ClInclude Include="Model\TestPlan.h" />

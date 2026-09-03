@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 2,
+  "extensionId": "com.artest.extension.hardware-commands",
+  "displayName": "ARTestCmdHardware",
+  "version": "0.1.0",
+  "publisher": "ARTest",
+  "runtime": {
+    "kind": "native",
+    "entry": "ARTestCmdHardware.dll",
+    "isolation": "inProcess",
+    "architecture": "x64",
+    "abi": {
+      "major": 0,
+      "minor": 1
+    }
+  },
+  "components": [
+    {
+      "kind": "command",
+      "typeId": "com.artest.command.power.turn-on",
+      "aliases": [
+        "PowerSupply.TurnOn"
+      ],
+      "contractId": "artest.contract.command.v1",
+      "version": "0.1.0",
+      "displayName": "Power On",
+      "capabilities": [
+        "artest.contract.command.v1"
+      ],
+      "requires": [
+        {
+          "contractId": "artest.contract.instrument.power-supply.v1",
+          "selection": "configured"
+        }
+      ],
+      "schemas": [
+        {
+          "role": "parameters",
+          "schemaId": "artest.schema.power-on.v1",
+          "path": "schemas/power-on.json",
+          "mediaType": "application/json; charset=utf-8"
+        }
+      ],
+      "flags": []
+    },
+    {
+      "kind": "command",
+      "typeId": "com.artest.command.power.turn-off",
+      "aliases": [
+        "PowerSupply.TurnOff"
+      ],
+      "contractId": "artest.contract.command.v1",
+      "version": "0.1.0",
+      "displayName": "Power Off",
+      "capabilities": [
+        "artest.contract.command.v1"
+      ],
+      "requires": [
+        {
+          "contractId": "artest.contract.instrument.power-supply.v1",
+          "selection": "configured"
+        }
+      ],
+      "schemas": [
+        {
+          "role": "parameters",
+          "schemaId": "artest.schema.power-off.v1",
+          "path": "schemas/power-off.json",
+          "mediaType": "application/json; charset=utf-8"
+        }
+      ],
+      "flags": []
+    },
+    {
+      "kind": "command",
+      "typeId": "com.artest.command.can.send",
+      "aliases": [
+        "CAN.SendMessage"
+      ],
+      "contractId": "artest.contract.command.v1",
+      "version": "0.1.0",
+      "displayName": "Send CAN Message",
+      "capabilities": [
+        "artest.contract.command.v1"
+      ],
+      "requires": [
+        {
+          "contractId": "artest.contract.instrument.can.v1",
+          "selection": "configured"
+        }
+      ],
+      "schemas": [
+        {
+          "role": "parameters",
+          "schemaId": "artest.schema.can-send.v1",
+          "path": "schemas/can-send.json",
+          "mediaType": "application/json; charset=utf-8"
+        }
+      ],
+      "flags": []
+    }
+  ]
+}

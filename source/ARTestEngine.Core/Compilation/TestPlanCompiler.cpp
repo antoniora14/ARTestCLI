@@ -1,170 +1,97 @@
 #include "TestPlanCompiler.h"
-
-#include <exception>
+#include "../Catalog/SchemaValidator.h"
+#include <algorithm>
+#include <map>
 #include <unordered_set>
-#include <utility>
-
-namespace
-{
-    constexpr int MaximumAttempts = 100;
-
-    void AppendDiagnostics(
-        std::vector<artest::Diagnostic>& target,
-        artest::OperationResult source,
-        const std::string& location)
-    {
-        for (auto& diagnostic : source.diagnostics)
-        {
-            if (diagnostic.location.empty())
-            {
-                diagnostic.location = location;
-            }
-            target.push_back(std::move(diagnostic));
-        }
-    }
-}
 
 namespace artest
 {
-    TestPlanCompiler::TestPlanCompiler(CommandRegistry& commands, InstrumentManager& instruments)
-        : m_commands(commands), m_instruments(instruments)
-    {
-    }
-
     ValueResult<std::vector<CompiledStep>> TestPlanCompiler::Compile(const TestPlan& plan) const
     {
         ValueResult<std::vector<CompiledStep>> result;
-        std::vector<CompiledStep> compiledSteps;
-        std::unordered_set<std::uint64_t> stepIds;
+        std::vector<CompiledStep> steps;
+        std::map<std::string, const ComponentDescriptor*> instruments;
+        const auto fail = [&result](std::string code, std::string message, std::string location)
+        { result.diagnostics.push_back({DiagnosticSeverity::Error, std::move(code), std::move(message), std::move(location)}); };
+        const auto append = [&result](const OperationResult& operation)
+        { result.diagnostics.insert(result.diagnostics.end(), operation.diagnostics.begin(), operation.diagnostics.end()); };
 
-        if (plan.steps.empty())
+        for (const auto& instrument : plan.instruments)
         {
-            result.diagnostics.push_back({
-                DiagnosticSeverity::Error,
-                "SCRIPT_EMPTY",
-                "The test plan must contain at least one step.",
-                "steps"});
-            return result;
+            if (instrument.id.empty() || instruments.contains(instrument.id))
+            {
+                fail("INSTRUMENT_ID_INVALID", "Instrument IDs must be non-empty and unique.", instrument.id);
+                continue;
+            }
+            const auto* descriptor = m_catalog.Find(instrument.type);
+            if (!descriptor || descriptor->kind != ComponentKind::InstrumentDriver)
+            {
+                fail("INSTRUMENT_TYPE_UNKNOWN", "Unknown instrument type: " + instrument.type, instrument.id);
+                continue;
+            }
+            instruments.emplace(instrument.id, descriptor);
+            if (const auto* schema = descriptor->Schema("configuration"))
+                append(SchemaValidator::Validate(schema->document, instrument.configuration,
+                    "instruments/" + instrument.id + "/config"));
+            else
+                fail("INSTRUMENT_SCHEMA_MISSING", "A declarative configuration schema is required.", instrument.id);
         }
-
+        if (plan.steps.empty()) fail("SCRIPT_EMPTY", "The test plan must contain at least one step.", "steps");
+        std::unordered_set<std::uint64_t> ids;
         for (std::size_t index = 0; index < plan.steps.size(); ++index)
         {
-            const auto& definition = plan.steps[index];
-            const std::string location = "steps[" + std::to_string(index) + "]";
-
-            if (definition.stepId == 0 || !stepIds.insert(definition.stepId).second)
+            const auto& step = plan.steps[index];
+            const auto location = "steps[" + std::to_string(index) + "]";
+            if (step.stepId == 0 || !ids.insert(step.stepId).second)
+            { fail("COMMAND_STEP_ID_INVALID", "Step identifiers must be unique positive integers.", location); continue; }
+            if (step.policy.maxAttempts < 1 || step.policy.maxAttempts > 100)
+            { fail("COMMAND_POLICY_ATTEMPTS_INVALID", "maxAttempts must be between 1 and 100.", location); continue; }
+            if (step.policy.retryDelay.count() < 0)
+            { fail("COMMAND_POLICY_RETRY_DELAY_INVALID", "retryDelayMs must be zero or greater.", location); continue; }
+            if (step.policy.timeout.count() < 0)
+            { fail("COMMAND_POLICY_TIMEOUT_INVALID", "timeoutMs must be zero or greater.", location); continue; }
+            const ComponentDescriptor* instrument = nullptr;
+            if (step.instrumentId)
             {
-                result.diagnostics.push_back({
-                    DiagnosticSeverity::Error,
-                    "COMMAND_STEP_ID_INVALID",
-                    "Step identifiers must be unique positive integers.",
-                    location});
+                const auto found = instruments.find(*step.instrumentId);
+                if (found == instruments.end())
+                { fail("COMMAND_INSTRUMENT_UNKNOWN", "Unknown instrument ID: " + *step.instrumentId, location); continue; }
+                instrument = found->second;
+            }
+            const auto* descriptor = m_catalog.Find(step.commandName);
+            if (!descriptor || descriptor->kind != ComponentKind::Command)
+            { fail("COMMAND_TYPE_UNKNOWN", "Unknown command type: " + step.commandName, location); continue; }
+            if (!descriptor->unavailableCode.empty())
+            { fail(descriptor->unavailableCode, "This intrinsic is reserved and is not implemented.", location); continue; }
+            bool bindingValid = true;
+            for (const auto& contract : descriptor->requiredContracts)
+                // ABI 0.1 exposes one service contract per driver component.
+                // Capability tags are discovery metadata, not additional service interfaces.
+                if (!instrument || instrument->contractId != contract)
+                {
+                    fail("COMMAND_INSTRUMENT_CONTRACT_MISMATCH", "A configured instrument must provide " + contract + ".", location);
+                    bindingValid = false;
+                }
+            if (!bindingValid) continue;
+            const auto* schema = descriptor->Schema("parameters");
+            if (!schema)
+            { fail("COMMAND_SCHEMA_MISSING", "A declarative parameter schema is required.", location); continue; }
+            auto validation = SchemaValidator::Validate(schema->document, step.parameters, location + "/params");
+            if (!validation.Succeeded())
+            {
+                if (!descriptor->validationCode.empty())
+                    for (auto& diagnostic : validation.diagnostics)
+                    {
+                        diagnostic.code = descriptor->validationCode;
+                        diagnostic.location = "stepId=" + std::to_string(step.stepId);
+                    }
+                append(validation);
                 continue;
             }
-
-            if (definition.policy.maxAttempts < 1 || definition.policy.maxAttempts > MaximumAttempts)
-            {
-                result.diagnostics.push_back({
-                    DiagnosticSeverity::Error,
-                    "COMMAND_POLICY_ATTEMPTS_INVALID",
-                    "maxAttempts must be between 1 and 100.",
-                    location + ":policy.maxAttempts"});
-                continue;
-            }
-            if (definition.policy.retryDelay.count() < 0)
-            {
-                result.diagnostics.push_back({
-                    DiagnosticSeverity::Error,
-                    "COMMAND_POLICY_RETRY_DELAY_INVALID",
-                    "retryDelayMs must be zero or greater.",
-                    location + ":policy.retryDelayMs"});
-                continue;
-            }
-            if (definition.policy.timeout.count() < 0)
-            {
-                result.diagnostics.push_back({
-                    DiagnosticSeverity::Error,
-                    "COMMAND_POLICY_TIMEOUT_INVALID",
-                    "timeoutMs must be zero or greater.",
-                    location + ":policy.timeoutMs"});
-                continue;
-            }
-
-            std::shared_ptr<IInstrument> instrument;
-            if (definition.instrumentId.has_value())
-            {
-                instrument = m_instruments.GetInstrument(*definition.instrumentId);
-                if (!instrument)
-                {
-                    result.diagnostics.push_back({
-                        DiagnosticSeverity::Error,
-                        "COMMAND_INSTRUMENT_UNKNOWN",
-                        "Unknown instrument ID: " + *definition.instrumentId,
-                        location});
-                    continue;
-                }
-            }
-
-            try
-            {
-                auto command = m_commands.Create(definition.commandName);
-                if (!command)
-                {
-                    result.diagnostics.push_back({
-                        DiagnosticSeverity::Error,
-                        "COMMAND_TYPE_UNKNOWN",
-                        "Unknown command type: " + definition.commandName,
-                        location});
-                    continue;
-                }
-
-                OperationResult configuration = command->Configure(
-                    definition.parameters,
-                    std::move(instrument));
-                if (!configuration.Succeeded())
-                {
-                    AppendDiagnostics(result.diagnostics, std::move(configuration), location);
-                    continue;
-                }
-
-                OperationResult validation = command->Validate();
-                if (!validation.Succeeded())
-                {
-                    AppendDiagnostics(
-                        result.diagnostics,
-                        std::move(validation),
-                        "stepId=" + std::to_string(definition.stepId));
-                    continue;
-                }
-
-                compiledSteps.push_back({
-                    definition.stepId,
-                    definition.commandName,
-                    std::move(command),
-                    definition.policy});
-            }
-            catch (const std::exception& exception)
-            {
-                result.diagnostics.push_back({
-                    DiagnosticSeverity::Error,
-                    "COMMAND_COMPILATION_EXCEPTION",
-                    exception.what(),
-                    location});
-            }
-            catch (...)
-            {
-                result.diagnostics.push_back({
-                    DiagnosticSeverity::Error,
-                    "COMMAND_COMPILATION_EXCEPTION",
-                    "Unknown exception while compiling the command.",
-                    location});
-            }
+            steps.push_back({step.stepId, step.commandName, descriptor->typeId,
+                step.parameters, step.instrumentId, step.policy});
         }
-
-        if (!ContainsErrors(result.diagnostics))
-        {
-            result.value = std::move(compiledSteps);
-        }
+        if (!ContainsErrors(result.diagnostics)) result.value = std::move(steps);
         return result;
     }
 }

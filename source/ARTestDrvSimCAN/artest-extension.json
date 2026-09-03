@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 2,
+  "extensionId": "com.artest.extension.sim-can",
+  "displayName": "ARTestDrvSimCAN",
+  "version": "0.1.0",
+  "publisher": "ARTest",
+  "runtime": {
+    "kind": "native",
+    "entry": "ARTestDrvSimCAN.dll",
+    "isolation": "inProcess",
+    "architecture": "x64",
+    "abi": {
+      "major": 0,
+      "minor": 1
+    }
+  },
+  "components": [
+    {
+      "kind": "instrumentDriver",
+      "typeId": "com.artest.driver.sim.can",
+      "aliases": [
+        "CAN"
+      ],
+      "contractId": "artest.contract.instrument.can.v1",
+      "version": "0.1.0",
+      "displayName": "Simulated CAN",
+      "capabilities": [
+        "artest.contract.instrument.can.v1"
+      ],
+      "schemas": [
+        {
+          "role": "configuration",
+          "schemaId": "artest.schema.sim-can-configuration.v1",
+          "path": "schemas/sim-can-configuration.json",
+          "mediaType": "application/json; charset=utf-8"
+        }
+      ],
+      "flags": [
+        "simulated"
+      ]
+    }
+  ]
+}

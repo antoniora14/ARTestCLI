@@ -27,27 +27,17 @@ namespace artest
         return OperationResult::Success();
     }
 
-    bool InstrumentRegistry::Unregister(
-        const std::string& instrumentType) noexcept
-    {
-        try
-        {
-            std::unique_lock lock{m_mutex};
-            return m_creators.erase(instrumentType) != 0U;
-        }
-        catch (...)
-        {
-            return false;
-        }
-    }
-
     std::unique_ptr<IInstrument> InstrumentRegistry::Create(
         const std::string& instrumentType,
         IEventSink& eventSink) const
     {
-        std::shared_lock lock{m_mutex};
-        const auto instrument = m_creators.find(instrumentType);
-        return instrument == m_creators.end() ? nullptr : instrument->second(eventSink);
+        Creator creator;
+        {
+            std::shared_lock lock{m_mutex};
+            const auto instrument = m_creators.find(instrumentType);
+            if (instrument != m_creators.end()) creator = instrument->second;
+        }
+        return creator ? creator(eventSink) : nullptr;
     }
 
     bool InstrumentRegistry::Contains(const std::string& instrumentType) const

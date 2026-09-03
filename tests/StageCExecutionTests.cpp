@@ -25,8 +25,9 @@ namespace
     class ResultSequenceCommand final : public ICommand
     {
     public:
-        explicit ResultSequenceCommand(std::vector<StepResult> results)
-            : m_results(std::move(results))
+        explicit ResultSequenceCommand(std::vector<StepResult> results,
+            std::shared_ptr<std::atomic_size_t> observed = {})
+            : m_results(std::move(results)), m_observed(std::move(observed))
         {
         }
 
@@ -39,6 +40,7 @@ namespace
         StepResult Execute(ExecutionContext&, const CancellationToken&) override
         {
             const auto index = m_executions.fetch_add(1);
+            if (m_observed) ++*m_observed;
             return m_results[std::min(index, m_results.size() - 1)];
         }
         [[nodiscard]] std::size_t Executions() const noexcept { return m_executions.load(); }
@@ -46,6 +48,7 @@ namespace
     private:
         std::vector<StepResult> m_results;
         std::atomic_size_t m_executions{0};
+        std::shared_ptr<std::atomic_size_t> m_observed;
     };
 
     class CooperativeDelayCommand final : public ICommand
@@ -183,9 +186,9 @@ TEST(ExecutionPolicyTests, RetriesUntilTheStepPasses)
     auto command = std::make_unique<ResultSequenceCommand>(
         std::vector<StepResult>{StepResult::Error("transient"), StepResult::Pass("recovered")});
     auto* commandView = command.get();
-    CompiledStep step{1, command->Name(), std::move(command)};
+    RuntimeStep step{1, command->Name(), std::move(command)};
     step.policy.maxAttempts = 3;
-    std::vector<CompiledStep> steps;
+    std::vector<RuntimeStep> steps;
     steps.push_back(std::move(step));
     RecordingEventSink sink;
 
@@ -204,9 +207,9 @@ TEST(ExecutionPolicyTests, ContinuePolicyExecutesFollowingStepsAndPreservesFailu
         std::vector<StepResult>{StepResult::Fail("expected")});
     auto second = std::make_unique<ResultSequenceCommand>(
         std::vector<StepResult>{StepResult::Pass()});
-    CompiledStep firstStep{1, first->Name(), std::move(first)};
+    RuntimeStep firstStep{1, first->Name(), std::move(first)};
     firstStep.policy.onFailure = FailureAction::Continue;
-    std::vector<CompiledStep> steps;
+    std::vector<RuntimeStep> steps;
     steps.push_back(std::move(firstStep));
     steps.push_back({2, second->Name(), std::move(second)});
     RecordingEventSink sink;
@@ -226,7 +229,7 @@ TEST(ExecutionPolicyTests, StopPolicyCountsRemainingStepsAsSkipped)
         std::vector<StepResult>{StepResult::Error("fatal")});
     auto second = std::make_unique<ResultSequenceCommand>(
         std::vector<StepResult>{StepResult::Pass()});
-    std::vector<CompiledStep> steps;
+    std::vector<RuntimeStep> steps;
     steps.push_back({1, first->Name(), std::move(first)});
     steps.push_back({2, second->Name(), std::move(second)});
     RecordingEventSink sink;
@@ -242,9 +245,9 @@ TEST(ExecutionPolicyTests, StopPolicyCountsRemainingStepsAsSkipped)
 TEST(ExecutionPolicyTests, CooperativeTimeoutProducesTimedOutVerdict)
 {
     auto command = std::make_unique<CooperativeDelayCommand>(1s);
-    CompiledStep step{1, command->Name(), std::move(command)};
+    RuntimeStep step{1, command->Name(), std::move(command)};
     step.policy.timeout = 20ms;
-    std::vector<CompiledStep> steps;
+    std::vector<RuntimeStep> steps;
     steps.push_back(std::move(step));
     RecordingEventSink sink;
 
@@ -265,7 +268,7 @@ TEST(ExecutionSessionTests, RunsAsynchronouslyAndGuaranteesCleanup)
     auto manager = MakeManager(registry, sink);
     RunToCompletionControl control;
     auto command = std::make_unique<CooperativeDelayCommand>(20ms);
-    std::vector<CompiledStep> steps;
+    std::vector<RuntimeStep> steps;
     steps.push_back({1, command->Name(), std::move(command)});
     ExecutionSession session(std::move(steps), *manager, sink, control);
 
@@ -288,7 +291,7 @@ TEST(ExecutionSessionTests, CancellationStopsTheWorkerAndStillCleansUp)
     auto manager = MakeManager(registry, sink);
     RunToCompletionControl control;
     auto command = std::make_unique<CooperativeDelayCommand>(5s);
-    std::vector<CompiledStep> steps;
+    std::vector<RuntimeStep> steps;
     steps.push_back({1, command->Name(), std::move(command)});
     ExecutionSession session(std::move(steps), *manager, sink, control);
     ASSERT_TRUE(session.Start().Succeeded());
@@ -312,7 +315,7 @@ TEST(ExecutionSessionTests, CleanupFailureChangesTheOverallVerdict)
     RunToCompletionControl control;
     auto command = std::make_unique<ResultSequenceCommand>(
         std::vector<StepResult>{StepResult::Pass()});
-    std::vector<CompiledStep> steps;
+    std::vector<RuntimeStep> steps;
     steps.push_back({1, command->Name(), std::move(command)});
     ExecutionSession session(std::move(steps), *manager, sink, control);
 
@@ -334,10 +337,10 @@ TEST(ExecutionSessionTests, InitializationFailureHasItsOwnFailureKindAndTerminal
     InstrumentRegistry registry;
     auto manager = MakeManager(registry, sink, false, true);
     RunToCompletionControl control;
+    auto executions = std::make_shared<std::atomic_size_t>(0);
     auto command = std::make_unique<ResultSequenceCommand>(
-        std::vector<StepResult>{StepResult::Pass()});
-    auto* commandView = command.get();
-    std::vector<CompiledStep> steps;
+        std::vector<StepResult>{StepResult::Pass()}, executions);
+    std::vector<RuntimeStep> steps;
     steps.push_back({1, command->Name(), std::move(command)});
     ExecutionSession session(std::move(steps), *manager, sink, control);
 
@@ -347,7 +350,7 @@ TEST(ExecutionSessionTests, InitializationFailureHasItsOwnFailureKindAndTerminal
     EXPECT_EQ(run.status, RunStatus::Error);
     EXPECT_EQ(run.failureKind, RunFailureKind::Initialization);
     EXPECT_EQ(session.State(), ExecutionState::Failed);
-    EXPECT_EQ(commandView->Executions(), 0U);
+    EXPECT_EQ(executions->load(), 0U);
     EXPECT_EQ(run.summary.skippedSteps, 1U);
 }
 
@@ -360,7 +363,7 @@ TEST(ExecutionSessionTests, SessionCanOnlyBeStartedOnce)
     RunToCompletionControl control;
     auto command = std::make_unique<ResultSequenceCommand>(
         std::vector<StepResult>{StepResult::Pass()});
-    std::vector<CompiledStep> steps;
+    std::vector<RuntimeStep> steps;
     steps.push_back({1, command->Name(), std::move(command)});
     ExecutionSession session(std::move(steps), manager, sink, control);
 

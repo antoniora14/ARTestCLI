@@ -10,9 +10,10 @@
 #endif
 
 #define ARTEST_ENGINE_API_MAJOR UINT32_C(0)
-#define ARTEST_ENGINE_API_MINOR UINT32_C(3)
+#define ARTEST_ENGINE_API_MINOR UINT32_C(4)
 #define ARTEST_ENGINE_API_V0_1_SIZE ((uint32_t)144)
 #define ARTEST_ENGINE_API_V0_2_SIZE ((uint32_t)160)
+#define ARTEST_ENGINE_API_V0_3_SIZE ((uint32_t)168)
 
 typedef struct ARTestEngineOpaque* ARTestEngineHandle;
 typedef struct ARTestCompiledPlanOpaque* ARTestCompiledPlanHandle;
@@ -117,6 +118,8 @@ typedef struct ARTestEngineApiV0
     ARTestStartSessionControlledFn start_session_controlled;
     /* Added in API 0.3. Validation discovers metadata but never loads extension code. */
     ARTestValidateCatalogFn validate_catalog;
+    /* Added in API 0.4. Bind a metadata snapshot without loading DLLs. */
+    ARTestRefreshCatalogFn prepare_catalog;
 } ARTestEngineApiV0;
 #pragma pack(pop)
 
@@ -133,7 +136,7 @@ ARTEST_ENGINE_EXPORT ARTestStatus ARTEST_ABI_CALL ARTestEngine_QueryApi(uint32_t
 #if defined(__cplusplus) && UINTPTR_MAX == UINT64_MAX
 static_assert(sizeof(ARTestStepExecutionInfoV0) == 40);
 static_assert(sizeof(ARTestSessionOptionsV0) == 24);
-static_assert(sizeof(ARTestEngineApiV0) == 168);
+static_assert(sizeof(ARTestEngineApiV0) == 176);
 #endif
 
 #endif

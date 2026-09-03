@@ -61,9 +61,16 @@ namespace artest::cli
             }
 
             std::unordered_set<std::size_t> breakpoints;
-            if (command == "break")
+            std::string extensionRoot;
+            for (std::size_t index = 2; index < arguments.size(); ++index)
             {
-                for (std::size_t index = 2; index < arguments.size(); ++index)
+                if (arguments[index] == "--extensions")
+                {
+                    if (!extensionRoot.empty() || ++index >= arguments.size())
+                        throw std::invalid_argument("--extensions requires one catalog root.");
+                    extensionRoot = arguments[index];
+                }
+                else if (command == "break")
                 {
                     std::size_t parsedCharacters = 0;
                     const auto breakpoint = std::stoull(arguments[index], &parsedCharacters);
@@ -73,14 +80,11 @@ namespace artest::cli
                     }
                     breakpoints.insert(static_cast<std::size_t>(breakpoint));
                 }
-            }
-            else if (arguments.size() > 2)
-            {
-                throw std::invalid_argument("Unexpected command-line arguments.");
+                else throw std::invalid_argument("Unexpected command-line arguments.");
             }
 
-            return RunBuiltInCommand(
-                command, arguments[1], std::move(breakpoints));
+            return RunPlan(
+                command, arguments[1], std::move(breakpoints), extensionRoot);
         }
         catch (const std::invalid_argument& exception)
         {
@@ -113,7 +117,7 @@ namespace artest::cli
         }
 
         sdk::EngineClient engine;
-        auto status = engine.Create();
+        auto status = engine.Create("{\"loadDefaultCatalog\":false}");
         if (!status.Succeeded())
         {
             PrintEngineFailure("create", status.code, status.message);
@@ -189,54 +193,22 @@ namespace artest::cli
             m_error << "Usage: ARTestCLI extension-run <script.json> <extensions-root>\n";
             return static_cast<int>(ExitCode::InvalidArguments);
         }
-        std::string content;
-        if (!ReadScript(arguments[1], content))
-            return static_cast<int>(ExitCode::InvalidScript);
-
-        sdk::EngineClient engine;
-        auto status = engine.Create();
-        if (status.Succeeded())
-            status = engine.SubscribeEvents([this](std::string_view eventText)
-            {
-                const auto event = nlohmann::json::parse(eventText);
-                m_output << "[Engine] " << event.value("source", std::string{})
-                         << ": " << event.value("message", std::string{}) << '\n';
-            });
-        if (status.Succeeded()) status = engine.RefreshCatalog(arguments[2]);
-        if (status.Succeeded()) status = engine.Compile(content);
-        if (status.Succeeded()) status = engine.Start();
-        bool completed = false;
-        if (status.Succeeded())
-        {
-            ConsoleCancellationHandler cancellationHandler(engine);
-            status = engine.Wait(UINT32_MAX, completed);
-        }
-        std::string report;
-        if (status.Succeeded() && completed)
-            status = engine.SerializeResult(report);
-        if (!status.Succeeded())
-        {
-            PrintEngineFailure({}, status.code, status.message);
-            return static_cast<int>(ExitCode::ExecutionFailed);
-        }
-        m_output << report << '\n';
-        const auto result = nlohmann::json::parse(report);
-        return result.value("status", std::string{}) == "passed"
-            ? static_cast<int>(ExitCode::Success)
-            : static_cast<int>(ExitCode::ExecutionFailed);
+        return RunPlan("run", arguments[1], {}, arguments[2], true);
     }
 
-    int CliApplication::RunBuiltInCommand(
+    int CliApplication::RunPlan(
         const std::string& command,
         const std::string& scriptPath,
-        std::unordered_set<std::size_t> breakpoints)
+        std::unordered_set<std::size_t> breakpoints,
+        const std::string& extensionRoot,
+        bool compatibilityJson)
     {
         std::string content;
         if (!ReadScript(scriptPath, content))
             return static_cast<int>(ExitCode::InvalidScript);
 
         sdk::EngineClient engine;
-        auto status = engine.Create();
+        auto status = engine.Create(extensionRoot.empty() ? "{}" : "{\"loadDefaultCatalog\":false}");
         if (!status.Succeeded())
         {
             PrintEngineFailure("create", status.code, status.message);
@@ -244,12 +216,27 @@ namespace artest::cli
         }
 
         ConsoleEventSink eventSink(m_output, m_error);
+        if (!extensionRoot.empty())
+        {
+            status = engine.PrepareCatalog(extensionRoot);
+            if (!status.Succeeded())
+            {
+                PrintEngineFailure("catalog preparation", status.code, status.message);
+                return static_cast<int>(ExitCode::ExtensionCatalogInvalid);
+            }
+        }
         if (command != "compile")
         {
             status = engine.SubscribeEvents(
-                [&eventSink](std::string_view eventText)
+                [this, &eventSink, compatibilityJson](std::string_view eventText)
                 {
-                    eventSink.Publish(eventText);
+                    if (compatibilityJson)
+                    {
+                        const auto event = nlohmann::json::parse(eventText);
+                        m_output << "[Engine] " << event.value("source", std::string{})
+                            << ": " << event.value("message", std::string{}) << '\n';
+                    }
+                    else eventSink.Publish(eventText);
                 });
             if (!status.Succeeded())
             {
@@ -319,6 +306,7 @@ namespace artest::cli
             return static_cast<int>(ExitCode::UnexpectedFailure);
         }
         const auto result = nlohmann::json::parse(runReport);
+        if (compatibilityJson) m_output << runReport << '\n';
         if (result.value("status", std::string{}) == "passed")
             return static_cast<int>(ExitCode::Success);
         if (result.value("failureKind", 4) == 1)
@@ -347,12 +335,13 @@ namespace artest::cli
         m_output
             << "Usage:\n"
             << "  ARTestCLI <command> <script.json> [options]\n\n"
+            << "  --extensions <root>     Use an explicit catalog for compile/run/debug/break.\n"
             << "Commands:\n"
             << "  compile                 Validate the script without initializing instruments.\n"
             << "  run                     Execute the complete script.\n"
             << "  debug                   Pause before every step.\n"
             << "  break idx1 idx2 ...     Pause at zero-based command indices.\n"
-            << "  extension-run           Run a script through ARTestEngine.dll and an approved extension root.\n"
+            << "  extension-run           Compatibility alias for run with final JSON output.\n"
             << "  extensions list         List packages after safe manifest validation.\n"
             << "  extensions validate     Emit the machine-readable validation report without loading DLLs.\n"
             << "  extensions doctor       Validate, load, inspect ABI descriptors, and activate a catalog.\n"

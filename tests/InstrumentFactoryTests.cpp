@@ -1,8 +1,8 @@
 #include "TestSupport/RecordingEventSink.h"
 
-#include "ARTestEngine.Core/Instruments/Fakes/FakeCanDevice.h"
-#include "ARTestEngine.Core/Instruments/Fakes/FakePowerSupply.h"
-#include "ARTestEngine.Core/Instruments/Fakes/RegisterFakeInstruments.h"
+#include "TestSupport/Fakes/FakeCanDevice.h"
+#include "TestSupport/Fakes/FakePowerSupply.h"
+#include "TestSupport/Fakes/RegisterFakeInstruments.h"
 #include "ARTestEngine.Core/Instruments/InstrumentManager.h"
 
 #include <gtest/gtest.h>

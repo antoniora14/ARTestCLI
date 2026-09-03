@@ -40,7 +40,9 @@ namespace artest::cli
             switch (kind)
             {
             case ARTEST_ENGINE_EVENT_DIAGNOSTIC:
-                m_error << '[' << source << "]: " << message << '\n';
+                // Informational extension lifecycle messages are not errors.
+                (event.value("severity", 1U) <= 1U ? m_output : m_error)
+                    << '[' << source << "]: " << message << '\n';
                 break;
             case ARTEST_ENGINE_EVENT_INSTRUMENT_OPERATION:
                 m_output << message << '\n';

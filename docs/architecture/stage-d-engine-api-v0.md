@@ -247,3 +247,22 @@ Before implementing the Engine host table, D1 must define:
   table; sentinel tests verify that later bytes are not overwritten.
 - `refresh_catalog` performs the full validation, binary inspection, registry
   preflight, and activation pipeline.
+
+## D3.2 metadata-only preparation and session ownership
+
+- API 0.4 appends `prepare_catalog`. It validates package metadata and schemas,
+  then publishes a typed compilation snapshot without loading native code.
+- API 0.3 callers retain a 168-byte table; API 0.4 uses 176 bytes on x64.
+  Query writes only the negotiated prefix, even if the supplied buffer is larger.
+- Compiled plans contain data and a catalog revision, never command or driver
+  instances. Starting a session rejects stale plans and verifies the prepared
+  catalog before native activation.
+- One live session handle owns an Engine lease. Destroy the session before
+  starting another on that Engine. Separate Engines are not a hardware resource
+  arbitration mechanism.
+- Each run initializes fresh drivers and creates fresh commands. Commands are
+  destroyed before driver shutdown; the Engine lease is released last.
+- Engine must outlive its plan, session, result and subscription handles.
+- API 0.4 remains experimental; the native extension ABI stays at 0.1.
+  See [the D3.2 architecture](stage-d3-2-offline-compilation.md) for lifecycle,
+  compatibility, schema-profile constraints and deferred work.

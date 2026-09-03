@@ -36,15 +36,45 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="EngineApi.cpp" />
+    <ClInclude Include="Api\EngineMarshalling.h" />
+    <ClCompile Include="Api\EngineMarshalling.cpp" />
+    <ClInclude Include="Api\EngineEvents.h" />
+    <ClInclude Include="Api\EngineContext.h" />
+    <ClInclude Include="Api\EngineHandles.h" />
+    <ClInclude Include="Api\EngineFunctions.h" />
+    <ClCompile Include="Api\EngineContext.cpp" />
+    <ClCompile Include="Api\EngineCatalogApi.cpp" />
+    <ClCompile Include="Api\EnginePlanApi.cpp" />
+    <ClCompile Include="Api\EngineSessionApi.cpp" />
     <ClCompile Include="Extensions\ExtensionCatalog.cpp" />
+    <ClInclude Include="Extensions\CatalogValidation.h" />
+    <ClCompile Include="Extensions\ComponentSchema.cpp" />
+    <ClInclude Include="Extensions\FileIntegrity.h" />
+    <ClCompile Include="Extensions\FileIntegrity.cpp" />
+    <ClCompile Include="Extensions\CatalogSnapshot.cpp" />
     <ClCompile Include="Extensions\NativeExtensionRuntime.cpp" />
+    <ClInclude Include="Extensions\NativeAbiSupport.h" />
+    <ClInclude Include="Extensions\NativeModule.h" />
+    <ClInclude Include="Extensions\NativeComponentAdapters.h" />
+    <ClCompile Include="Extensions\NativeComponentAdapters.cpp" />
+    <ClInclude Include="Extensions\NativeServiceBroker.h" />
+    <ClInclude Include="Extensions\NativeRuntimeState.h" />
+    <ClInclude Include="Extensions\NativeModuleLoader.h" />
+    <ClCompile Include="Extensions\NativeModuleLoader.cpp" />
+    <ClCompile Include="Extensions\NativeInvocation.cpp" />
     <ClInclude Include="Extensions\ExtensionCatalog.h" />
+    <ClInclude Include="Extensions\ExtensionDescriptor.h" />
     <ClInclude Include="Extensions\NativeExtensionRuntime.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ARTestEngine.Core\ARTestEngine.Core.vcxproj">
       <Project>{A6B573A1-3A58-4F46-91C0-D2F2EAB65930}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ARTestCmdHardware\ARTestCmdHardware.vcxproj"><Project>{6D987EB2-7D43-4CF9-BC58-654A84769812}</Project><LinkLibraryDependencies>false</LinkLibraryDependencies></ProjectReference>
+    <ProjectReference Include="..\ARTestDrvSimCAN\ARTestDrvSimCAN.vcxproj"><Project>{71D6AD2B-EA35-48FC-946A-FB64CD3412D3}</Project><LinkLibraryDependencies>false</LinkLibraryDependencies></ProjectReference>
+    <ProjectReference Include="..\ARTestDrvSimPower\ARTestDrvSimPower.vcxproj"><Project>{377B03F6-3D71-47A5-8A52-D3028BB8254B}</Project><LinkLibraryDependencies>false</LinkLibraryDependencies></ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

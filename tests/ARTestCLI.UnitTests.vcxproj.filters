@@ -15,5 +15,12 @@
     <ClCompile Include="CommandFactoryTests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="ScriptExecutorTests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="StageCExecutionTests.cpp"><Filter>Tests</Filter></ClCompile>
+    <ClCompile Include="StageDExtensionTests.cpp"><Filter>Tests</Filter></ClCompile>
+    <ClCompile Include="StageDThinHostTests.cpp"><Filter>Tests</Filter></ClCompile>
+    <ClCompile Include="StageD32Tests.cpp"><Filter>Tests</Filter></ClCompile>
+    <ClCompile Include="CliThinHostTests.cpp"><Filter>Tests</Filter></ClCompile>
+    <ClCompile Include="TestSupport\Fakes\FakePowerSupply.cpp"><Filter>TestSupport</Filter></ClCompile>
+    <ClCompile Include="TestSupport\Fakes\FakeCanDevice.cpp"><Filter>TestSupport</Filter></ClCompile>
+    <ClCompile Include="TestSupport\Fakes\RegisterFakeInstruments.cpp"><Filter>TestSupport</Filter></ClCompile>
   </ItemGroup>
 </Project>

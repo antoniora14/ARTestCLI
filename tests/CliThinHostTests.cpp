@@ -50,6 +50,15 @@ namespace
     {
         return (RepositoryRoot() / relativePath).string();
     }
+
+    [[nodiscard]] std::string CatalogPath()
+    {
+#ifdef _DEBUG
+        return PathText("artifacts/extensions/x64/Debug");
+#else
+        return PathText("artifacts/extensions/x64/Release");
+#endif
+    }
 }
 
 TEST(CliThinHostTests, CompilePreservesTheLegacySuccessContract)
@@ -59,7 +68,7 @@ TEST(CliThinHostTests, CompilePreservesTheLegacySuccessContract)
 
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_EQ(result.output, "Valid script. No instruments were initialized.\n");
-    EXPECT_TRUE(result.error.empty());
+    EXPECT_TRUE(result.error.empty()) << result.error;
 }
 
 TEST(CliThinHostTests, RunPreservesEventsSummaryAndExitCode)
@@ -73,7 +82,7 @@ TEST(CliThinHostTests, RunPreservesEventsSummaryAndExitCode)
     EXPECT_NE(result.output.find("[State] CLEANING_UP"), std::string::npos);
     EXPECT_NE(result.output.find("[State] COMPLETED"), std::string::npos);
     EXPECT_NE(result.output.find("Execution finished with PASSED"), std::string::npos);
-    EXPECT_TRUE(result.error.empty());
+    EXPECT_TRUE(result.error.empty()) << result.error;
 }
 
 TEST(CliThinHostTests, DebugPausesAtTheFirstStepThroughThePublicCallback)
@@ -155,7 +164,7 @@ TEST(CliCatalogTests, ValidateEmitsStructuredReportWithoutLoadingExtensions)
 {
     const auto result = Invoke({
         "extensions", "validate",
-        PathText("artifacts/extensions/x64/Debug")});
+        CatalogPath()});
 
     EXPECT_EQ(result.exitCode, 0) << result.error;
     EXPECT_TRUE(result.error.empty());
@@ -164,7 +173,7 @@ TEST(CliCatalogTests, ValidateEmitsStructuredReportWithoutLoadingExtensions)
     EXPECT_EQ(report["status"], "validated");
     EXPECT_TRUE(report["valid"].get<bool>());
     EXPECT_TRUE(report["extensions"].empty());
-    ASSERT_EQ(report["packages"].size(), 2U);
+    ASSERT_EQ(report["packages"].size(), 4U);
     EXPECT_EQ(report["packages"][0]["integrity"], "verified");
     EXPECT_EQ(report["packages"][1]["integrity"], "verified");
 }
@@ -173,14 +182,14 @@ TEST(CliCatalogTests, ListShowsDeterministicPackageSummary)
 {
     const auto result = Invoke({
         "extensions", "list",
-        PathText("artifacts/extensions/x64/Debug")});
+        CatalogPath()});
 
     EXPECT_EQ(result.exitCode, 0) << result.error;
     EXPECT_NE(result.output.find("com.artest.extension.sample-command"),
         std::string::npos);
     EXPECT_NE(result.output.find("com.artest.extension.sim-power"),
         std::string::npos);
-    EXPECT_NE(result.output.find("2 package(s), catalog valid."),
+    EXPECT_NE(result.output.find("4 package(s), catalog valid."),
         std::string::npos);
 }
 
@@ -188,7 +197,7 @@ TEST(CliCatalogTests, DoctorLoadsDescriptorsAndReportsActiveGeneration)
 {
     const auto result = Invoke({
         "extensions", "doctor",
-        PathText("artifacts/extensions/x64/Debug")});
+        CatalogPath()});
 
     EXPECT_EQ(result.exitCode, 0) << result.error;
     EXPECT_TRUE(result.error.empty());
@@ -212,4 +221,34 @@ TEST(CliCatalogTests, InvalidCatalogUsesDedicatedExitCode)
     EXPECT_FALSE(report["valid"].get<bool>());
     EXPECT_NE(result.output.find("EXTENSION_RUNTIME_INCOMPATIBLE"),
         std::string::npos);
+}
+
+TEST(CliThinHostTests, ExplicitCatalogSupportsCompileRunDebugAndBreakOnTheSamePath)
+{
+    const auto script = PathText("source/Scripts/ExtensionScript.json");
+    const auto root = CatalogPath();
+    const auto compile = Invoke({"compile", script, "--extensions", root});
+    EXPECT_EQ(compile.exitCode, 0) << compile.error;
+    EXPECT_EQ(compile.output, "Valid script. No instruments were initialized.\n");
+    const auto run = Invoke({"run", script, "--extensions", root});
+    EXPECT_EQ(run.exitCode, 0) << run.error;
+    EXPECT_NE(run.output.find("Execution finished with PASSED"), std::string::npos);
+    const auto debug = Invoke({"debug", script, "--extensions", root}, "c\n");
+    EXPECT_EQ(debug.exitCode, 0) << debug.error;
+    EXPECT_NE(debug.output.find("[Debug] Paused at step 1"), std::string::npos);
+    const auto breakpoint = Invoke({"break", script, "0", "--extensions", root}, "c\n");
+    EXPECT_EQ(breakpoint.exitCode, 0) << breakpoint.error;
+    EXPECT_NE(breakpoint.output.find("[Debug] Paused at step 1"), std::string::npos);
+}
+
+TEST(CliThinHostTests, CompatibilityExtensionRunRetainsItsFinalJsonContract)
+{
+    const auto root = CatalogPath();
+    const auto result = Invoke({"extension-run", PathText("source/Scripts/ExtensionScript.json"), root});
+    EXPECT_EQ(result.exitCode, 0) << result.error;
+    const auto start = result.output.rfind("\n{");
+    ASSERT_NE(start, std::string::npos) << result.output;
+    const auto report = nlohmann::json::parse(result.output.substr(start + 1));
+    EXPECT_EQ(report["status"], "passed");
+    EXPECT_EQ(report["summary"]["passedSteps"], 1);
 }

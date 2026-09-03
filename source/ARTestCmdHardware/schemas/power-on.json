@@ -1,0 +1,24 @@
+{
+  "type": "object",
+  "required": [
+    "channel",
+    "voltage",
+    "currentLimit"
+  ],
+  "properties": {
+    "channel": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2147483647
+    },
+    "voltage": {
+      "type": "number",
+      "minimum": 0
+    },
+    "currentLimit": {
+      "type": "number",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false
+}

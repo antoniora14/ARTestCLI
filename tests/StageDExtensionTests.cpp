@@ -197,6 +197,30 @@ namespace
     };
 }
 
+
+TEST_F(EngineFixture, OneSessionOwnsTheEngineUntilItsHandleIsDestroyed)
+{
+    const auto text = Script(0);
+    const auto payload = Payload(text);
+    Error error;
+    ARTestCompiledPlanHandle plan = nullptr;
+    ASSERT_EQ(m_api.compile_plan(m_engine, &payload, &plan, &error.value), ARTEST_STATUS_OK) << error.text;
+    auto planOwner = std::unique_ptr<ARTestCompiledPlanOpaque, ARTestDestroyCompiledPlanFn>(plan, m_api.destroy_compiled_plan);
+    ARTestSessionHandle first = nullptr;
+    ASSERT_EQ(m_api.start_session(m_engine, plan, &first, &error.value), ARTEST_STATUS_OK);
+    auto firstOwner = std::unique_ptr<ARTestSessionOpaque, ARTestDestroySessionFn>(first, m_api.destroy_session);
+    ARTestSessionHandle second = nullptr;
+    EXPECT_EQ(m_api.start_session(m_engine, plan, &second, &error.value), ARTEST_STATUS_INVALID_STATE);
+    ARTestBool32 completed = ARTEST_FALSE;
+    ASSERT_EQ(m_api.wait_session(first, 10000, &completed, &error.value), ARTEST_STATUS_OK);
+    ASSERT_EQ(completed, ARTEST_TRUE);
+    EXPECT_EQ(m_api.start_session(m_engine, plan, &second, &error.value), ARTEST_STATUS_INVALID_STATE);
+    firstOwner.reset();
+    ASSERT_EQ(m_api.start_session(m_engine, plan, &second, &error.value), ARTEST_STATUS_OK) << error.text;
+    auto secondOwner = std::unique_ptr<ARTestSessionOpaque, ARTestDestroySessionFn>(second, m_api.destroy_session);
+    EXPECT_EQ(m_api.wait_session(second, 10000, &completed, &error.value), ARTEST_STATUS_OK);
+    EXPECT_EQ(completed, ARTEST_TRUE);
+}
 TEST(StageDEngineApiTests, NegotiatesExactExperimentalVersion)
 {
     ARTestEngineApiV0 api{};
@@ -605,6 +629,8 @@ TEST(StageDNativeLoaderTests, ReleasesNativeModulesWhenTheEngineIsDestroyed)
     std::filesystem::copy_file(
         source / "artest-extension.json", package / "artest-extension.json",
         std::filesystem::copy_options::overwrite_existing);
+    std::filesystem::copy(source / "schemas", package / "schemas",
+        std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
 
     ARTestEngineApiV0 api{};
     api.struct_size = sizeof(api);

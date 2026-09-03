@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- MSBuild permits duplicate items that the Visual Studio C++ project loader rejects.
+       Inspect evaluated file paths so wildcards, imports and conditional items are covered. -->
+  <Target Name="ARTestValidateProjectItems" BeforeTargets="PrepareForBuild"
+          Condition="'$(MSBuildProjectExtension)' == '.vcxproj'">
+    <ItemGroup>
+      <_ARTestProjectFiles Include="@(ClCompile);@(ClInclude);@(None);@(Content);@(ResourceCompile);@(CustomBuild);@(Midl);@(MASM);@(Natvis);@(Image);@(Text);@(Xml)" />
+      <_ARTestProjectPaths Include="@(_ARTestProjectFiles->'%(FullPath)')" />
+    </ItemGroup>
+    <RemoveDuplicates Inputs="@(_ARTestProjectPaths)">
+      <Output TaskParameter="Filtered" ItemName="_ARTestUniqueProjectPaths" />
+    </RemoveDuplicates>
+    <Error Code="ARTESTBUILD001"
+           Condition="'@(_ARTestProjectPaths->Count())' != '@(_ARTestUniqueProjectPaths->Count())'"
+           Text="$(MSBuildProjectName): duplicate project file items detected (@(_ARTestProjectPaths->Count()) entries, @(_ARTestUniqueProjectPaths->Count()) unique paths). Visual Studio cannot load duplicate items, even across different item types. Check Include entries, imports and overlapping wildcards." />
+  </Target>
+</Project>

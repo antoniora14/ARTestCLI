@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://artest.dev/schemas/extension-manifest-v2.schema.json",
+  "title": "ARTest native extension manifest v2 (D3.2)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "extensionId",
+    "displayName",
+    "version",
+    "publisher",
+    "runtime",
+    "components"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "extensionId": {
+      "$ref": "#/$defs/stableId"
+    },
+    "displayName": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "version": {
+      "$ref": "#/$defs/semanticVersion"
+    },
+    "publisher": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "description": {
+      "type": "string"
+    },
+    "runtime": {
+      "$ref": "#/$defs/runtime"
+    },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/component"
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^[A-Fa-f0-9]{64}$"
+        },
+        "signature": {
+          "type": "string",
+          "minLength": 1
+        },
+        "publisherCertificate": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stableId": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+(?:-[a-z0-9]+)*)+$"
+    },
+    "semanticVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "versionPair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "major",
+        "minor"
+      ],
+      "properties": {
+        "major": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "minor": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "entry",
+        "isolation",
+        "architecture",
+        "abi"
+      ],
+      "properties": {
+        "kind": {
+          "const": "native"
+        },
+        "entry": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "isolation": {
+          "const": "inProcess"
+        },
+        "architecture": {
+          "const": "x64"
+        },
+        "abi": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "major",
+            "minor"
+          ],
+          "properties": {
+            "major": {
+              "const": 0
+            },
+            "minor": {
+              "const": 1
+            }
+          }
+        }
+      }
+    },
+    "requiredCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contractId",
+        "selection"
+      ],
+      "properties": {
+        "contractId": {
+          "$ref": "#/$defs/stableId"
+        },
+        "selection": {
+          "const": "configured"
+        }
+      }
+    },
+    "schemaBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "schemaId",
+        "path",
+        "mediaType"
+      ],
+      "properties": {
+        "role": {
+          "enum": [
+            "parameters",
+            "configuration",
+            "result"
+          ]
+        },
+        "schemaId": {
+          "$ref": "#/$defs/stableId"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mediaType": {
+          "const": "application/json; charset=utf-8"
+        }
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "typeId",
+        "contractId",
+        "version",
+        "displayName",
+        "schemas"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "command",
+            "instrumentDriver",
+            "tool"
+          ]
+        },
+        "typeId": {
+          "$ref": "#/$defs/stableId"
+        },
+        "contractId": {
+          "$ref": "#/$defs/stableId"
+        },
+        "version": {
+          "$ref": "#/$defs/semanticVersion"
+        },
+        "displayName": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "description": {
+          "type": "string"
+        },
+        "capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/stableId"
+          }
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/requiredCapability"
+          }
+        },
+        "schemas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/schemaBinding"
+          }
+        },
+        "flags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "simulated",
+              "requiresHardware"
+            ]
+          }
+        },
+        "aliases": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "description": "Editor-facing structural projection. The Engine additionally validates package containment, actual schemas, global identities, hashes, and binary descriptors."
+}

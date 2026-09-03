@@ -5,7 +5,7 @@
 #include "Cancellation.h"
 #include "IEventSink.h"
 #include "IExecutionControl.h"
-#include "../Model/CompiledStep.h"
+#include "RuntimeStep.h"
 
 #include <vector>
 
@@ -16,13 +16,13 @@ namespace artest
     public:
         explicit TestExecutor(IEventSink& eventSink);
 
-        [[nodiscard]] RunResult Execute(std::vector<CompiledStep>& steps);
+        [[nodiscard]] RunResult Execute(std::vector<RuntimeStep>& steps);
         [[nodiscard]] RunResult Execute(
-            std::vector<CompiledStep>& steps,
+            std::vector<RuntimeStep>& steps,
             ExecutionContext& context,
             IExecutionControl& control);
         [[nodiscard]] RunResult Execute(
-            std::vector<CompiledStep>& steps,
+            std::vector<RuntimeStep>& steps,
             ExecutionContext& context,
             IExecutionControl& control,
             const CancellationToken& cancellation);

@@ -22,7 +22,10 @@ The `tests\ARTestCLI.UnitTests.vcxproj` project uses Google Test 1.18, is part o
 - `CliThinHostTests.cpp`: compile, run, debug, break, catalog list/validate/doctor,
   validation, cancellation, legacy output, and process exit-code contracts.
 
-The Stage D3.1 baseline contains 72 test cases across 19 suites.
+The Stage D3.2 baseline contains 98 test cases across 25 suites.
+`StageD32Tests.cpp` adds schema, metadata-only compilation, transaction ownership,
+catalog revision, native lifetime, and ABI-prefix regressions. The official build
+also executes `scripts/verify-core-boundary.ps1`.
 
 ## Run from PowerShell
 
@@ -53,9 +56,30 @@ To compile without running tests:
 2. Select `x64` and `Debug` or `Release`.
 3. Open **Test > Test Explorer**.
 4. Build the solution with **Build > Build Solution**.
-5. Confirm that 72 tests from 19 suites are discovered.
+5. Confirm that 98 tests from 25 suites are discovered.
 6. Select **Run All Tests**.
-7. Verify that all 72 tests finish with a `Passed` verdict.
+7. Verify that all 98 tests finish with a `Passed` verdict.
+
+### Project loading validation
+
+The solution contains nine projects. `Directory.Build.targets` checks evaluated
+file items before each C++ build, including builds started directly in Visual
+Studio. Duplicate full paths (also across item types, imports or overlapping
+wildcards) fail with `ARTESTBUILD001`. Ordinary MSBuild compilation can otherwise
+accept duplicates that the Visual Studio project loader rejects.
+
+If Visual Studio has kept `ARTestCmdHardware` or `ARTestDrvSimCAN` unloaded after
+the D3.2 project-file correction, right-click each project and select **Reload
+Project**, or close and reopen `source\ARTestCLI.sln`. Confirm that all nine
+projects load without duplicate-item errors, then run the regression above.
+There is no need to delete `.vs` or reset IDE settings for this correction.
+
+## Stage D3.2 acceptance
+
+Use [the exact manual protocol](quality/manual-tests/stage-d3.2/README.md).
+Its Word report has per-case results, defect references and screenshot evidence
+areas. Do not commit an unfinished evidence report. The source generator and
+fixture scripts are versioned separately.
 
 ## Stage D3.1 catalog regression
 
