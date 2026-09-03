@@ -1,8 +1,8 @@
 # ARTest C++ extension authoring SDK
 
-Experimental authoring API - D3.3-A. C++20, native extension ABI 0.1.
-The Engine host API remains 0.4. This is a source-tree SDK, not a frozen
-binary contract or a distributable release.
+Experimental authoring API - D3.3-C. C++20, native extension ABI 0.1.
+The Engine host API remains 0.4. The SDK can be packaged for external
+compatibility evaluation; it is not a frozen binary contract or public release.
 
 Start with [the developer guide](../../docs/sdk/extension-authoring.md).
 For AI-assisted work, also read [the authoring checklist](../../docs/sdk/ai-extension-authoring.md).
@@ -46,3 +46,4 @@ it is not needed by command/driver DLLs.
 
 D3.3-B migrates the older reference implementations to this API.
 D3.3-C packages dependencies/templates and validates external consumers.
+See [the distribution guide](../../docs/sdk/sdk-distribution.md).

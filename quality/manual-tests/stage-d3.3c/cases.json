@@ -1,0 +1,66 @@
+[
+  {
+    "id": "MT-D3.3C-001",
+    "title": "Generate and inspect the SDK package",
+    "objective": "Verify that D3.3-C produces a complete versioned directory and ZIP with an auditable inventory.",
+    "preconditions": "Release binaries exist. Run PowerShell from D:\\GitHub\\main\\ARTestCLI.",
+    "steps": [
+      {
+        "action": "Run .\\scripts\\package-sdk.ps1 -Configuration Release -Platform x64; $LASTEXITCODE.",
+        "expected": "The command returns 0 and prints one SDK directory and one ZIP path."
+      },
+      {
+        "action": "Open artifacts\\sdk-packages\\x64\\Release\\ARTestSDK-0.1.0-windows-x64.",
+        "expected": "Headers, nlohmann/json, schemas, docs, tools, MSBuild props, the starter template, notices and both SDK manifests are present."
+      },
+      {
+        "action": "Inspect sdk-version.json and sdk-manifest.json.",
+        "expected": "They declare SDK 0.1.0, Engine API 0.4, native ABI 0.1, experimental stability and a SHA-256 entry for every packaged file except the inventory itself."
+      }
+    ]
+  },
+  {
+    "id": "MT-D3.3C-002",
+    "title": "Validate an installed external consumer",
+    "objective": "Prove that the ZIP is independently consumable and the resulting extension works through the unchanged Engine.",
+    "preconditions": "Visual Studio 18 Insiders/v145 and the Release ARTestCLI binary are available. No physical equipment is required.",
+    "steps": [
+      {
+        "action": "Run .\\scripts\\test-sdk-distribution.ps1 -Configuration Release -Platform x64; $LASTEXITCODE.",
+        "expected": "The source gate, package inventory, archive safety and external /W4 /WX build pass; exit 0."
+      },
+      {
+        "action": "Inspect the output for extensions doctor and offline compile.",
+        "expected": "The external catalog is active with verified integrity. Compile says no instruments were initialized."
+      },
+      {
+        "action": "Inspect the execution and cleanup output.",
+        "expected": "The step reports Computed value 84.000000., the simulated driver shuts down and the final verdict is PASSED."
+      },
+      {
+        "action": "Inspect artifacts\\sdk-consumer-tests\\x64\\Release.",
+        "expected": "The ZIP was extracted to installed SDK and the consumer was copied to external extension project; both paths contain spaces."
+      }
+    ]
+  },
+  {
+    "id": "MT-D3.3C-003",
+    "title": "Official Release regression and scope",
+    "objective": "Confirm that SDK distribution is part of the official workflow without changing production extension contracts.",
+    "preconditions": "Cases 001 and 002 passed.",
+    "steps": [
+      {
+        "action": "Run .\\scripts\\build.ps1 -Configuration Release -Platform x64.",
+        "expected": "Core, authoring and distribution boundaries pass; the external SDK consumer passes; 139 Google Tests pass."
+      },
+      {
+        "action": "Open artifacts\\test-results\\x64\\Release\\ARTestCLI.UnitTests.html.",
+        "expected": "Overall PASSED, Total 139, Passed 139, Failed 0 and Skipped 0. Attach a screenshot."
+      },
+      {
+        "action": "Review sdk-version.json and docs\\architecture\\stage-d3-3c-sdk-distribution.md.",
+        "expected": "ABI remains experimental 0.1; D3.3-B, public licensing, signing, CMake and package feeds are explicitly not claimed complete."
+      }
+    ]
+  }
+]

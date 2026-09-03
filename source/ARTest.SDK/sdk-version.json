@@ -1,0 +1,10 @@
+{
+  "schema": "artest.schema.sdk-version.v1",
+  "sdkVersion": "0.1.0",
+  "engineApi": "0.4",
+  "nativeExtensionAbi": "0.1",
+  "stability": "experimental",
+  "platform": "windows-x64",
+  "toolset": "v145",
+  "cppStandard": "C++20"
+}

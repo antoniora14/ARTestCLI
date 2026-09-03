@@ -98,3 +98,19 @@ before adding a command or Instrument Driver.
   `scripts/test-sdk-authoring.ps1` runs 41 focused tests without replacing reports.
 - Distribution/templates and external consumer verification belong to D3.3-C.
   Do not claim a published SDK or frozen ABI 1.0.
+
+## D3.3-C SDK distribution
+
+Read `docs/architecture/stage-d3-3c-sdk-distribution.md` and
+`docs/sdk/sdk-distribution.md` before changing package layout or SDK versions.
+
+- `source/ARTest.SDK/sdk-version.json` is the version authority.
+- Generated SDK directories and ZIPs belong under `artifacts/sdk-packages`
+  and must not be committed.
+- A package is acceptable only if its complete hash inventory passes and a
+  copied template builds from the extracted ZIP without repository includes.
+- Keep the starter free of Engine/Core linkage and handwritten ABI plumbing.
+- D3.3-B migration is still pending; do not rewrite reference extensions as
+  part of distribution maintenance.
+- Do not claim ABI 1.0 or a public release. Licensing, signing, CMake and package
+  feeds remain explicit release-readiness work.

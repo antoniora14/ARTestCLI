@@ -15,6 +15,11 @@ and Instrument Driver behavior while a module-local adapter handles the C ABI.
 Start with the [SDK authoring guide](docs/sdk/extension-authoring.md) and its
 isolated, runnable example. Existing reference packages are not migrated yet.
 
+Stage D3.3-C packages that SDK into a self-contained Windows x64 directory and
+ZIP. Its compatibility gate extracts the archive, builds a copied extension
+project without repository dependencies, and runs the DLL through the Engine.
+D3.3-B reference-package migration remains pending.
+
 ## Current capabilities
 
 - Visual Studio 18 Insiders with the `v145` toolset and x64 targets.
@@ -57,6 +62,8 @@ isolated, runnable example. Existing reference packages are not migrated yet.
 - C++ Command/InstrumentDriver authoring with typed Parameters, Result and Context.
 - Explicit extension registration and generated ABI adapters without global registries.
 - Local deterministic SDK tests plus real Engine/DLL integration and fault tests.
+- Versioned SDK directory/ZIP with SHA-256 inventory and third-party notices.
+- Runnable external extension template and installed-SDK compatibility gate.
 
 The extension ABI remains experimental at version 0.1, and the Engine host API
 is experimental at version 0.4. No 1.0 stability promise has been made. Production hardware
@@ -84,6 +91,7 @@ remain later-stage work.
 | `source/ARTestEngine/` | Public Engine DLL, native catalog, loader, and runtime adapter |
 | `source/ARTest.SDK/` | C ABI, C++ host facade and C++ extension authoring SDK |
 | `source/ARTest.SDK/examples/ARTestSdkExample/` | Isolated SDK command/driver example |
+| `source/ARTest.SDK/templates/ARTestExtension/` | External installed-SDK starter project |
 | `source/ARTestCmdSample/` | Reference native Command Plugin |
 | `source/ARTestDrvSimPower/` | Reference simulated Instrument Driver |
 | `source/ARTestCmdHardware/` | Power and CAN commands using driver services |
@@ -279,6 +287,11 @@ the reference DLLs; D3.3-C will address SDK distribution, project templates and
 external consumer compatibility. The seven-case
 [manual acceptance protocol](quality/manual-tests/stage-d3.3a/README.md)
 is pending execution; the automated regression has passed in Debug and Release.
+
+[Stage D3.3-C - SDK distribution](docs/architecture/stage-d3-3c-sdk-distribution.md)
+defines the package layout and external-consumer gate. Use the
+[distribution guide](docs/sdk/sdk-distribution.md) to create or verify the ZIP.
+This completes distribution mechanics, not ABI 1.0 or public-release readiness.
 
 Stage D1 implements the first trusted-native vertical slice. The extension
 platform uses a versioned C ABI for native DLLs and preserves isolated runtime

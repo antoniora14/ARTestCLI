@@ -102,6 +102,20 @@ It covers solution loading, author-facing source, a real 12 V run, schema
 rejection, cancellation/cleanup, fault-test evidence, and a fresh 5 V/12 V run.
 Record actual results in the new Word report; do not overwrite earlier evidence.
 
+## Stage D3.3-C installed-SDK compatibility
+
+The official build runs:
+
+```powershell
+.\scripts\test-sdk-distribution.ps1 -Configuration Release -Platform x64
+```
+
+This is an integration gate, not an additional Google Test count. It packages
+and inventories the SDK, checks archive paths and hashes, extracts the ZIP,
+builds its copied starter with `/W4 /WX`, activates the external DLL, compiles
+its plan without initialization, executes a command-to-driver call, and verifies
+cleanup. Run Debug and Release when package or public SDK headers change.
+
 ## Stage D3.2 acceptance
 
 Use [the exact manual protocol](quality/manual-tests/stage-d3.2/README.md).

@@ -16,6 +16,7 @@ $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 & (Join-Path $PSScriptRoot 'verify-core-boundary.ps1')
 & (Join-Path $PSScriptRoot 'verify-sdk-authoring.ps1')
+& (Join-Path $PSScriptRoot 'verify-sdk-distribution.ps1')
 $solutionPath = Join-Path $repositoryRoot 'source\ARTestCLI.sln'
 $msbuildPath = Join-Path $VisualStudioPath 'MSBuild\Current\Bin\MSBuild.exe'
 
@@ -37,6 +38,8 @@ if (-not $SkipTests) {
     if ($LASTEXITCODE -ne 0) {
         throw "The C/C++ ABI layout contract failed with exit code $LASTEXITCODE."
     }
+
+    & (Join-Path $PSScriptRoot 'test-sdk-distribution.ps1') -Configuration $Configuration -Platform $Platform -VisualStudioPath $VisualStudioPath
 
     $testExecutable = Join-Path $repositoryRoot "artifacts\bin\$Platform\$Configuration\ARTestCLI.UnitTests.exe"
     if (-not (Test-Path -LiteralPath $testExecutable)) {

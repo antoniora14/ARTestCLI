@@ -187,6 +187,8 @@ The complete regression includes real Engine/DLL integration as well.
 | InvalidState | Initialize the driver before operations; do not reuse stopped instances |
 | Native binary/manifest mismatch | Rebuild and repackage metadata and DLL together |
 
-D3.3-B migrates the existing CAN/power/sample reference DLLs. D3.3-C provides
-the distributable SDK, external project templates and compatibility validation.
-The authoring API remains experimental until those gates are satisfied.
+D3.3-B migrates the existing CAN/power/sample reference DLLs. D3.3-C now
+provides an evaluation SDK ZIP, an external project template and installed
+consumer compatibility validation. See [SDK distribution](sdk-distribution.md).
+The authoring API remains experimental until the larger compatibility and
+release-readiness gates are satisfied.

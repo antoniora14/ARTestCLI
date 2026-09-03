@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 2,
+  "extensionId": "com.example.artest.extension.starter",
+  "displayName": "ARTest extension starter",
+  "version": "0.1.0",
+  "publisher": "Example",
+  "runtime": {
+    "kind": "native",
+    "entry": "ARTestExtensionStarter.dll",
+    "isolation": "inProcess",
+    "architecture": "x64",
+    "abi": {
+      "major": 0,
+      "minor": 1
+    }
+  },
+  "components": [
+    {
+      "kind": "command",
+      "typeId": "com.example.artest.command.read-value",
+      "contractId": "artest.contract.command.v1",
+      "version": "0.1.0",
+      "displayName": "Read value",
+      "capabilities": [
+        "artest.contract.command.v1"
+      ],
+      "requires": [
+        {
+          "contractId": "com.example.artest.contract.value-source.v1",
+          "selection": "configured"
+        }
+      ],
+      "flags": [],
+      "schemas": [
+        {
+          "role": "parameters",
+          "schemaId": "com.example.artest.schema.read-value.parameters.v1",
+          "path": "schemas/parameters.json",
+          "mediaType": "application/json; charset=utf-8"
+        }
+      ]
+    },
+    {
+      "kind": "instrumentDriver",
+      "typeId": "com.example.artest.driver.sim-value-source",
+      "contractId": "com.example.artest.contract.value-source.v1",
+      "version": "0.1.0",
+      "displayName": "Simulated value source",
+      "capabilities": [
+        "com.example.artest.contract.value-source.v1"
+      ],
+      "flags": [
+        "simulated"
+      ],
+      "schemas": [
+        {
+          "role": "configuration",
+          "schemaId": "com.example.artest.schema.sim-value-source.configuration.v1",
+          "path": "schemas/configuration.json",
+          "mediaType": "application/json; charset=utf-8"
+        }
+      ]
+    }
+  ]
+}

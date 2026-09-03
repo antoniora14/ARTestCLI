@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ARTestSDKRoot Condition="'$(ARTestSDKRoot)'==''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\'))</ARTestSDKRoot>
+    <ARTestSDKIncludeDirectory>$([System.IO.Path]::Combine('$(ARTestSDKRoot)', 'include'))</ARTestSDKIncludeDirectory>
+  </PropertyGroup>
+  <Target Name="ValidateARTestSDK" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('$(ARTestSDKIncludeDirectory)\ARTest\Extension.h')" Text="ARTestSDKRoot does not identify a complete ARTest SDK package." />
+  </Target>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PreprocessorDefinitions Condition="'$(ConfigurationType)' == 'DynamicLibrary'">ARTEST_EXTENSION_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ARTestSDKIncludeDirectory);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+</Project>

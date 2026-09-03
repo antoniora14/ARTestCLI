@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "properties": {
+    "initialValue": {
+      "type": "number",
+      "minimum": -1000000,
+      "maximum": 1000000
+    }
+  },
+  "additionalProperties": false
+}
