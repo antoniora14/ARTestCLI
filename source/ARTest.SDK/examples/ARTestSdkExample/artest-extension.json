@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 2,
+  "extensionId": "com.artest.extension.sdk-example",
+  "displayName": "SDK authoring example",
+  "version": "0.1.0",
+  "publisher": "ARTest",
+  "runtime": {
+    "kind": "native",
+    "entry": "ARTestSdkExample.dll",
+    "isolation": "inProcess",
+    "architecture": "x64",
+    "abi": {
+      "major": 0,
+      "minor": 1
+    }
+  },
+  "components": [
+    {
+      "kind": "command",
+      "typeId": "com.artest.command.sdk.read-voltage",
+      "contractId": "artest.contract.command.v1",
+      "version": "0.1.0",
+      "displayName": "Read voltage",
+      "capabilities": [
+        "artest.contract.command.v1"
+      ],
+      "requires": [
+        {
+          "contractId": "artest.contract.instrument.power-supply.v1",
+          "selection": "configured"
+        }
+      ],
+      "flags": [],
+      "schemas": [
+        {
+          "role": "parameters",
+          "schemaId": "artest.schema.sdk.read-voltage.parameters.v1",
+          "path": "schemas/parameters.json",
+          "mediaType": "application/json; charset=utf-8"
+        }
+      ]
+    },
+    {
+      "kind": "instrumentDriver",
+      "typeId": "com.artest.driver.sdk.sim-supply",
+      "contractId": "artest.contract.instrument.power-supply.v1",
+      "version": "0.1.0",
+      "displayName": "SDK simulated supply",
+      "capabilities": [
+        "artest.contract.instrument.power-supply.v1"
+      ],
+      "flags": [
+        "simulated"
+      ],
+      "schemas": [
+        {
+          "role": "configuration",
+          "schemaId": "artest.schema.sdk.sim-supply.configuration.v1",
+          "path": "schemas/configuration.json",
+          "mediaType": "application/json; charset=utf-8"
+        }
+      ]
+    }
+  ]
+}

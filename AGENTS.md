@@ -10,7 +10,8 @@ stage-specific architecture documents before changing a public contract.
 - `ARTestEngine.dll` owns parsing, compilation, execution, extension loading,
   registries, sessions, and results.
 - `ARTestEngine.Core.lib` is a private implementation library, not a public SDK.
-- `ARTest.SDK` contains the C ABI and the first-party C++ RAII facade.
+- `ARTest.SDK` contains the C ABI, the first-party C++ host facade, and the
+  D3.3-A C++ extension authoring API.
 - Native extensions depend only on the SDK ABI. Commands obtain Instrument
   Driver capabilities through host services, not direct driver links.
 
@@ -77,3 +78,23 @@ unless the user explicitly requests them.
   non-obvious invariants; do not narrate ordinary syntax.
 - Use fake instruments for automated tests. Physical hardware is reserved for
   explicitly scoped integration tests.
+
+## D3.3-A extension authoring
+
+Read `docs/architecture/stage-d3-3a-extension-authoring.md`,
+`docs/sdk/extension-authoring.md`, and `docs/sdk/ai-extension-authoring.md`
+before adding a command or Instrument Driver.
+
+- Component authors use `ARTest/Extension.h`; ABI plumbing stays in SDK/detail.
+  C++ objects and exceptions stay inside the module.
+- Register components explicitly in a metadata-only definition function.
+  Constructors and Query must never acquire hardware.
+- Context and Parameters are call-scoped borrows. Propagate unsuccessful Result
+  values; never turn cancellation, cleanup or service-release failures into success.
+- Keep shutdown available after partial initialization and cancellation.
+- The SDK example catalog is isolated in `artifacts/sdk-examples`. D3.3-B,
+  not A, migrates the existing sample/power/CAN packages.
+- Run the full Debug/Release regressions (139 tests) and the SDK boundary gate.
+  `scripts/test-sdk-authoring.ps1` runs 41 focused tests without replacing reports.
+- Distribution/templates and external consumer verification belong to D3.3-C.
+  Do not claim a published SDK or frozen ABI 1.0.

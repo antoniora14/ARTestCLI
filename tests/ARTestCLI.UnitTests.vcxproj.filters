@@ -7,6 +7,7 @@
   <ItemGroup>
     <ClInclude Include="TestSupport\TemporaryScript.h"><Filter>TestSupport</Filter></ClInclude>
     <ClInclude Include="TestSupport\RecordingEventSink.h"><Filter>TestSupport</Filter></ClInclude>
+    <ClInclude Include="TestSupport\SdkHost.h"><Filter>TestSupport</Filter></ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="TestMain.cpp"><Filter>TestSupport</Filter></ClCompile>
@@ -18,6 +19,9 @@
     <ClCompile Include="StageDExtensionTests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="StageDThinHostTests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="StageD32Tests.cpp"><Filter>Tests</Filter></ClCompile>
+    <ClCompile Include="SdkAuthoringTests.cpp"><Filter>Tests</Filter></ClCompile>
+    <ClCompile Include="SdkAbiAdapterTests.cpp"><Filter>Tests</Filter></ClCompile>
+    <ClCompile Include="SdkAuthoringIntegrationTests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="CliThinHostTests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="TestSupport\Fakes\FakePowerSupply.cpp"><Filter>TestSupport</Filter></ClCompile>
     <ClCompile Include="TestSupport\Fakes\FakeCanDevice.cpp"><Filter>TestSupport</Filter></ClCompile>

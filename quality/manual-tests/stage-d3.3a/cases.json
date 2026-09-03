@@ -1,0 +1,173 @@
+[
+  {
+    "id": "MT-D3.3A-001",
+    "title": "Solution and complete regression",
+    "objective": "Verify project loading, builds, ABI checks and all automated verdicts.",
+    "preconditions": "Visual Studio 18 Insiders / v145. No physical equipment is required.",
+    "steps": [
+      [
+        1,
+        "Open source\\ARTestCLI.sln in Visual Studio. Select x64 and Debug.",
+        "All 10 projects load, including ARTestSdkExample; no duplicate-item errors."
+      ],
+      [
+        2,
+        "Run .\\scripts\\build.ps1 -Configuration Debug -Platform x64.",
+        "Architecture and ABI checks pass. Google Test: 139 passed, 0 failed, 0 skipped."
+      ],
+      [
+        3,
+        "Run .\\scripts\\build.ps1 -Configuration Release -Platform x64.",
+        "The same 139 tests pass; XML/HTML consistency validation passes."
+      ],
+      [
+        4,
+        "Open artifacts\\test-results\\x64\\Debug\\ARTestCLI.UnitTests.html and the corresponding Release report.",
+        "Both show PASSED, Total=139, Passed=139, Failed=0. Record both screenshots."
+      ]
+    ]
+  },
+  {
+    "id": "MT-D3.3A-002",
+    "title": "Inspect the author-facing API",
+    "objective": "Confirm the example exposes component behavior without handwritten binary plumbing.",
+    "preconditions": "The SDK example project is visible in Solution Explorer.",
+    "steps": [
+      [
+        1,
+        "Open ReadVoltageCommand.h and SimulatedSupplyDriver.h in ARTestSdkExample.",
+        "Command implements Validate/Execute; driver implements Initialize/Shutdown and registers one operation."
+      ],
+      [
+        2,
+        "Open ExampleExtension.cpp.",
+        "It declares AddCommand/AddDriver and one ARTEST_EXPORT_EXTENSION. No ABI function table or handle cast is handwritten."
+      ],
+      [
+        3,
+        "Open source\\ARTest.SDK\\README.md and docs\\sdk\\ai-extension-authoring.md.",
+        "Public entry points, lifetimes, error propagation, testing and agent constraints are documented. Record evidence and any ambiguity."
+      ]
+    ]
+  },
+  {
+    "id": "MT-D3.3A-003",
+    "title": "Compile and execute the SDK example",
+    "objective": "Verify the new C++ adapter integrates with the existing Engine.",
+    "preconditions": "Define $cli, $extensions and $sample as shown on the environment page.",
+    "steps": [
+      [
+        1,
+        "Run & $cli compile $sample --extensions $extensions; $LASTEXITCODE.",
+        "Valid script. No instruments were initialized. Exit 0; no initialization events."
+      ],
+      [
+        2,
+        "Run & $cli run $sample --extensions $extensions; $LASTEXITCODE.",
+        "Driver initializes, step reports Measured 12.000000 V., driver shuts down, final PASSED; exit 0."
+      ],
+      [
+        3,
+        "Inspect artifacts\\sdk-examples\\x64\\Release\\ARTestSdkExample.",
+        "Contains ARTestSdkExample.dll, artest-extension.json and schemas. The normal extensions directory still contains four packages."
+      ]
+    ]
+  },
+  {
+    "id": "MT-D3.3A-004",
+    "title": "Reject invalid parameters and configuration",
+    "objective": "Ensure schemas reject invalid input before execution and do not report success.",
+    "preconditions": "Use the supplied fixtures; do not edit the example or packaged manifests.",
+    "steps": [
+      [
+        1,
+        "Run & $cli compile \".\\quality\\manual-tests\\stage-d3.3a\\data\\invalid-channel.json\" --extensions $extensions; $LASTEXITCODE.",
+        "PARAMETER_RANGE_INVALID identifies channel. Exit 3; no driver initialization."
+      ],
+      [
+        2,
+        "Run & $cli run \".\\quality\\manual-tests\\stage-d3.3a\\data\\invalid-config.json\" --extensions $extensions; $LASTEXITCODE.",
+        "PARAMETER_RANGE_INVALID identifies voltage in configuration. Exit 3; no execution."
+      ],
+      [
+        3,
+        "Run & $cli run $sample --extensions $extensions; $LASTEXITCODE.",
+        "The valid example still completes PASSED with exit 0. Earlier invalid attempts did not damage the package."
+      ]
+    ]
+  },
+  {
+    "id": "MT-D3.3A-005",
+    "title": "Cancel with guaranteed cleanup",
+    "objective": "Verify cancellation of the SDK command still shuts down its driver.",
+    "preconditions": "Release example and SDK catalog are built.",
+    "steps": [
+      [
+        1,
+        "Run & $cli debug $sample --extensions $extensions.",
+        "Driver initializes and the debugger pauses before step 1."
+      ],
+      [
+        2,
+        "At the pause, enter q and press Enter. Then run $LASTEXITCODE.",
+        "CLEANING_UP and SDK simulated power supply shut down. are printed; final CANCELLED; exit 5."
+      ],
+      [
+        3,
+        "Repeat with & $cli debug $sample --extensions $extensions, then enter c.",
+        "Execution completes PASSED, measurement is printed, cleanup occurs; exit 0."
+      ]
+    ]
+  },
+  {
+    "id": "MT-D3.3A-006",
+    "title": "SDK fault and ownership evidence",
+    "objective": "Record direct evidence of ABI and fault cases that the CLI alone cannot expose.",
+    "preconditions": "Full Release regression passed; its HTML report is available.",
+    "steps": [
+      [
+        1,
+        "Run .\\scripts\\test-sdk-authoring.ps1 -Configuration Release; $LASTEXITCODE.",
+        "All 41 selected SDK tests pass; exit 0. The full 139-test XML/HTML report is not overwritten."
+      ],
+      [
+        2,
+        "In the full HTML report, search for SmallErrorBuffers and PartialInitializationCanCleanUp.",
+        "Both PASSED. Small buffers cannot truncate diagnostics or replay commands; partial initialization can clean up after cancellation."
+      ],
+      [
+        3,
+        "Search for ReleaseFailuresCannotTurnIntoSuccess and MalformedOrRepeatedServiceResults.",
+        "Both PASSED. Failed release or invalid service output cannot become success."
+      ],
+      [
+        4,
+        "Search for CommandBehaviorIsTestableWithoutEngineOrDll and ExampleDllRunsThroughTheUnmodifiedEngine.",
+        "Both PASSED, covering local behavior and real DLL integration. Attach evidence."
+      ]
+    ]
+  },
+  {
+    "id": "MT-D3.3A-007",
+    "title": "Configuration and fresh-run isolation",
+    "objective": "Verify per-run driver configuration and state isolation.",
+    "preconditions": "Use the voltage-5v fixture without editing binaries or source.",
+    "steps": [
+      [
+        1,
+        "Run & $cli run \".\\quality\\manual-tests\\stage-d3.3a\\data\\voltage-5v.json\" --extensions $extensions; $LASTEXITCODE.",
+        "Measured 5.000000 V.; final PASSED; exit 0."
+      ],
+      [
+        2,
+        "Run & $cli run $sample --extensions $extensions; $LASTEXITCODE.",
+        "Measured 12.000000 V.; final PASSED; exit 0. The earlier configured voltage does not leak."
+      ],
+      [
+        3,
+        "Complete actual results, evidence references and final acceptance fields.",
+        "All seven cases must be Passed before acceptance. Do not infer manual completion from the template."
+      ]
+    ]
+  }
+]

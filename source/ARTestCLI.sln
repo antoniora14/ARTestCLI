@@ -21,6 +21,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ARTestCmdHardware", "ARTest
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ARTestDrvSimCAN", "ARTestDrvSimCAN\ARTestDrvSimCAN.vcxproj", "{71D6AD2B-EA35-48FC-946A-FB64CD3412D3}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ARTestSdkExample", "ARTest.SDK\examples\ARTestSdkExample\ARTestSdkExample.vcxproj", "{563DEA1B-752F-4A72-A83D-A6BFAF01333A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -29,6 +31,14 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{563DEA1B-752F-4A72-A83D-A6BFAF01333A}.Debug|x64.ActiveCfg = Debug|x64
+		{563DEA1B-752F-4A72-A83D-A6BFAF01333A}.Debug|x64.Build.0 = Debug|x64
+		{563DEA1B-752F-4A72-A83D-A6BFAF01333A}.Debug|x86.ActiveCfg = Debug|Win32
+		{563DEA1B-752F-4A72-A83D-A6BFAF01333A}.Debug|x86.Build.0 = Debug|Win32
+		{563DEA1B-752F-4A72-A83D-A6BFAF01333A}.Release|x64.ActiveCfg = Release|x64
+		{563DEA1B-752F-4A72-A83D-A6BFAF01333A}.Release|x64.Build.0 = Release|x64
+		{563DEA1B-752F-4A72-A83D-A6BFAF01333A}.Release|x86.ActiveCfg = Release|Win32
+		{563DEA1B-752F-4A72-A83D-A6BFAF01333A}.Release|x86.Build.0 = Release|Win32
 		{6D987EB2-7D43-4CF9-BC58-654A84769812}.Debug|x64.ActiveCfg = Debug|x64
 		{6D987EB2-7D43-4CF9-BC58-654A84769812}.Debug|x64.Build.0 = Debug|x64
 		{6D987EB2-7D43-4CF9-BC58-654A84769812}.Debug|x86.ActiveCfg = Debug|Win32

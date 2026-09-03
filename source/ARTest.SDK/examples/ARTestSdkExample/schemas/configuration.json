@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "properties": {
+    "voltage": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 60
+    }
+  },
+  "additionalProperties": false
+}

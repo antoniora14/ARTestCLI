@@ -22,10 +22,20 @@ The `tests\ARTestCLI.UnitTests.vcxproj` project uses Google Test 1.18, is part o
 - `CliThinHostTests.cpp`: compile, run, debug, break, catalog list/validate/doctor,
   validation, cancellation, legacy output, and process exit-code contracts.
 
-The Stage D3.2 baseline contains 98 test cases across 25 suites.
+The Stage D3.3-A baseline contains 139 test cases across 33 suites.
 `StageD32Tests.cpp` adds schema, metadata-only compilation, transaction ownership,
 catalog revision, native lifetime, and ABI-prefix regressions. The official build
 also executes `scripts/verify-core-boundary.ps1`.
+
+- `SdkAuthoringTests.cpp`: strict parameter reads, explicit results, local
+  commands/drivers and deterministic cancellation/deadline testing.
+- `SdkAbiAdapterTests.cpp`: metadata, opaque-handle ownership, lifecycle,
+  partial initialization cleanup, errors, malformed input and service release.
+- `SdkAuthoringIntegrationTests.cpp`: the SDK example loaded by the unchanged
+  Engine, fresh sessions, schema rejection, CLI execution and architecture checks.
+
+The SDK example and these three test sources compile with `/W4 /WX`. The
+official workflow also runs `scripts/verify-sdk-authoring.ps1`.
 
 ## Run from PowerShell
 
@@ -56,13 +66,13 @@ To compile without running tests:
 2. Select `x64` and `Debug` or `Release`.
 3. Open **Test > Test Explorer**.
 4. Build the solution with **Build > Build Solution**.
-5. Confirm that 98 tests from 25 suites are discovered.
+5. Confirm that 139 tests from 33 suites are discovered.
 6. Select **Run All Tests**.
-7. Verify that all 98 tests finish with a `Passed` verdict.
+7. Verify that all 139 tests finish with a `Passed` verdict.
 
 ### Project loading validation
 
-The solution contains nine projects. `Directory.Build.targets` checks evaluated
+The solution contains ten projects. `Directory.Build.targets` checks evaluated
 file items before each C++ build, including builds started directly in Visual
 Studio. Duplicate full paths (also across item types, imports or overlapping
 wildcards) fail with `ARTESTBUILD001`. Ordinary MSBuild compilation can otherwise
@@ -70,9 +80,27 @@ accept duplicates that the Visual Studio project loader rejects.
 
 If Visual Studio has kept `ARTestCmdHardware` or `ARTestDrvSimCAN` unloaded after
 the D3.2 project-file correction, right-click each project and select **Reload
-Project**, or close and reopen `source\ARTestCLI.sln`. Confirm that all nine
+Project**, or close and reopen `source\ARTestCLI.sln`. Confirm that all ten
 projects load without duplicate-item errors, then run the regression above.
 There is no need to delete `.vs` or reset IDE settings for this correction.
+
+## Stage D3.3-A SDK acceptance
+
+Run the focused SDK regression after building:
+
+```powershell
+.\scripts\test-sdk-authoring.ps1 -Configuration Release
+```
+
+It runs 41 tests without overwriting the full XML/HTML baseline. This subset does
+not replace the complete Debug and Release regressions before integration.
+The example is packaged under `artifacts/sdk-examples/x64/<Configuration>`,
+separate from the unchanged four-package reference catalog.
+
+Use [the seven-case manual protocol](quality/manual-tests/stage-d3.3a/README.md).
+It covers solution loading, author-facing source, a real 12 V run, schema
+rejection, cancellation/cleanup, fault-test evidence, and a fresh 5 V/12 V run.
+Record actual results in the new Word report; do not overwrite earlier evidence.
 
 ## Stage D3.2 acceptance
 

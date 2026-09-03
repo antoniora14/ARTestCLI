@@ -22,6 +22,7 @@
     <UseDebugLibraries Condition="'$(Configuration)'=='Release'">false</UseDebugLibraries>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="..\source\ARTest.SDK\ARTestSDK.props" />
   <PropertyGroup>
     <VcpkgRoot Condition="'$(VcpkgRoot)'==''">$(VCInstallDir)vcpkg\</VcpkgRoot>
     <VcpkgEnableManifest>true</VcpkgEnableManifest>
@@ -51,6 +52,7 @@
   <ItemGroup>
     <ClInclude Include="TestSupport\TemporaryScript.h" />
     <ClInclude Include="TestSupport\RecordingEventSink.h" />
+    <ClInclude Include="TestSupport\SdkHost.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="TestMain.cpp" />
@@ -64,6 +66,9 @@
     <ClCompile Include="StageCExecutionTests.cpp" />
     <ClCompile Include="StageDExtensionTests.cpp" />
     <ClCompile Include="StageD32Tests.cpp" />
+    <ClCompile Include="SdkAuthoringTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
+    <ClCompile Include="SdkAbiAdapterTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
+    <ClCompile Include="SdkAuthoringIntegrationTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="StageDThinHostTests.cpp" />
     <ClCompile Include="CliThinHostTests.cpp" />
     <ClCompile Include="..\source\ARTestCLI\CliApplication.cpp" />
@@ -74,6 +79,10 @@
   <ItemGroup>
     <ProjectReference Include="..\source\ARTestEngine.Core\ARTestEngine.Core.vcxproj">
       <Project>{A6B573A1-3A58-4F46-91C0-D2F2EAB65930}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\source\ARTest.SDK\examples\ARTestSdkExample\ARTestSdkExample.vcxproj">
+      <Project>{563DEA1B-752F-4A72-A83D-A6BFAF01333A}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
     <ProjectReference Include="..\source\ARTestEngine\ARTestEngine.vcxproj">
       <Project>{D47C2447-5B74-4CC8-B915-D73FD7BE85CB}</Project>

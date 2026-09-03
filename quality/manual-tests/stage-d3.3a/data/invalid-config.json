@@ -1,0 +1,24 @@
+{
+  "format": "ARTest.Script",
+  "version": 1,
+  "instruments": [
+    {
+      "id": "PS1",
+      "type": "com.artest.driver.sdk.sim-supply",
+      "config": {
+        "voltage": 999
+      }
+    }
+  ],
+  "commands": [
+    {
+      "stepId": 1,
+      "name": "com.artest.command.sdk.read-voltage",
+      "instrument": "PS1",
+      "params": {
+        "channel": 1,
+        "settleMs": 5
+      }
+    }
+  ]
+}

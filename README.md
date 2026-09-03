@@ -4,11 +4,16 @@ ARTestCLI is the command-line prototype of the ARTest test-sequencing engine.
 It loads versioned JSON scripts, validates commands and instrument bindings,
 initializes the required instruments, and executes each test step in sequence.
 
-The project is still under active development. Stage D3.2 keeps ARTestCLI a true
+The project is still under active development. Stage D3.3-A keeps ARTestCLI a true
 thin host: every CLI command now uses the versioned C ABI exposed by
 ARTestEngine.dll. Command Plugins consume Instrument Driver services without
 linking to driver binaries, while ARTestEngine.Core remains a private static
 implementation detail of the Engine DLL.
+
+Stage D3.3-A adds a C++20 extension authoring SDK: developers implement command
+and Instrument Driver behavior while a module-local adapter handles the C ABI.
+Start with the [SDK authoring guide](docs/sdk/extension-authoring.md) and its
+isolated, runnable example. Existing reference packages are not migrated yet.
 
 ## Current capabilities
 
@@ -49,6 +54,9 @@ implementation detail of the Engine DLL.
 - API 0.1, 0.2 and 0.3 table-size negotiation retained for compatibility tests.
 - Thin-host enforcement in MSBuild and Google Test; ARTestCLI cannot reference Core.
 - Legacy compile, run, debug, break, output, and exit-code contracts preserved.
+- C++ Command/InstrumentDriver authoring with typed Parameters, Result and Context.
+- Explicit extension registration and generated ABI adapters without global registries.
+- Local deterministic SDK tests plus real Engine/DLL integration and fault tests.
 
 The extension ABI remains experimental at version 0.1, and the Engine host API
 is experimental at version 0.4. No 1.0 stability promise has been made. Production hardware
@@ -74,7 +82,8 @@ remain later-stage work.
 |---|---|
 | `source/ARTestEngine.Core/` | Private parser, metadata compiler, executor, models, intrinsics, events, and registries |
 | `source/ARTestEngine/` | Public Engine DLL, native catalog, loader, and runtime adapter |
-| `source/ARTest.SDK/` | C ABI contracts and first-party C++ facade |
+| `source/ARTest.SDK/` | C ABI, C++ host facade and C++ extension authoring SDK |
+| `source/ARTest.SDK/examples/ARTestSdkExample/` | Isolated SDK command/driver example |
 | `source/ARTestCmdSample/` | Reference native Command Plugin |
 | `source/ARTestDrvSimPower/` | Reference simulated Instrument Driver |
 | `source/ARTestCmdHardware/` | Power and CAN commands using driver services |
@@ -85,6 +94,7 @@ remain later-stage work.
 | `tests/` | Google Test project and characterization tests |
 | `scripts/` | Reproducible build, report, and manual-test tooling |
 | `docs/architecture/` | Architecture decisions and stage boundaries |
+| `docs/sdk/` | Extension developer tutorial and AI authoring checklist |
 | `quality/manual-tests/` | Manual regression fixtures and local evidence templates |
 | `artifacts/` | Local binaries and generated reports; excluded from Git |
 
@@ -239,7 +249,7 @@ The HTML generator is tested with synthetic passed, failed, and skipped cases.
 It also compares the aggregate Google Test counters with every individual test
 case. A contradictory report causes the build workflow to fail.
 
-The current Stage D3.2 baseline contains 98 tests across 25 suites. See
+The current Stage D3.3-A baseline contains 139 tests across 33 suites. See
 [TESTING.md](TESTING.md) for the regression procedure.
 
 ## Architecture and roadmap
@@ -260,6 +270,15 @@ for the extension discovery, integrity, and activation baseline.
 The current boundaries are documented in
 [Stage D3.2 - Offline compilation and session ownership](docs/architecture/stage-d3-2-offline-compilation.md)
 and [Schema Profile 1](docs/architecture/schema-profile-v1.md).
+
+[Stage D3.3-A - C++ extension authoring](docs/architecture/stage-d3-3a-extension-authoring.md)
+adds a friendly API without changing Engine API 0.4 or native ABI 0.1.
+Use the [developer tutorial](docs/sdk/extension-authoring.md) and
+[AI authoring checklist](docs/sdk/ai-extension-authoring.md). D3.3-B will migrate
+the reference DLLs; D3.3-C will address SDK distribution, project templates and
+external consumer compatibility. The seven-case
+[manual acceptance protocol](quality/manual-tests/stage-d3.3a/README.md)
+is pending execution; the automated regression has passed in Debug and Release.
 
 Stage D1 implements the first trusted-native vertical slice. The extension
 platform uses a versioned C ABI for native DLLs and preserves isolated runtime
