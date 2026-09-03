@@ -4,7 +4,7 @@ ARTestCLI is the command-line prototype of the ARTest test-sequencing engine.
 It loads versioned JSON scripts, validates commands and instrument bindings,
 initializes the required instruments, and executes each test step in sequence.
 
-The project is still under active development. Stage D2 makes ARTestCLI a true
+The project is still under active development. Stage D3.1 keeps ARTestCLI a true
 thin host: every CLI command now uses the versioned C ABI exposed by
 ARTestEngine.dll. Command Plugins consume Instrument Driver services without
 linking to driver binaries, while ARTestEngine.Core remains a private static
@@ -40,12 +40,15 @@ implementation detail of the Engine DLL.
 - Service routing by stable instance and contract IDs.
 - ABI-safe cancellation, diagnostics, result sinks, cleanup, and module unload.
 - ARTestEngine API 0.2 detailed compilation reports and host-controlled sessions.
-- API 0.1 table-size negotiation retained for binary compatibility tests.
+- ARTestEngine API 0.3 side-effect-free catalog validation and report schema v2.
+- Manifest schema, path-containment, duplicate-ID, and optional SHA-256 checks.
+- Failure-contained catalog activation plus `extensions list|validate|doctor`.
+- API 0.1 and 0.2 table-size negotiation retained for compatibility tests.
 - Thin-host enforcement in MSBuild and Google Test; ARTestCLI cannot reference Core.
 - Legacy compile, run, debug, break, output, and exit-code contracts preserved.
 
 The extension ABI remains experimental at version 0.1, and the Engine host API
-is experimental at version 0.2. No 1.0 stability promise has been made. Production hardware
+is experimental at version 0.3. No 1.0 stability promise has been made. Production hardware
 drivers, managed runtime hosts, parallel execution, and persistent report files
 remain later-stage work.
 
@@ -129,6 +132,8 @@ $cli = '.\artifacts\bin\x64\Debug\ARTestCLI.exe'
 & $cli debug   '.\source\Scripts\TestScript.json'
 & $cli break   '.\source\Scripts\TestScript.json' 0 2
 & $cli extension-run '.\source\Scripts\ExtensionScript.json' '.\artifacts\extensions\x64\Debug'
+& $cli extensions validate '.\artifacts\extensions\x64\Debug'
+& $cli extensions doctor   '.\artifacts\extensions\x64\Debug'
 ```
 
 | Command | Behavior |
@@ -139,6 +144,9 @@ $cli = '.\artifacts\bin\x64\Debug\ARTestCLI.exe'
 | `debug` | Pauses before every command and accepts next, continue, or quit |
 | `break` | Pauses at the supplied zero-based command indexes |
 | `extension-run` | Loads an approved catalog and executes through ARTestEngine.dll |
+| `extensions list` | Safely validates manifests and prints a package summary |
+| `extensions validate` | Emits the catalog v2 report without loading extension code |
+| `extensions doctor` | Runs validation, DLL/ABI inspection, and atomic activation |
 
 Breakpoint arguments currently refer to positions in the `commands` array,
 starting at zero. They do not refer to the script's `stepId` values.
@@ -225,7 +233,7 @@ The HTML generator is tested with synthetic passed, failed, and skipped cases.
 It also compares the aggregate Google Test counters with every individual test
 case. A contradictory report causes the build workflow to fail.
 
-The current Stage D2 baseline contains 61 tests across 18 suites. See
+The current Stage D3.1 baseline contains 72 tests across 19 suites. See
 [TESTING.md](TESTING.md) for the regression procedure.
 
 ## Architecture and roadmap
@@ -240,6 +248,9 @@ See
 for the current architecture boundary, dependency rules, and deferred decisions.
 See also
 [Stage C - Robust execution](docs/architecture/stage-c-robust-execution.md)
+and
+[Stage D3.1 - Production extension catalog](docs/architecture/stage-d3-production-catalog.md)
+for the current extension discovery, integrity, and activation boundaries.
 for the execution lifecycle, policy contract, and safety guarantees.
 
 Stage D1 implements the first trusted-native vertical slice. The extension

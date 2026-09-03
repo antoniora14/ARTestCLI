@@ -17,6 +17,7 @@ namespace artest
         using Creator = std::function<std::unique_ptr<ICommand>()>;
 
         [[nodiscard]] OperationResult Register(std::string commandName, Creator creator);
+        [[nodiscard]] bool Unregister(const std::string& commandName) noexcept;
         [[nodiscard]] std::unique_ptr<ICommand> Create(const std::string& commandName) const;
         [[nodiscard]] bool Contains(const std::string& commandName) const;
 

@@ -82,6 +82,60 @@ namespace
                 }})}}.dump();
     }
 
+    class TemporaryCatalog final
+    {
+    public:
+        explicit TemporaryCatalog(std::string name)
+            : root(std::filesystem::temp_directory_path()
+                / ("ARTest-D3-" + std::move(name) + "-"
+                    + std::to_string(GetCurrentProcessId()) + "-"
+                    + std::to_string(GetTickCount64())))
+        {
+            std::filesystem::create_directories(root);
+        }
+
+        ~TemporaryCatalog()
+        {
+            std::error_code ignored;
+            std::filesystem::remove_all(root, ignored);
+        }
+
+        TemporaryCatalog(const TemporaryCatalog&) = delete;
+        TemporaryCatalog& operator=(const TemporaryCatalog&) = delete;
+
+        [[nodiscard]] std::filesystem::path CopyPackage(
+            const std::string& sourceName,
+            const std::string& destinationName) const
+        {
+            const auto destination = root / destinationName;
+            std::filesystem::copy(
+                ExtensionRoot() / sourceName,
+                destination,
+                std::filesystem::copy_options::recursive);
+            return destination;
+        }
+
+        [[nodiscard]] nlohmann::json ReadManifest(
+            const std::filesystem::path& package) const
+        {
+            std::ifstream input{package / "artest-extension.json"};
+            nlohmann::json value;
+            input >> value;
+            return value;
+        }
+
+        void WriteManifest(
+            const std::filesystem::path& package,
+            const nlohmann::json& value) const
+        {
+            std::ofstream output{package / "artest-extension.json",
+                std::ios::binary | std::ios::trunc};
+            output << value.dump(2);
+        }
+
+        std::filesystem::path root;
+    };
+
     struct Capture
     {
         std::mutex mutex;
@@ -394,6 +448,147 @@ TEST_F(EngineFixture, RejectsAnIncompatibleManifestBeforeLoadingCode)
         ARTEST_STATUS_EXTENSION_FAILURE);
     EXPECT_NE(std::string{error.text}.find("EXTENSION_RUNTIME_INCOMPATIBLE"), std::string::npos);
     std::filesystem::remove_all(root);
+}
+
+TEST_F(EngineFixture, ValidatesCatalogWithoutLoadingNativeCode)
+{
+    TemporaryCatalog catalog{"validate-no-load"};
+    const auto package = catalog.CopyPackage("ARTestDrvSimPower", "Driver");
+    const auto library = package / "ARTestDrvSimPower.dll";
+    Capture capture;
+    ARTestResultSinkV0 sink{
+        sizeof(ARTestResultSinkV0), 0U, &capture, &WriteCapture};
+    Error error;
+    const auto root = catalog.root.string();
+
+    ASSERT_EQ(m_api.validate_catalog(
+        m_engine, View(root), &sink, &error.value), ARTEST_STATUS_OK) << error.text;
+    ASSERT_EQ(capture.values.size(), 1U);
+    const auto report = nlohmann::json::parse(capture.values.front());
+    EXPECT_EQ(report["schema"], "artest.schema.extension-catalog.v2");
+    EXPECT_TRUE(report["valid"].get<bool>());
+    EXPECT_EQ(report["status"], "validated");
+
+    // Deletion succeeds only because validation did not retain a LoadLibrary handle.
+    EXPECT_TRUE(std::filesystem::remove(library));
+}
+
+TEST_F(EngineFixture, ReportsMalformedManifestWithoutThrowingAcrossTheAbi)
+{
+    TemporaryCatalog catalog{"malformed"};
+    const auto package = catalog.CopyPackage("ARTestDrvSimPower", "Driver");
+    {
+        std::ofstream output{package / "artest-extension.json",
+            std::ios::binary | std::ios::trunc};
+        output << R"({"schemaVersion": 1,)";
+    }
+    Capture capture;
+    ARTestResultSinkV0 sink{
+        sizeof(ARTestResultSinkV0), 0U, &capture, &WriteCapture};
+    Error error;
+    const auto root = catalog.root.string();
+
+    ASSERT_EQ(m_api.validate_catalog(
+        m_engine, View(root), &sink, &error.value), ARTEST_STATUS_OK) << error.text;
+    const auto report = nlohmann::json::parse(capture.values.front());
+    EXPECT_FALSE(report["valid"].get<bool>());
+    EXPECT_NE(report.dump().find("EXTENSION_MANIFEST_JSON_INVALID"),
+        std::string::npos);
+}
+
+TEST_F(EngineFixture, RejectsRuntimeEntryOutsideItsPackage)
+{
+    TemporaryCatalog catalog{"path-escape"};
+    const auto package = catalog.CopyPackage("ARTestDrvSimPower", "Driver");
+    std::filesystem::copy_file(
+        package / "ARTestDrvSimPower.dll",
+        catalog.root / "outside.dll");
+    auto manifest = catalog.ReadManifest(package);
+    manifest["runtime"]["entry"] = "../outside.dll";
+    catalog.WriteManifest(package, manifest);
+
+    Capture capture;
+    ARTestResultSinkV0 sink{
+        sizeof(ARTestResultSinkV0), 0U, &capture, &WriteCapture};
+    Error error;
+    const auto root = catalog.root.string();
+    ASSERT_EQ(m_api.validate_catalog(
+        m_engine, View(root), &sink, &error.value), ARTEST_STATUS_OK);
+    const auto report = nlohmann::json::parse(capture.values.front());
+    EXPECT_FALSE(report["valid"].get<bool>());
+    EXPECT_NE(report.dump().find("EXTENSION_ENTRY_INVALID"), std::string::npos);
+}
+
+TEST_F(EngineFixture, RejectsDuplicateExtensionAndComponentIdentifiers)
+{
+    TemporaryCatalog catalog{"duplicates"};
+    static_cast<void>(catalog.CopyPackage("ARTestDrvSimPower", "DriverA"));
+    static_cast<void>(catalog.CopyPackage("ARTestDrvSimPower", "DriverB"));
+
+    Capture capture;
+    ARTestResultSinkV0 sink{
+        sizeof(ARTestResultSinkV0), 0U, &capture, &WriteCapture};
+    Error error;
+    const auto root = catalog.root.string();
+    ASSERT_EQ(m_api.validate_catalog(
+        m_engine, View(root), &sink, &error.value), ARTEST_STATUS_OK);
+    const auto text = capture.values.front();
+    const auto report = nlohmann::json::parse(text);
+    EXPECT_FALSE(report["valid"].get<bool>());
+    EXPECT_NE(text.find("EXTENSION_ID_DUPLICATE"), std::string::npos);
+    EXPECT_NE(text.find("EXTENSION_COMPONENT_DUPLICATE"), std::string::npos);
+}
+
+TEST_F(EngineFixture, RejectsRuntimeEntryWithMismatchedIntegrityHash)
+{
+    TemporaryCatalog catalog{"integrity"};
+    const auto package = catalog.CopyPackage("ARTestDrvSimPower", "Driver");
+    auto manifest = catalog.ReadManifest(package);
+    manifest["integrity"] = {{"sha256", std::string(64U, '0')}};
+    catalog.WriteManifest(package, manifest);
+
+    Capture capture;
+    ARTestResultSinkV0 sink{
+        sizeof(ARTestResultSinkV0), 0U, &capture, &WriteCapture};
+    Error error;
+    const auto root = catalog.root.string();
+    ASSERT_EQ(m_api.validate_catalog(
+        m_engine, View(root), &sink, &error.value), ARTEST_STATUS_OK);
+    const auto report = nlohmann::json::parse(capture.values.front());
+    EXPECT_FALSE(report["valid"].get<bool>());
+    EXPECT_NE(report.dump().find("EXTENSION_INTEGRITY_MISMATCH"),
+        std::string::npos);
+}
+
+TEST_F(EngineFixture, FailedActivationDoesNotPoisonTheNextValidActivation)
+{
+    TemporaryCatalog catalog{"failure-containment"};
+    const auto package = catalog.CopyPackage("ARTestDrvSimPower", "Driver");
+    const auto validManifest = catalog.ReadManifest(package);
+    auto invalidManifest = validManifest;
+    invalidManifest["runtime"]["abi"]["major"] = 99;
+    catalog.WriteManifest(package, invalidManifest);
+
+    Error error;
+    const auto root = catalog.root.string();
+    EXPECT_EQ(m_api.refresh_catalog(
+        m_engine, View(root), &error.value), ARTEST_STATUS_EXTENSION_FAILURE);
+
+    catalog.WriteManifest(package, validManifest);
+    Error secondError;
+    EXPECT_EQ(m_api.refresh_catalog(
+        m_engine, View(root), &secondError.value), ARTEST_STATUS_OK)
+        << secondError.text;
+
+    Capture capture;
+    ARTestResultSinkV0 sink{
+        sizeof(ARTestResultSinkV0), 0U, &capture, &WriteCapture};
+    ASSERT_EQ(m_api.get_catalog_snapshot(
+        m_engine, &sink, &secondError.value), ARTEST_STATUS_OK);
+    const auto snapshot = nlohmann::json::parse(capture.values.front());
+    EXPECT_EQ(snapshot["status"], "active");
+    EXPECT_EQ(snapshot["generation"], 1U);
+    EXPECT_EQ(snapshot["extensions"].size(), 1U);
 }
 
 TEST(StageDNativeLoaderTests, ReleasesNativeModulesWhenTheEngineIsDestroyed)

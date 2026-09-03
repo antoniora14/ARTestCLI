@@ -71,6 +71,38 @@ namespace artest::sdk
             return {code, error.Message()};
         }
 
+        [[nodiscard]] ClientStatus ValidateCatalog(
+            const std::string& approvedRoot,
+            std::string& reportJson)
+        {
+            reportJson.clear();
+            if (m_engine == nullptr) return InvalidState("The engine was not created.");
+            if (m_api.validate_catalog == nullptr)
+                return {ARTEST_STATUS_OPERATION_NOT_SUPPORTED,
+                    "Catalog validation requires ARTestEngine API 0.3 or newer."};
+
+            const ARTestStringView root{approvedRoot.data(), approvedRoot.size()};
+            ARTestResultSinkV0 sink{
+                sizeof(ARTestResultSinkV0), 0U, &reportJson, &WriteString};
+            Error error;
+            const auto code = m_api.validate_catalog(
+                m_engine, root, &sink, &error.value);
+            return {code, error.Message()};
+        }
+
+        [[nodiscard]] ClientStatus GetCatalogSnapshot(std::string& reportJson)
+        {
+            reportJson.clear();
+            if (m_engine == nullptr) return InvalidState("The engine was not created.");
+
+            ARTestResultSinkV0 sink{
+                sizeof(ARTestResultSinkV0), 0U, &reportJson, &WriteString};
+            Error error;
+            const auto code = m_api.get_catalog_snapshot(
+                m_engine, &sink, &error.value);
+            return {code, error.Message()};
+        }
+
         [[nodiscard]] ClientStatus SubscribeEvents(std::function<void(std::string_view)> callback)
         {
             if (m_engine == nullptr) return InvalidState("The engine was not created.");

@@ -1,4 +1,5 @@
 #include "../source/ARTestCLI/CliApplication.h"
+#include "../source/ThirdParty/json.hpp"
 
 #include <gtest/gtest.h>
 
@@ -148,4 +149,67 @@ TEST(CliThinHostTests, InitializationFailureKeepsExitCodeFourAndCleansUp)
     EXPECT_NE(result.error.find("[POWER_SUPPLY_RESOURCE_MISSING]"), std::string::npos);
     EXPECT_NE(result.output.find("[State] CLEANING_UP"), std::string::npos);
     EXPECT_NE(result.output.find("[State] FAILED"), std::string::npos);
+}
+
+TEST(CliCatalogTests, ValidateEmitsStructuredReportWithoutLoadingExtensions)
+{
+    const auto result = Invoke({
+        "extensions", "validate",
+        PathText("artifacts/extensions/x64/Debug")});
+
+    EXPECT_EQ(result.exitCode, 0) << result.error;
+    EXPECT_TRUE(result.error.empty());
+    const auto report = nlohmann::json::parse(result.output);
+    EXPECT_EQ(report["schema"], "artest.schema.extension-catalog.v2");
+    EXPECT_EQ(report["status"], "validated");
+    EXPECT_TRUE(report["valid"].get<bool>());
+    EXPECT_TRUE(report["extensions"].empty());
+    ASSERT_EQ(report["packages"].size(), 2U);
+    EXPECT_EQ(report["packages"][0]["integrity"], "verified");
+    EXPECT_EQ(report["packages"][1]["integrity"], "verified");
+}
+
+TEST(CliCatalogTests, ListShowsDeterministicPackageSummary)
+{
+    const auto result = Invoke({
+        "extensions", "list",
+        PathText("artifacts/extensions/x64/Debug")});
+
+    EXPECT_EQ(result.exitCode, 0) << result.error;
+    EXPECT_NE(result.output.find("com.artest.extension.sample-command"),
+        std::string::npos);
+    EXPECT_NE(result.output.find("com.artest.extension.sim-power"),
+        std::string::npos);
+    EXPECT_NE(result.output.find("2 package(s), catalog valid."),
+        std::string::npos);
+}
+
+TEST(CliCatalogTests, DoctorLoadsDescriptorsAndReportsActiveGeneration)
+{
+    const auto result = Invoke({
+        "extensions", "doctor",
+        PathText("artifacts/extensions/x64/Debug")});
+
+    EXPECT_EQ(result.exitCode, 0) << result.error;
+    EXPECT_TRUE(result.error.empty());
+    EXPECT_NE(result.output.find("catalog validated and activated atomically"),
+        std::string::npos);
+    EXPECT_NE(result.output.find("\"status\": \"active\""),
+        std::string::npos);
+    EXPECT_NE(result.output.find("\"generation\": 1"),
+        std::string::npos);
+}
+
+TEST(CliCatalogTests, InvalidCatalogUsesDedicatedExitCode)
+{
+    const auto result = Invoke({
+        "extensions", "validate",
+        PathText("quality/manual-tests/stage-d1/data/incompatible")});
+
+    EXPECT_EQ(result.exitCode, 6);
+    EXPECT_TRUE(result.error.empty());
+    const auto report = nlohmann::json::parse(result.output);
+    EXPECT_FALSE(report["valid"].get<bool>());
+    EXPECT_NE(result.output.find("EXTENSION_RUNTIME_INCOMPATIBLE"),
+        std::string::npos);
 }

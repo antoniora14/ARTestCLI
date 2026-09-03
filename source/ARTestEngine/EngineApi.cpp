@@ -445,10 +445,9 @@ namespace
         try
         {
             auto result = engine->value->runtime->Refresh(
-                std::filesystem::path{ToString(approvedRoot)});
-            if (result.Succeeded())
-                result = engine->value->runtime->RegisterComponents(
-                    engine->value->commands, engine->value->instruments);
+                std::filesystem::path{ToString(approvedRoot)},
+                engine->value->commands,
+                engine->value->instruments);
             if (!result.Succeeded())
             {
                 SetError(error, DiagnosticsText(result.diagnostics));
@@ -464,6 +463,34 @@ namespace
         catch (...)
         {
             SetError(error, "Unknown failure while refreshing the extension catalog.");
+            return ARTEST_STATUS_INTERNAL_FAILURE;
+        }
+    }
+
+    ARTestStatus ARTEST_ABI_CALL ValidateCatalog(
+        ARTestEngineHandle engine,
+        ARTestStringView approvedRoot,
+        const ARTestResultSinkV0* sink,
+        ARTestErrorBuffer* error)
+    {
+        if (engine == nullptr)
+        {
+            SetError(error, "A valid engine handle is required.");
+            return ARTEST_STATUS_INVALID_ARGUMENT;
+        }
+        try
+        {
+            return WriteJson(engine->value->runtime->ValidateCatalog(
+                std::filesystem::path{ToString(approvedRoot)}), sink, error);
+        }
+        catch (const std::exception& exception)
+        {
+            SetError(error, exception.what());
+            return ARTEST_STATUS_INTERNAL_FAILURE;
+        }
+        catch (...)
+        {
+            SetError(error, "Unknown failure while validating the extension catalog.");
             return ARTEST_STATUS_INTERNAL_FAILURE;
         }
     }
@@ -890,9 +917,11 @@ extern "C" ARTEST_ENGINE_EXPORT ARTestStatus ARTEST_ABI_CALL
         SetError(error, "The requested ARTestEngine API version is incompatible.");
         return ARTEST_STATUS_INCOMPATIBLE_ABI;
     }
-    const auto negotiatedSize = requestedMinor >= 2U
+    const auto negotiatedSize = requestedMinor >= 3U
         ? static_cast<std::uint32_t>(sizeof(ARTestEngineApiV0))
-        : ARTEST_ENGINE_API_V0_1_SIZE;
+        : requestedMinor >= 2U
+            ? ARTEST_ENGINE_API_V0_2_SIZE
+            : ARTEST_ENGINE_API_V0_1_SIZE;
     if (api->struct_size < negotiatedSize)
     {
         SetError(error, "The Engine API output table is smaller than the requested minor version.");
@@ -921,7 +950,8 @@ extern "C" ARTEST_ENGINE_EXPORT ARTestStatus ARTEST_ABI_CALL
         &SerializeRunResult,
         &DestroyRunResult,
         &CompilePlanDetailed,
-        &StartSessionControlled};
+        &StartSessionControlled,
+        &ValidateCatalog};
     const auto callerSize = api->struct_size;
     const auto clearSize = (std::min)(
         static_cast<std::size_t>(callerSize), sizeof(ARTestEngineApiV0));

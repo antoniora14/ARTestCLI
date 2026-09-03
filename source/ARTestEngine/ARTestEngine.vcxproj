@@ -30,10 +30,15 @@
       <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">NDEBUG;ARTEST_ENGINE_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies>bcrypt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="EngineApi.cpp" />
+    <ClCompile Include="Extensions\ExtensionCatalog.cpp" />
     <ClCompile Include="Extensions\NativeExtensionRuntime.cpp" />
+    <ClInclude Include="Extensions\ExtensionCatalog.h" />
     <ClInclude Include="Extensions\NativeExtensionRuntime.h" />
   </ItemGroup>
   <ItemGroup>

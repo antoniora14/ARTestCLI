@@ -36,9 +36,7 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="PackageExtension" AfterTargets="Build" Condition="'$(Platform)'=='x64'">
-    <PropertyGroup><PackageDir>$(MSBuildThisFileDirectory)..\..\artifacts\extensions\$(Platform)\$(Configuration)\ARTestDrvSimPower\</PackageDir></PropertyGroup>
-    <MakeDir Directories="$(PackageDir)" />
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PackageDir)" />
-    <Copy SourceFiles="$(ProjectDir)artest-extension.json" DestinationFolder="$(PackageDir)" />
+    <PropertyGroup><PackageDir>$(MSBuildThisFileDirectory)..\..\artifacts\extensions\$(Platform)\$(Configuration)\ARTestDrvSimPower</PackageDir></PropertyGroup>
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\..\scripts\package-extension.ps1&quot; -BinaryPath &quot;$(TargetPath)&quot; -ManifestPath &quot;$(ProjectDir)artest-extension.json&quot; -PackageDirectory &quot;$(PackageDir)&quot;" />
   </Target>
 </Project>

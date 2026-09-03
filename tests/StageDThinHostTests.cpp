@@ -170,6 +170,28 @@ TEST(StageDEngineApiCompatibilityTests, NegotiatesMinorOneWithoutWritingPastItsT
         [](unsigned char value) { return value == 0xA5U; }));
 }
 
+TEST(StageDEngineApiCompatibilityTests, NegotiatesMinorTwoWithoutWritingPastItsTable)
+{
+    alignas(ARTestEngineApiV0)
+        std::array<unsigned char, sizeof(ARTestEngineApiV0)> storage{};
+    storage.fill(0xA5U);
+    auto* api = reinterpret_cast<ARTestEngineApiV0*>(storage.data());
+    api->struct_size = ARTEST_ENGINE_API_V0_2_SIZE;
+    Error error;
+
+    ASSERT_EQ(
+        ARTestEngine_QueryApi(0U, 2U, api, &error.value),
+        ARTEST_STATUS_OK) << error.text;
+    EXPECT_EQ(api->struct_size, ARTEST_ENGINE_API_V0_2_SIZE);
+    EXPECT_EQ(api->api_minor, 2U);
+    EXPECT_NE(api->compile_plan_detailed, nullptr);
+    EXPECT_NE(api->start_session_controlled, nullptr);
+    EXPECT_TRUE(std::all_of(
+        storage.begin() + ARTEST_ENGINE_API_V0_2_SIZE,
+        storage.end(),
+        [](unsigned char value) { return value == 0xA5U; }));
+}
+
 TEST_F(ThinHostEngineFixture, DetailedCompilationReturnsAllValidationDiagnostics)
 {
     const auto scriptText = std::string{R"({"format":"wrong"})"};

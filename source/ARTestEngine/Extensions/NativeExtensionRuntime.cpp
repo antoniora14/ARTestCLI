@@ -1,4 +1,5 @@
 #include "NativeExtensionRuntime.h"
+#include "ExtensionCatalog.h"
 
 #include "../../ARTest.SDK/include/ARTestExtensionAbi.h"
 #include "../../ARTestEngine.Core/Commands/ICommand.h"
@@ -20,9 +21,6 @@
 
 namespace
 {
-    constexpr std::uintmax_t MaximumManifestSize = 1024U * 1024U;
-    constexpr const char* ManifestName = "artest-extension.json";
-
     [[nodiscard]] std::string ToString(ARTestStringView value)
     {
         return value.data == nullptr ? std::string{} : std::string{value.data, value.size};
@@ -62,14 +60,6 @@ namespace
             return text[0] == '\0' ? std::move(fallback) : std::string{text};
         }
     };
-
-    [[nodiscard]] bool IsContained(const std::filesystem::path& root, const std::filesystem::path& path)
-    {
-        const auto relative = path.lexically_relative(root);
-        return !relative.empty()
-            && relative.native().find(L"..") != 0U
-            && !relative.is_absolute();
-    }
 
     [[nodiscard]] ARTestComponentKind ParseKind(const std::string& value)
     {
@@ -313,110 +303,98 @@ namespace artest::extensions
             std::pair<std::shared_ptr<NativeModule>, ComponentRecord>> types;
         std::map<std::string, std::weak_ptr<NativeComponentInstance>> services;
         mutable std::mutex serviceMutex;
-        bool registered = false;
+        ExtensionCatalog catalog;
+        CatalogScan lastScan;
+        std::string catalogStatus = "notLoaded";
+        std::uint64_t catalogGeneration = 0U;
+        mutable std::mutex catalogMutex;
     };
 
     NativeExtensionRuntime::NativeExtensionRuntime(IEventSink& eventSink)
         : m_implementation(std::make_unique<Implementation>(eventSink)) {}
     NativeExtensionRuntime::~NativeExtensionRuntime() = default;
 
-    OperationResult NativeExtensionRuntime::Refresh(const std::filesystem::path& approvedRoot)
+    nlohmann::json NativeExtensionRuntime::ValidateCatalog(
+        const std::filesystem::path& approvedRoot) const
     {
-        OperationResult result;
+        const auto scan = m_implementation->catalog.Discover(approvedRoot);
+        std::scoped_lock lock{m_implementation->catalogMutex};
+        return scan.ToJson(
+            scan.IsValid() ? "validated" : "rejected",
+            m_implementation->catalogGeneration,
+            nlohmann::json::array());
+    }
+
+    OperationResult NativeExtensionRuntime::Refresh(
+        const std::filesystem::path& approvedRoot,
+        CommandRegistry& commands,
+        InstrumentRegistry& instruments)
+    {
+        std::scoped_lock lock{m_implementation->catalogMutex};
+        if (!m_implementation->modules.empty())
+            return OperationResult::Failure(
+                "EXTENSION_CATALOG_ALREADY_LOADED",
+                "The active in-process catalog is immutable for the engine lifetime.");
+
+        auto scan = m_implementation->catalog.Discover(approvedRoot);
+        const auto collectDiagnostics = [&scan]
+        {
+            OperationResult result{scan.diagnostics};
+            for (const auto& package : scan.packages)
+                result.diagnostics.insert(result.diagnostics.end(),
+                    package.diagnostics.begin(), package.diagnostics.end());
+            return result;
+        };
+        const auto reject = [this, &scan, &collectDiagnostics]
+        {
+            auto result = collectDiagnostics();
+            m_implementation->lastScan = std::move(scan);
+            m_implementation->catalogStatus = "rejected";
+            return result;
+        };
+        if (!scan.IsValid()) return reject();
+
         try
         {
-            if (!m_implementation->modules.empty())
-                return OperationResult::Failure("EXTENSION_CATALOG_ALREADY_LOADED", "D1 catalogs are immutable after the first successful refresh.");
-
-            const auto root = std::filesystem::weakly_canonical(approvedRoot);
-            if (!std::filesystem::is_directory(root))
-                return OperationResult::Failure("EXTENSION_ROOT_INVALID", "The approved extension root is not a directory.", root.string());
-
             std::vector<std::shared_ptr<NativeModule>> loaded;
-            std::unordered_map<std::string, std::pair<std::shared_ptr<NativeModule>, ComponentRecord>> types;
-            for (const auto& entry : std::filesystem::directory_iterator(root))
+            std::unordered_map<std::string,
+                std::pair<std::shared_ptr<NativeModule>, ComponentRecord>> types;
+            const auto addFailure = [](CatalogPackage& package,
+                std::string code, std::string message, const std::filesystem::path& location)
             {
-                if (!entry.is_directory()) continue;
-                const auto manifestPath = entry.path() / ManifestName;
-                if (!std::filesystem::is_regular_file(manifestPath)) continue;
-                if (std::filesystem::file_size(manifestPath) > MaximumManifestSize)
-                {
-                    result.diagnostics.push_back({
-                        DiagnosticSeverity::Error, "EXTENSION_MANIFEST_TOO_LARGE",
-                        "The manifest exceeds the 1 MB limit.", manifestPath.string()});
-                    continue;
-                }
+                package.diagnostics.push_back({DiagnosticSeverity::Error,
+                    std::move(code), std::move(message), location.string()});
+            };
 
-                std::ifstream input{manifestPath, std::ios::binary};
-                std::ostringstream text;
-                text << input.rdbuf();
-                auto manifest = nlohmann::json::parse(text.str());
-                if (!manifest.is_object()
-                    || manifest.value("schemaVersion", 0) != 1
-                    || !manifest.contains("extensionId")
-                    || !manifest.contains("version")
-                    || !manifest.contains("runtime")
-                    || !manifest.contains("components")
-                    || !manifest["components"].is_array())
-                {
-                    result.diagnostics.push_back({
-                        DiagnosticSeverity::Error, "EXTENSION_MANIFEST_INVALID",
-                        "Required manifest fields are missing.", manifestPath.string()});
-                    continue;
-                }
-
-                const auto& runtime = manifest["runtime"];
-                if (runtime.value("kind", std::string{}) != "native"
-                    || runtime.value("isolation", std::string{}) != "inProcess"
-                    || runtime.value("architecture", std::string{}) != "x64"
-                    || !runtime.contains("abi")
-                    || runtime["abi"].value("major", 999U) != ARTEST_EXTENSION_ABI_MAJOR
-                    || runtime["abi"].value("minor", 999U) > ARTEST_EXTENSION_ABI_MINOR)
-                {
-                    result.diagnostics.push_back({
-                        DiagnosticSeverity::Error, "EXTENSION_RUNTIME_INCOMPATIBLE",
-                        "The native runtime or ABI is not compatible.", manifestPath.string()});
-                    continue;
-                }
-
-                const auto packageRoot = std::filesystem::weakly_canonical(entry.path());
-                const auto libraryPath = std::filesystem::weakly_canonical(packageRoot / std::filesystem::path{ runtime.value("entry", std::string{})});
-
-                if (!IsContained(packageRoot, libraryPath) || !std::filesystem::is_regular_file(libraryPath))
-                {
-                    result.diagnostics.push_back({
-                        DiagnosticSeverity::Error, "EXTENSION_ENTRY_INVALID",
-                        "The native entry must be a file inside its package.",
-                        manifestPath.string()});
-                    continue;
-                }
-
+            for (auto& package : scan.packages)
+            {
                 auto module = std::make_shared<NativeModule>();
-                module->packageRoot = packageRoot;
-                module->manifest = manifest;
-                module->manifestText = text.str();
-                module->extensionId = manifest["extensionId"].get<std::string>();
-                module->library = LoadLibraryW(libraryPath.c_str());
+                module->packageRoot = package.packageRoot;
+                module->manifest = package.manifest;
+                module->manifestText = package.manifestText;
+                module->extensionId = package.extensionId;
+                module->library = LoadLibraryW(package.entryPath.c_str());
                 if (module->library == nullptr)
                 {
-                    result.diagnostics.push_back({
-                        DiagnosticSeverity::Error, "EXTENSION_LOAD_FAILED",
-                        "LoadLibrary failed for the extension entry.", libraryPath.string()});
+                    addFailure(package, "EXTENSION_LOAD_FAILED",
+                        "LoadLibrary failed for the extension entry.", package.entryPath);
                     continue;
                 }
 
-                const auto query = reinterpret_cast<ARTestExtensionQueryFn>(GetProcAddress(module->library, "ARTestExtension_Query"));
+                const auto query = reinterpret_cast<ARTestExtensionQueryFn>(
+                    GetProcAddress(module->library, "ARTestExtension_Query"));
                 if (query == nullptr)
                 {
-                    result.diagnostics.push_back({
-                        DiagnosticSeverity::Error, "EXTENSION_QUERY_MISSING",
-                        "The extension query export is missing.", libraryPath.string()});
+                    addFailure(package, "EXTENSION_QUERY_MISSING",
+                        "The extension query export is missing.", package.entryPath);
                     continue;
                 }
 
                 module->api.struct_size = sizeof(ARTestExtensionApiV0);
                 ErrorStorage queryError;
-                auto status = query(ARTEST_EXTENSION_ABI_MAJOR, ARTEST_EXTENSION_ABI_MINOR,&module->api, &queryError.buffer);
+                auto status = query(
+                    ARTEST_EXTENSION_ABI_MAJOR, ARTEST_EXTENSION_ABI_MINOR,
+                    &module->api, &queryError.buffer);
                 if (status != ARTEST_STATUS_OK
                     || module->api.abi_major != ARTEST_EXTENSION_ABI_MAJOR
                     || module->api.abi_minor > ARTEST_EXTENSION_ABI_MINOR
@@ -428,40 +406,38 @@ namespace artest::extensions
                     || module->api.destroy_component == nullptr
                     || module->api.invoke_component == nullptr)
                 {
-                    result.diagnostics.push_back({
-                        DiagnosticSeverity::Error, "EXTENSION_ABI_INVALID",
+                    addFailure(package, "EXTENSION_ABI_INVALID",
                         queryError.Message("The extension function table is invalid."),
-                        libraryPath.string()});
+                        package.entryPath);
                     continue;
                 }
                 if (ToString(module->api.extension_id) != module->extensionId)
                 {
-                    result.diagnostics.push_back({
-                        DiagnosticSeverity::Error, "EXTENSION_ID_MISMATCH",
-                        "The manifest and binary extension IDs differ.", manifestPath.string()});
+                    addFailure(package, "EXTENSION_ID_MISMATCH",
+                        "The manifest and binary extension IDs differ.",
+                        package.manifestPath);
                     continue;
                 }
 
                 const auto manifestPayload = JsonPayload(module->manifestText);
                 ErrorStorage createError;
-                status = module->api.create_extension(&m_implementation->hostApi, &manifestPayload, &module->extension, &createError.buffer);
+                status = module->api.create_extension(
+                    &m_implementation->hostApi, &manifestPayload,
+                    &module->extension, &createError.buffer);
                 if (status != ARTEST_STATUS_OK || module->extension == nullptr)
                 {
-                    result.diagnostics.push_back({
-                        DiagnosticSeverity::Error, "EXTENSION_CREATE_FAILED",
+                    addFailure(package, "EXTENSION_CREATE_FAILED",
                         createError.Message("The extension could not be created."),
-                        libraryPath.string()});
+                        package.entryPath);
                     continue;
                 }
 
                 const auto count = module->api.get_component_type_count(module->extension);
-                if (count != manifest["components"].size())
+                if (count != module->manifest["components"].size())
                 {
-                    result.diagnostics.push_back({
-                        DiagnosticSeverity::Error,
-                        "EXTENSION_COMPONENT_COUNT_MISMATCH",
+                    addFailure(package, "EXTENSION_COMPONENT_COUNT_MISMATCH",
                         "The manifest and binary component counts differ.",
-                        manifestPath.string()});
+                        package.manifestPath);
                     continue;
                 }
 
@@ -471,8 +447,9 @@ namespace artest::extensions
                     ARTestComponentDescriptorV0 descriptor{};
                     descriptor.struct_size = sizeof(descriptor);
                     ErrorStorage descriptorError;
-                    status = module->api.get_component_descriptor(module->extension, index, &descriptor, &descriptorError.buffer);
-                    const auto& declared = manifest["components"][index];
+                    status = module->api.get_component_descriptor(
+                        module->extension, index, &descriptor, &descriptorError.buffer);
+                    const auto& declared = module->manifest["components"][index];
                     ComponentRecord record{
                         ParseKind(declared.value("kind", std::string{})),
                         ARTEST_COMPONENT_FLAG_NONE,
@@ -480,7 +457,7 @@ namespace artest::extensions
                         declared.value("contractId", std::string{}),
                         declared.value("version", std::string{}),
                         declared.value("displayName", std::string{})};
-                    if (declared.contains("flags"))
+                    if (declared.contains("flags") && declared["flags"].is_array())
                     {
                         for (const auto& flag : declared["flags"])
                         {
@@ -495,103 +472,124 @@ namespace artest::extensions
                         || ToString(descriptor.type_id) != record.typeId
                         || ToString(descriptor.contract_id) != record.contractId)
                     {
-                        result.diagnostics.push_back({
-                            DiagnosticSeverity::Error,
-                            "EXTENSION_DESCRIPTOR_MISMATCH",
+                        addFailure(package, "EXTENSION_DESCRIPTOR_MISMATCH",
                             descriptorError.Message(
                                 "The manifest and binary descriptor differ."),
-                            manifestPath.string()});
-                        descriptorFailure = true;
-                        break;
-                    }
-                    if (types.contains(record.typeId))
-                    {
-                        result.diagnostics.push_back({
-                            DiagnosticSeverity::Error,
-                            "EXTENSION_COMPONENT_DUPLICATE",
-                            "A component type ID is registered by more than one package.",
-                            manifestPath.string()});
+                            package.manifestPath);
                         descriptorFailure = true;
                         break;
                     }
                     const auto typeKey = record.typeId;
                     module->components.push_back(record);
-                    types.emplace(typeKey, std::make_pair(module, std::move(record)));
+                    types.emplace(typeKey,
+                        std::make_pair(module, std::move(record)));
                 }
                 if (!descriptorFailure) loaded.push_back(std::move(module));
             }
-            if (ContainsErrors(result.diagnostics)) return result;
-            if (loaded.empty())
-                return OperationResult::Failure(
-                    "EXTENSION_CATALOG_EMPTY",
-                    "No valid extension packages were found.", root.string());
+            if (!scan.IsValid()) return reject();
+
+            // Registration is committed only after every package and descriptor passes.
+            // Preflight prevents the append-only registries from observing partial catalogs.
+            for (const auto& [typeId, entry] : types)
+            {
+                if ((entry.second.kind == ARTEST_COMPONENT_KIND_COMMAND
+                        && commands.Contains(typeId))
+                    || (entry.second.kind == ARTEST_COMPONENT_KIND_INSTRUMENT_DRIVER
+                        && instruments.Contains(typeId)))
+                {
+                    scan.diagnostics.push_back({DiagnosticSeverity::Error,
+                        "EXTENSION_COMPONENT_DUPLICATE",
+                        "The component type conflicts with an existing registration.",
+                        typeId});
+                }
+            }
+            if (!scan.IsValid()) return reject();
+
+            const auto self = shared_from_this();
+            std::vector<std::string> registeredCommands;
+            std::vector<std::string> registeredInstruments;
+            const auto rollbackRegistrations = [&]() noexcept
+            {
+                for (auto item = registeredCommands.rbegin();
+                    item != registeredCommands.rend(); ++item)
+                    static_cast<void>(commands.Unregister(*item));
+                for (auto item = registeredInstruments.rbegin();
+                    item != registeredInstruments.rend(); ++item)
+                    static_cast<void>(instruments.Unregister(*item));
+            };
+            try
+            {
+                for (const auto& [typeId, entry] : types)
+                {
+                    OperationResult registration;
+                    if (entry.second.kind == ARTEST_COMPONENT_KIND_COMMAND)
+                    {
+                        registration = commands.Register(typeId, [self, typeId]
+                        {
+                            return std::make_unique<NativeCommandAdapter>(self, typeId);
+                        });
+                        if (registration.Succeeded())
+                            registeredCommands.push_back(typeId);
+                    }
+                    else if (entry.second.kind == ARTEST_COMPONENT_KIND_INSTRUMENT_DRIVER)
+                    {
+                        registration = instruments.Register(typeId,
+                            [self, typeId](IEventSink&)
+                            {
+                                return std::make_unique<NativeInstrumentAdapter>(self, typeId);
+                            });
+                        if (registration.Succeeded())
+                            registeredInstruments.push_back(typeId);
+                    }
+                    if (!registration.Succeeded())
+                    {
+                        scan.diagnostics.insert(scan.diagnostics.end(),
+                            registration.diagnostics.begin(), registration.diagnostics.end());
+                        break;
+                    }
+                }
+            }
+            catch (...)
+            {
+                rollbackRegistrations();
+                throw;
+            }
+            if (!scan.IsValid())
+            {
+                rollbackRegistrations();
+                return reject();
+            }
 
             m_implementation->modules = std::move(loaded);
             m_implementation->types = std::move(types);
+            m_implementation->lastScan = std::move(scan);
+            m_implementation->catalogStatus = "active";
+            ++m_implementation->catalogGeneration;
             m_implementation->eventSink.Publish({
                 EngineEventKind::Diagnostic, EngineEventSeverity::Information,
-                "extension-catalog", "Native extension catalog loaded."});
-            return result;
+                "extension-catalog",
+                "Native extension catalog validated and activated atomically."});
+            return OperationResult::Success();
         }
         catch (const std::exception& exception)
         {
-            return OperationResult::Failure(
+            scan.diagnostics.push_back({DiagnosticSeverity::Error,
                 "EXTENSION_CATALOG_EXCEPTION", exception.what(),
-                approvedRoot.string());
+                approvedRoot.string()});
+            return reject();
         }
-    }
-
-    OperationResult NativeExtensionRuntime::RegisterComponents(CommandRegistry& commands, InstrumentRegistry& instruments)
-    {
-        if (m_implementation->registered)
-            return OperationResult::Failure("EXTENSION_COMPONENTS_ALREADY_REGISTERED","Extension components were already registered.");
-
-        OperationResult result;
-        const auto self = shared_from_this();
-        for (const auto& [typeId, entry] : m_implementation->types)
-        {
-            if ((entry.second.kind == ARTEST_COMPONENT_KIND_COMMAND && commands.Contains(typeId))
-                || (entry.second.kind == ARTEST_COMPONENT_KIND_INSTRUMENT_DRIVER && instruments.Contains(typeId)))
-            {
-                return OperationResult::Failure("EXTENSION_COMPONENT_DUPLICATE", "The component type conflicts with an existing registration.", typeId);
-            }
-        }
-        for (const auto& [typeId, entry] : m_implementation->types)
-        {
-            OperationResult registration;
-            if (entry.second.kind == ARTEST_COMPONENT_KIND_COMMAND)
-            {
-                registration = commands.Register(typeId, [self, typeId]
-                {
-                    return std::make_unique<NativeCommandAdapter>(self, typeId);
-                });
-            }
-            else if (entry.second.kind == ARTEST_COMPONENT_KIND_INSTRUMENT_DRIVER)
-            {
-                registration = instruments.Register(typeId, [self, typeId](IEventSink&)
-                {
-                    return std::make_unique<NativeInstrumentAdapter>(self, typeId);
-                });
-            }
-            if (!registration.Succeeded()) result.diagnostics.insert(result.diagnostics.end(),registration.diagnostics.begin(), registration.diagnostics.end());
-        }
-        if (result.Succeeded()) m_implementation->registered = true;
-        return result;
     }
 
     nlohmann::json NativeExtensionRuntime::CatalogSnapshot() const
     {
-        nlohmann::json snapshot{
-            {"schema", "artest.schema.extension-catalog.v1"},
-            {"abi", {
-                {"major", ARTEST_EXTENSION_ABI_MAJOR},
-                {"minor", ARTEST_EXTENSION_ABI_MINOR}}},
-            {"extensions", nlohmann::json::array()}};
-
+        std::scoped_lock lock{m_implementation->catalogMutex};
+        nlohmann::json active = nlohmann::json::array();
         for (const auto& module : m_implementation->modules)
-            snapshot["extensions"].push_back(module->manifest);
-
-        return snapshot;
+            active.push_back(module->manifest);
+        return m_implementation->lastScan.ToJson(
+            m_implementation->catalogStatus,
+            m_implementation->catalogGeneration,
+            active);
     }
 
     ValueResult<std::shared_ptr<NativeComponentInstance>>NativeExtensionRuntime::CreateComponent(const std::string& typeId, const nlohmann::json& configuration)

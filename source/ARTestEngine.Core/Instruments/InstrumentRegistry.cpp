@@ -27,6 +27,20 @@ namespace artest
         return OperationResult::Success();
     }
 
+    bool InstrumentRegistry::Unregister(
+        const std::string& instrumentType) noexcept
+    {
+        try
+        {
+            std::unique_lock lock{m_mutex};
+            return m_creators.erase(instrumentType) != 0U;
+        }
+        catch (...)
+        {
+            return false;
+        }
+    }
+
     std::unique_ptr<IInstrument> InstrumentRegistry::Create(
         const std::string& instrumentType,
         IEventSink& eventSink) const

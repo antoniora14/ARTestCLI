@@ -14,15 +14,15 @@ The `tests\ARTestCLI.UnitTests.vcxproj` project uses Google Test 1.18, is part o
   containment, and execution context.
 - `StageCExecutionTests.cpp`: state transitions, cancellation deadlines, retry,
   timeout, failure policies, asynchronous sessions, and cleanup guarantees.
-- `StageDExtensionTests.cpp`: ABI negotiation, manifest validation, native
-  loading, command-to-driver services, host wait semantics, cancellation,
-  cleanup override, handle ownership, and unload safety.
-- `StageDThinHostTests.cpp`: Engine API 0.1/0.2 compatibility, detailed
+- `StageDExtensionTests.cpp`: ABI negotiation, side-effect-free catalog
+  validation, path containment, SHA-256 integrity, duplicate IDs, failure
+  containment, native loading, services, cancellation, and unload safety.
+- `StageDThinHostTests.cpp`: Engine API 0.1/0.2/0.3 compatibility, detailed
   compilation, controlled sessions, and source-level dependency enforcement.
-- `CliThinHostTests.cpp`: compile, run, debug, break, validation, initialization
-  failure, cancellation, legacy output, and process exit-code contracts.
+- `CliThinHostTests.cpp`: compile, run, debug, break, catalog list/validate/doctor,
+  validation, cancellation, legacy output, and process exit-code contracts.
 
-The Stage D2 baseline contains 61 test cases across 18 suites.
+The Stage D3.1 baseline contains 72 test cases across 19 suites.
 
 ## Run from PowerShell
 
@@ -53,9 +53,28 @@ To compile without running tests:
 2. Select `x64` and `Debug` or `Release`.
 3. Open **Test > Test Explorer**.
 4. Build the solution with **Build > Build Solution**.
-5. Confirm that 61 tests from 18 suites are discovered.
+5. Confirm that 72 tests from 19 suites are discovered.
 6. Select **Run All Tests**.
-7. Verify that all 61 tests finish with a `Passed` verdict.
+7. Verify that all 72 tests finish with a `Passed` verdict.
+
+## Stage D3.1 catalog regression
+
+The two non-loading commands are safe for package inspection. `doctor` also
+loads the DLLs and checks their ABI descriptors:
+
+```powershell
+$cli = '.\artifacts\bin\x64\Release\ARTestCLI.exe'
+$extensions = '.\artifacts\extensions\x64\Release'
+
+& $cli extensions list $extensions
+& $cli extensions validate $extensions
+& $cli extensions doctor $extensions
+```
+
+All commands must return `0` for the packaged reference catalog. The validation
+report must use `artest.schema.extension-catalog.v2`; `validate` reports status
+`validated` and generation `0`, while `doctor` reports status `active` and
+generation `1`. Invalid catalogs return exit code `6`.
 
 ## Stage D2 thin-host boundary
 

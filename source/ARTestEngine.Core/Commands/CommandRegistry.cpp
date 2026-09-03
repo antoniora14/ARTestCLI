@@ -27,6 +27,19 @@ namespace artest
         return OperationResult::Success();
     }
 
+    bool CommandRegistry::Unregister(const std::string& commandName) noexcept
+    {
+        try
+        {
+            std::unique_lock lock{m_mutex};
+            return m_creators.erase(commandName) != 0U;
+        }
+        catch (...)
+        {
+            return false;
+        }
+    }
+
     std::unique_ptr<ICommand> CommandRegistry::Create(const std::string& commandName) const
     {
         std::shared_lock lock{m_mutex};

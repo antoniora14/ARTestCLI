@@ -1,12 +1,21 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://artest.dev/schemas/extension-catalog-v1.schema.json",
-  "title": "ARTest extension catalog snapshot",
+  "$id": "https://artest.dev/schemas/extension-catalog-v2.schema.json",
+  "title": "ARTest extension catalog report",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "abi", "extensions"],
+  "required": [
+    "schema", "status", "valid", "generation", "root",
+    "abi", "packages", "extensions", "diagnostics"
+  ],
   "properties": {
-    "schema": { "const": "artest.schema.extension-catalog.v1" },
+    "schema": { "const": "artest.schema.extension-catalog.v2" },
+    "status": {
+      "enum": ["notLoaded", "validated", "rejected", "active"]
+    },
+    "valid": { "type": "boolean" },
+    "generation": { "type": "integer", "minimum": 0 },
+    "root": { "type": "string" },
     "abi": {
       "type": "object",
       "additionalProperties": false,
@@ -16,9 +25,53 @@
         "minor": { "type": "integer", "minimum": 0 }
       }
     },
+    "packages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "extensionId", "version", "packageRoot", "manifestPath",
+          "entryPath", "integrity", "valid", "diagnostics"
+        ],
+        "properties": {
+          "extensionId": { "type": "string" },
+          "version": { "type": "string" },
+          "packageRoot": { "type": "string" },
+          "manifestPath": { "type": "string" },
+          "entryPath": { "type": "string" },
+          "integrity": {
+            "enum": ["notDeclared", "verified", "invalid", "mismatch"]
+          },
+          "valid": { "type": "boolean" },
+          "diagnostics": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/diagnostic" }
+          }
+        }
+      }
+    },
     "extensions": {
+      "description": "Activated manifest snapshots. Empty during side-effect-free validation.",
       "type": "array",
       "items": { "type": "object" }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/diagnostic" }
+    }
+  },
+  "$defs": {
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severity", "code", "message", "location"],
+      "properties": {
+        "severity": { "enum": ["information", "warning", "error"] },
+        "code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 },
+        "location": { "type": "string" }
+      }
     }
   }
 }

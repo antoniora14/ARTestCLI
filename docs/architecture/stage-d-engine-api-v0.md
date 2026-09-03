@@ -237,3 +237,13 @@ Before implementing the Engine host table, D1 must define:
   exactly that negotiated size and does not touch subsequent bytes.
 - The C++ facade owns callback lifetime and contains host exceptions.
 - MSBuild and Google Test enforce the thin-host dependency rule.
+
+## D3.1 append-only API update
+
+- API 0.3 appends `validate_catalog` after the API 0.2 function table.
+- Validation returns `artest.schema.extension-catalog.v2` through a result sink
+  and never loads native code.
+- API 0.1 callers retain a 144-byte table and API 0.2 callers retain a 160-byte
+  table; sentinel tests verify that later bytes are not overwritten.
+- `refresh_catalog` performs the full validation, binary inspection, registry
+  preflight, and activation pipeline.

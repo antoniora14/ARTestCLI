@@ -22,8 +22,12 @@ namespace artest::extensions
         NativeExtensionRuntime(const NativeExtensionRuntime&) = delete;
         NativeExtensionRuntime& operator=(const NativeExtensionRuntime&) = delete;
 
-        [[nodiscard]] OperationResult Refresh(const std::filesystem::path& approvedRoot);
-        [[nodiscard]] OperationResult RegisterComponents(CommandRegistry& commands, InstrumentRegistry& instruments);
+        [[nodiscard]] nlohmann::json ValidateCatalog(
+            const std::filesystem::path& approvedRoot) const;
+        [[nodiscard]] OperationResult Refresh(
+            const std::filesystem::path& approvedRoot,
+            CommandRegistry& commands,
+            InstrumentRegistry& instruments);
         [[nodiscard]] nlohmann::json CatalogSnapshot() const;
         [[nodiscard]] ValueResult<std::shared_ptr<NativeComponentInstance>> CreateComponent(const std::string& typeId, const nlohmann::json& configuration);
         [[nodiscard]] OperationResult Invoke(const std::shared_ptr<NativeComponentInstance>& component,const std::string& operationId,const nlohmann::json& request,const CancellationToken* cancellation,nlohmann::json* response);

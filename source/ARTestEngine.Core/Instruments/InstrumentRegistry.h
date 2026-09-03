@@ -18,6 +18,7 @@ namespace artest
         using Creator = std::function<std::unique_ptr<IInstrument>(IEventSink&)>;
 
         [[nodiscard]] OperationResult Register(std::string instrumentType, Creator creator);
+        [[nodiscard]] bool Unregister(const std::string& instrumentType) noexcept;
         [[nodiscard]] std::unique_ptr<IInstrument> Create(
             const std::string& instrumentType,
             IEventSink& eventSink) const;

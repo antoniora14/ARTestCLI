@@ -44,6 +44,10 @@ namespace artest::cli
             {
                 return RunExtensionCommand(arguments);
             }
+            if (command == "extensions")
+            {
+                return RunCatalogCommand(arguments);
+            }
             if (command != "compile" && command != "run" && command != "debug" && command != "break")
             {
                 m_error << "Unknown command: " << command << '\n';
@@ -93,6 +97,88 @@ namespace artest::cli
             m_error << "Unexpected non-standard failure.\n";
             return static_cast<int>(ExitCode::UnexpectedFailure);
         }
+    }
+
+    int CliApplication::RunCatalogCommand(
+        const std::vector<std::string>& arguments)
+    {
+        if (arguments.size() != 3
+            || (arguments[1] != "list"
+                && arguments[1] != "validate"
+                && arguments[1] != "doctor"))
+        {
+            m_error << "Usage: ARTestCLI extensions <list|validate|doctor> "
+                    << "<extensions-root>\n";
+            return static_cast<int>(ExitCode::InvalidArguments);
+        }
+
+        sdk::EngineClient engine;
+        auto status = engine.Create();
+        if (!status.Succeeded())
+        {
+            PrintEngineFailure("create", status.code, status.message);
+            return static_cast<int>(ExitCode::UnexpectedFailure);
+        }
+
+        const auto& operation = arguments[1];
+        std::string report;
+        if (operation == "doctor")
+        {
+            status = engine.SubscribeEvents([this](std::string_view eventText)
+            {
+                const auto event = nlohmann::json::parse(eventText);
+                m_output << "[Engine] "
+                         << event.value("source", std::string{}) << ": "
+                         << event.value("message", std::string{}) << '\n';
+            });
+            if (status.Succeeded()) status = engine.RefreshCatalog(arguments[2]);
+
+            // A rejected activation still publishes its complete diagnostic snapshot.
+            const auto snapshotStatus = engine.GetCatalogSnapshot(report);
+            if (!snapshotStatus.Succeeded())
+            {
+                PrintEngineFailure("catalog snapshot", snapshotStatus.code,
+                    snapshotStatus.message);
+                return static_cast<int>(ExitCode::UnexpectedFailure);
+            }
+            m_output << nlohmann::json::parse(report).dump(2) << '\n';
+            if (!status.Succeeded())
+            {
+                PrintEngineFailure("catalog activation", status.code, status.message);
+                return static_cast<int>(ExitCode::ExtensionCatalogInvalid);
+            }
+            return static_cast<int>(ExitCode::Success);
+        }
+
+        status = engine.ValidateCatalog(arguments[2], report);
+        if (!status.Succeeded())
+        {
+            PrintEngineFailure("catalog validation", status.code, status.message);
+            return static_cast<int>(ExitCode::UnexpectedFailure);
+        }
+        const auto catalog = nlohmann::json::parse(report);
+        if (operation == "validate")
+        {
+            m_output << catalog.dump(2) << '\n';
+        }
+        else
+        {
+            for (const auto& package : catalog.at("packages"))
+            {
+                m_output << (package.value("valid", false) ? "VALID   " : "INVALID ")
+                         << package.value("extensionId", std::string{"<unknown>"})
+                         << "  " << package.value("version", std::string{})
+                         << "  sha256="
+                         << package.value("integrity", std::string{"notDeclared"})
+                         << '\n';
+            }
+            m_output << catalog.at("packages").size() << " package(s), catalog "
+                     << (catalog.value("valid", false) ? "valid" : "invalid")
+                     << ".\n";
+        }
+        return catalog.value("valid", false)
+            ? static_cast<int>(ExitCode::Success)
+            : static_cast<int>(ExitCode::ExtensionCatalogInvalid);
     }
 
     int CliApplication::RunExtensionCommand(
@@ -267,6 +353,9 @@ namespace artest::cli
             << "  debug                   Pause before every step.\n"
             << "  break idx1 idx2 ...     Pause at zero-based command indices.\n"
             << "  extension-run           Run a script through ARTestEngine.dll and an approved extension root.\n"
+            << "  extensions list         List packages after safe manifest validation.\n"
+            << "  extensions validate     Emit the machine-readable validation report without loading DLLs.\n"
+            << "  extensions doctor       Validate, load, inspect ABI descriptors, and activate a catalog.\n"
             << "  help                    Display this help.\n\n"
             << "During run, debug, or break, press Ctrl+C to request cooperative cancellation.\n"
             << "The engine always attempts instrument cleanup before returning.\n\n"
@@ -278,6 +367,9 @@ namespace artest::cli
         m_output
             << "  ARTestCLI extension-run source/Scripts/ExtensionScript.json "
             << "artifacts/extensions/x64/Release\n";
+        m_output
+            << "  ARTestCLI extensions validate artifacts/extensions/x64/Release\n"
+            << "  ARTestCLI extensions doctor artifacts/extensions/x64/Release\n";
     }
 
     void CliApplication::PrintCompileDiagnostics(
