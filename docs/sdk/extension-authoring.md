@@ -8,8 +8,10 @@ The examples are simulated and never access physical equipment.
 
 The SDK is header-only. Its only non-standard C++ dependency is
 nlohmann/json 3.12.0. Public headers use <nlohmann/json.hpp>; the repository
-provides an include adapter to its existing vendored copy. Distribution and
-dependency installation are D3.3-C work, not completed by this source-tree setup.
+provides an include adapter to its existing vendored copy. D3.3-C supplies the
+self-contained installed SDK ZIP; see [distribution](sdk-distribution.md) if
+you are building outside the repository. SDK 0.1.1 includes the compatibility
+fixes exercised by the D3.3-B [reference extensions](reference-extensions.md).
 
 ## 1. Build and run the complete example
 
@@ -98,6 +100,9 @@ not replayed automatically, including when an error buffer is too small.
 
 Use Result::Success(message) for a successful command message, WithData(object)
 for a JSON object response, and Failure(Status, message) for an operation error.
+Use WithData(object, schemaId) when preserving a specific service response schema;
+SchemaId() exposes it after a native service call. The one-argument overload
+continues to use artest.schema.generic-json.v1.
 If a data object contains message, it must be a string. Data() is optional:
 check it before reading a service response. Message() also exposes a successful
 message directly, without requiring JSON access.
@@ -187,7 +192,7 @@ The complete regression includes real Engine/DLL integration as well.
 | InvalidState | Initialize the driver before operations; do not reuse stopped instances |
 | Native binary/manifest mismatch | Rebuild and repackage metadata and DLL together |
 
-D3.3-B migrates the existing CAN/power/sample reference DLLs. D3.3-C now
+D3.3-B has migrated the CAN/power/sample/hardware reference DLLs. D3.3-C
 provides an evaluation SDK ZIP, an external project template and installed
 consumer compatibility validation. See [SDK distribution](sdk-distribution.md).
 The authoring API remains experimental until the larger compatibility and

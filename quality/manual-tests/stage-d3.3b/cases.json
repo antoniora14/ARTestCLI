@@ -1,0 +1,94 @@
+[
+  {
+    "id": "MT-D3.3B-001",
+    "title": "Build and verify the migrated references",
+    "objective": "Confirm the complete regression, SDK distribution and developer-facing boundaries.",
+    "preconditions": "Visual Studio 18 Insiders and C++ tools are installed. Use the repository root.",
+    "steps": [
+      {
+        "action": ".\\scripts\\build.ps1 -Configuration Release -Platform x64",
+        "expected": "Exit 0. Architecture gates, ABI layout, installed SDK consumer and all 161 Google Tests pass."
+      },
+      {
+        "action": "Open artifacts\\test-results\\x64\\Release\\ARTestCLI.UnitTests.html.",
+        "expected": "Overall PASSED; total 161, passed 161, failed 0, skipped 0. Individual verdicts agree."
+      },
+      {
+        "action": "Open source\\ARTestCLI.sln in Visual Studio. Inspect the four reference projects and their entry files.",
+        "expected": "All ten projects load. The references import ARTestSDK.props. Entry files contain registration; behavior is in separate command or driver classes."
+      },
+      {
+        "action": "Inspect source\\ARTest.SDK\\sdk-version.json and run .\\scripts\\verify-sdk-authoring.ps1.",
+        "expected": "SDK 0.1.1, Engine API 0.4, native ABI 0.1. Boundary verification PASSED. No private ABI helper in reference code."
+      }
+    ]
+  },
+  {
+    "id": "MT-D3.3B-002",
+    "title": "Preserve catalog identity and successful execution",
+    "objective": "Verify all four packages and both canonical IDs and legacy aliases.",
+    "preconditions": "Case 001 passed. Define $cli, $extensions and $data as shown on the setup page.",
+    "steps": [
+      {
+        "action": "& $cli extensions doctor $extensions\n$LASTEXITCODE",
+        "expected": "Exit 0; catalog active, four extensions, seven components; integrity verified."
+      },
+      {
+        "action": "& $cli extension-run \"$data\\mixed-aliases.json\" $extensions\n$LASTEXITCODE",
+        "expected": "Exit 0. Final JSON: status passed; plannedSteps, executedSteps and passedSteps are all 4."
+      },
+      {
+        "action": "& $cli extension-run \"$data\\mixed-canonical.json\" $extensions\n$LASTEXITCODE",
+        "expected": "Exit 0 and the same four-step verdict. JSON commands now use canonical component IDs."
+      },
+      {
+        "action": "Inspect completion messages and cleanup from both runs.",
+        "expected": "Power On, Send CAN Message and Power Off completed. The sample command succeeds; PS1 and CAN1 shut down. No failed steps."
+      }
+    ]
+  },
+  {
+    "id": "MT-D3.3B-003",
+    "title": "Preserve input and cleanup failures",
+    "objective": "Verify invalid input and simultaneous initialization and cleanup errors cannot become successful runs.",
+    "preconditions": "Case 001 passed. Use the supplied fixtures without modifying package manifests.",
+    "steps": [
+      {
+        "action": "& $cli extension-run \"$data\\invalid-can-frame.json\" $extensions\n$LASTEXITCODE",
+        "expected": "Exit 5. Final JSON status error; executedSteps 1, passedSteps 0, errorSteps 1. Message: Invalid CAN identifier, DLC or data length."
+      },
+      {
+        "action": "& $cli extension-run \"$data\\can-init-cleanup-failure.json\" $extensions\n$LASTEXITCODE",
+        "expected": "Exit 4. Final JSON status error; executedSteps 0, skippedSteps 4. Both CAN_RESOURCE_MISSING and Simulated CAN cleanup failure. remain visible."
+      },
+      {
+        "action": "& $cli extension-run \"$data\\mixed-canonical.json\" $extensions\n$LASTEXITCODE",
+        "expected": "Exit 0, status passed, passedSteps 4. Failed runs did not damage packages or leak simulated state."
+      }
+    ]
+  },
+  {
+    "id": "MT-D3.3B-004",
+    "title": "Interrupt execution and guarantee cleanup",
+    "objective": "Verify cooperative timeout, user cancellation and fresh-run recovery.",
+    "preconditions": "Case 001 passed. No physical instruments are involved.",
+    "steps": [
+      {
+        "action": "& $cli extension-run \"$data\\timeout-cleanup-failure.json\" $extensions\n$LASTEXITCODE",
+        "expected": "Exit 5. Final JSON: status error, timedOutSteps 1, passedSteps 0. Step duration is normally tens of milliseconds, not the full 1000 ms hold. Shutdown failure is retained."
+      },
+      {
+        "action": "& $cli debug \"$data\\mixed-canonical.json\" --extensions $extensions\nAt the first pause, enter q and press Enter. Then run $LASTEXITCODE.",
+        "expected": "Exit 5. CLEANING_UP, simulated power shutdown and final CANCELLED; executed 0, skipped 4."
+      },
+      {
+        "action": "Repeat the debug command, enter c and press Enter. Then run $LASTEXITCODE.",
+        "expected": "Exit 0. All four steps pass and cleanup runs. The earlier cancellation does not leak into the new session."
+      },
+      {
+        "action": ".\\artifacts\\bin\\x64\\Release\\ARTestCLI.UnitTests.exe --gtest_filter=Reference*\n$LASTEXITCODE",
+        "expected": "Exit 0. All 20 reference tests pass, including the real-DLL early-timeout regression. Full XML/HTML reports are not overwritten."
+      }
+    ]
+  }
+]

@@ -22,6 +22,8 @@
     <ClCompile Include="SdkAuthoringTests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="SdkAbiAdapterTests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="SdkAuthoringIntegrationTests.cpp"><Filter>Tests</Filter></ClCompile>
+    <ClCompile Include="ReferenceExtensionTests.cpp"><Filter>Tests</Filter></ClCompile>
+    <ClCompile Include="ReferenceExtensionIntegrationTests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="CliThinHostTests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="TestSupport\Fakes\FakePowerSupply.cpp"><Filter>TestSupport</Filter></ClCompile>
     <ClCompile Include="TestSupport\Fakes\FakeCanDevice.cpp"><Filter>TestSupport</Filter></ClCompile>

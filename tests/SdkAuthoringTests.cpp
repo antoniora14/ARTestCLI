@@ -78,6 +78,17 @@ TEST(SdkResultTests, KeepsSuccessFailureAndPayloadExplicit)
     EXPECT_THROW((void)Result::WithData(Json::array()), std::invalid_argument);
     EXPECT_THROW((void)Result::WithData({{"message", 42}}), std::invalid_argument);
 }
+TEST(SdkResultTests, ExplicitSchemaIsOwnedAndValidated)
+{
+    std::string schema = "test.schema.v1";
+    const auto result = Result::WithData({{"value", 1}}, schema);
+    schema.clear();
+    EXPECT_EQ(result.SchemaId(), "test.schema.v1");
+    EXPECT_EQ(Result::WithData({{"value", 1}}).SchemaId(), "artest.schema.generic-json.v1");
+    EXPECT_THROW((void)Result::WithData(Json::object(), ""), std::invalid_argument);
+    EXPECT_THROW((void)Result::WithData(Json::object(), std::string{"bad\0id", 6}), std::invalid_argument);
+}
+
 TEST(SdkAuthoringTests, CommandBehaviorIsTestableWithoutEngineOrDll)
 {
     artest::examples::ReadVoltageCommand command;

@@ -69,6 +69,14 @@
     <ClCompile Include="SdkAuthoringTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="SdkAbiAdapterTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="SdkAuthoringIntegrationTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
+    <ClCompile Include="ReferenceExtensionTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
+    <ClCompile Include="ReferenceExtensionIntegrationTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
+    <ClCompile Include="..\source\ARTestDrvSimPower\SimPowerDriver.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
+    <ClCompile Include="..\source\ARTestDrvSimCAN\SimCanDriver.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
+    <ClCompile Include="..\source\ARTestCmdSample\PowerCycleCommand.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
+    <ClCompile Include="..\source\ARTestCmdHardware\PowerOnCommand.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
+    <ClCompile Include="..\source\ARTestCmdHardware\PowerOffCommand.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
+    <ClCompile Include="..\source\ARTestCmdHardware\SendCanMessageCommand.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="StageDThinHostTests.cpp" />
     <ClCompile Include="CliThinHostTests.cpp" />
     <ClCompile Include="..\source\ARTestCLI\CliApplication.cpp" />
@@ -77,6 +85,14 @@
     <ClCompile Include="..\source\ARTestCLI\ConsoleExecutionControl.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\source\ARTestDrvSimCAN\ARTestDrvSimCAN.vcxproj">
+      <Project>{71D6AD2B-EA35-48FC-946A-FB64CD3412D3}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+    <ProjectReference Include="..\source\ARTestCmdHardware\ARTestCmdHardware.vcxproj">
+      <Project>{6D987EB2-7D43-4CF9-BC58-654A84769812}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
     <ProjectReference Include="..\source\ARTestEngine.Core\ARTestEngine.Core.vcxproj">
       <Project>{A6B573A1-3A58-4F46-91C0-D2F2EAB65930}</Project>
     </ProjectReference>

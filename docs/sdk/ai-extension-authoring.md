@@ -7,6 +7,7 @@ the Engine or access physical equipment.
 
 1. Read source/ARTest.SDK/README.md and docs/sdk/extension-authoring.md.
 2. Inspect the three small ARTestSdkExample source files; reuse their actual API.
+   The migrated power/CAN reference packages are described in reference-extensions.md.
 3. Confirm whether the user needs a Command, InstrumentDriver, or both.
 4. Record component ID, service contract, operation IDs, parameter/configuration
    schema, lifecycle assumptions, and simulated versus real I/O.
@@ -24,6 +25,7 @@ the Engine or access physical equipment.
 - Read strict typed parameters; use schema-supported keywords only.
 - Propagate unsuccessful Result values. Never convert catch (...) to Success.
 - Check optional result data before reading it.
+- Preserve contract-specific response schemas with Result::WithData(data, schemaId).
 - Do not invent a measurement-verdict schema; operation status is the current contract.
 - Keep all C++ objects, JSON allocation and destruction within the same module.
 - Do not retain Context, Parameters, borrowed payloads or callbacks.
@@ -52,6 +54,8 @@ the Engine or access physical equipment.
 
 ## Current scope
 
-Engine API 0.4 / extension ABI 0.1 remain experimental. D3.3-A is authoring;
-D3.3-B is reference migration; D3.3-C is distributable SDK/external consumers.
+Engine API 0.4 / extension ABI 0.1 remain experimental. D3.3-A authoring,
+D3.3-B reference migration and D3.3-C installed-SDK consumers are implemented.
+SDK package 0.1.1 adds schema-preserving Results without a C ABI change.
+Automatic manifest/schema generation remains a future authoring improvement.
 Python/.NET hosting, real driver certification and ABI 1.0 are not complete.

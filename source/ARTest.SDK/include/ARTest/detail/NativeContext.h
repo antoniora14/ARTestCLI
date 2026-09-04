@@ -122,6 +122,7 @@ private:
                 struct Capture
                 {
                     std::optional<Json> data;
+                    std::string schemaId = "artest.schema.generic-json.v1";
                     unsigned calls = 0;
                     ARTestStatus status = ARTEST_STATUS_OK;
                     static ARTestStatus ARTEST_ABI_CALL
@@ -140,6 +141,9 @@ private:
                                 return Fail(outputError, Status::HostFailure,
                                             "Service result must be an object.");
                             self.data = std::move(data);
+                            const auto schema = Text(payload->schema_id);
+                            if (!schema.empty())
+                                self.schemaId = schema;
                             return ARTEST_STATUS_OK;
                         });
                         return self.status;
@@ -155,7 +159,7 @@ private:
                     return HostResult(invoked, error);
                 if (capture.status != ARTEST_STATUS_OK)
                     return HostResult(capture.status, error);
-                return capture.data ? Result::WithData(std::move(*capture.data))
+                return capture.data ? Result::WithData(std::move(*capture.data), std::move(capture.schemaId))
                                     : Result::Success();
             }
             catch (...)

@@ -1,0 +1,64 @@
+{
+  "format": "ARTest.Script",
+  "version": 1,
+  "instruments": [
+    {
+      "type": "PowerSupply",
+      "id": "PS1",
+      "config": {
+        "hw-rsrc": "SIM::PS1"
+      }
+    },
+    {
+      "type": "CAN",
+      "id": "CAN1",
+      "config": {
+        "hw-rsrc": "SIM::CAN1"
+      }
+    }
+  ],
+  "commands": [
+    {
+      "stepId": 1,
+      "name": "PowerSupply.TurnOn",
+      "instrument": "PS1",
+      "params": {
+        "channel": 1,
+        "voltage": 12,
+        "currentLimit": 2
+      }
+    },
+    {
+      "stepId": 2,
+      "name": "CAN.SendMessage",
+      "instrument": "CAN1",
+      "params": {
+        "channel": 0,
+        "id": "0x123",
+        "dlc": 2,
+        "data": [
+          0,
+          255
+        ]
+      }
+    },
+    {
+      "stepId": 3,
+      "name": "PowerSupply.TurnOff",
+      "instrument": "PS1",
+      "params": {
+        "channel": 1
+      }
+    },
+    {
+      "stepId": 4,
+      "name": "com.artest.command.sample.power-cycle",
+      "instrument": "PS1",
+      "params": {
+        "channel": 1,
+        "voltage": 5,
+        "holdMs": 0
+      }
+    }
+  ]
+}

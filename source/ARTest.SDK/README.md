@@ -1,6 +1,7 @@
 # ARTest C++ extension authoring SDK
 
-Experimental authoring API - D3.3-C. C++20, native extension ABI 0.1.
+Experimental SDK 0.1.1 - D3.3-B reference migration and D3.3-C distribution.
+C++20, native extension ABI 0.1.
 The Engine host API remains 0.4. The SDK can be packaged for external
 compatibility evaluation; it is not a frozen binary contract or public release.
 
@@ -44,6 +45,7 @@ The C++ types stay inside your module. Do not include anything from detail/
 in extension code. Existing ARTestEngineClient.h serves application hosts;
 it is not needed by command/driver DLLs.
 
-D3.3-B migrates the older reference implementations to this API.
+D3.3-B has migrated all four reference packages to this API.
+See [the reference walkthrough](../../docs/sdk/reference-extensions.md).
 D3.3-C packages dependencies/templates and validates external consumers.
 See [the distribution guide](../../docs/sdk/sdk-distribution.md).

@@ -155,7 +155,12 @@ TEST(ExecutionStateMachineTests, AcceptsOnlyDefinedTransitions)
 TEST(CancellationTests, DeadlineInterruptsCooperativeWait)
 {
     CancellationSource source;
+    EXPECT_FALSE(source.Token().Deadline().has_value());
     const auto token = source.Token().WithTimeout(20ms);
+    ASSERT_TRUE(token.Deadline().has_value());
+    EXPECT_EQ(token.WithTimeout(0ms).Deadline(), token.Deadline());
+    EXPECT_EQ(token.WithTimeout(1s).Deadline(), token.Deadline());
+    EXPECT_LE(token.WithTimeout(1ms).Deadline(), token.Deadline());
     const auto start = std::chrono::steady_clock::now();
 
     EXPECT_TRUE(token.WaitFor(1s));

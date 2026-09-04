@@ -43,6 +43,14 @@ class [[nodiscard]] Result final
     }
     static Result WithData(Json data)
     {
+        return WithData(std::move(data), "artest.schema.generic-json.v1");
+    }
+    // Preserve a service's declared payload schema without exposing ABI structures.
+    static Result WithData(Json data, std::string schemaId)
+    {
+        if (schemaId.empty() || schemaId.size() > 1024 * 1024 ||
+            schemaId.find('\0') != std::string::npos)
+            throw std::invalid_argument("A valid result schema ID is required.");
         if (!data.is_object() || (data.contains("message") && !data["message"].is_string()))
             throw std::invalid_argument(
                 "Result data must be an object; message, if present, must be a string.");
@@ -51,6 +59,7 @@ class [[nodiscard]] Result final
         if (data.contains("message"))
             result.m_message = data["message"].get<std::string>();
         result.m_data = std::move(data);
+        result.m_schemaId = std::move(schemaId);
         return result;
     }
     static Result Failure(Status status, std::string message)
@@ -79,6 +88,10 @@ class [[nodiscard]] Result final
     {
         return m_data;
     }
+    [[nodiscard]] const std::string &SchemaId() const noexcept
+    {
+        return m_schemaId;
+    }
 
   private:
     Result(Status status, std::string message) : m_status(status), m_message(std::move(message))
@@ -87,5 +100,6 @@ class [[nodiscard]] Result final
     Status m_status;
     std::string m_message;
     std::optional<Json> m_data;
+    std::string m_schemaId = "artest.schema.generic-json.v1";
 };
 } // namespace artest::sdk

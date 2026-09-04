@@ -95,6 +95,15 @@ OperationResult NativeExtensionRuntime::Invoke(
                                          0U,
                                          const_cast<CancellationToken *>(cancellation),
                                          cancelled};
+    if (cancellation && cancellation->Deadline())
+    {
+        // Use the same steady-clock epoch as NativeServiceBroker::MonotonicTime.
+        // Service calls forward this context, so commands and drivers share the
+        // attempt deadline. Lifecycle cleanup has no token and stays unconditional.
+        invocation.deadline_monotonic_ns = static_cast<std::uint64_t>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(
+                cancellation->Deadline()->time_since_epoch()).count());
+    }
     ErrorStorage error;
     ARTestStatus status;
     {

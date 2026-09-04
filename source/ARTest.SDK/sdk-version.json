@@ -1,6 +1,6 @@
 {
   "schema": "artest.schema.sdk-version.v1",
-  "sdkVersion": "0.1.0",
+  "sdkVersion": "0.1.1",
   "engineApi": "0.4",
   "nativeExtensionAbi": "0.1",
   "stability": "experimental",

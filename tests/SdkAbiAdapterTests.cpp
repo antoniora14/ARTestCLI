@@ -109,6 +109,17 @@ Json Request(const std::string &action = "success")
 }
 } // namespace
 
+TEST(SdkAbiContextTests, ServiceResultSchemaSurvivesTheNativeRoundTrip)
+{
+    Runtime runtime;
+    runtime.host.responseSchema = "artest.schema.instrument.power-supply.result.v1";
+    const auto command = runtime.Create("test.command");
+    ASSERT_EQ(runtime.Invoke(command, "artest.command.execute.v1", Request("service")), ARTEST_STATUS_OK);
+    EXPECT_EQ(runtime.schemaId, runtime.host.responseSchema);
+    EXPECT_EQ(runtime.output["value"], 42);
+    EXPECT_EQ(runtime.host.released, 1U);
+}
+
 TEST(SdkAbiMetadataTests, QueryDoesNotConstructCommandsOrDrivers)
 {
     const auto before = counters.created;

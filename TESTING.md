@@ -22,7 +22,7 @@ The `tests\ARTestCLI.UnitTests.vcxproj` project uses Google Test 1.18, is part o
 - `CliThinHostTests.cpp`: compile, run, debug, break, catalog list/validate/doctor,
   validation, cancellation, legacy output, and process exit-code contracts.
 
-The Stage D3.3-A baseline contains 139 test cases across 33 suites.
+The Stage D3.3-B baseline contains 161 test cases across 36 suites.
 `StageD32Tests.cpp` adds schema, metadata-only compilation, transaction ownership,
 catalog revision, native lifetime, and ABI-prefix regressions. The official build
 also executes `scripts/verify-core-boundary.ps1`.
@@ -36,6 +36,14 @@ also executes `scripts/verify-core-boundary.ps1`.
 
 The SDK example and these three test sources compile with `/W4 /WX`. The
 official workflow also runs `scripts/verify-sdk-authoring.ps1`.
+
+- `ReferenceExtensionTests.cpp`: migrated behavior, service ordering, state,
+  typed validation, cancellation, partial initialization and cleanup failures.
+- `ReferenceExtensionIntegrationTests.cpp`: all four real DLLs, alias/canonical
+  compatibility, malformed CAN frames, initialization and timeout failures.
+
+The reference components and new tests also compile with `/W4 /WX`. The boundary
+gate rejects private dependencies and handwritten ABI code in reference packages.
 
 ## Run from PowerShell
 
@@ -66,9 +74,9 @@ To compile without running tests:
 2. Select `x64` and `Debug` or `Release`.
 3. Open **Test > Test Explorer**.
 4. Build the solution with **Build > Build Solution**.
-5. Confirm that 139 tests from 33 suites are discovered.
+5. Confirm that 161 tests from 36 suites are discovered.
 6. Select **Run All Tests**.
-7. Verify that all 139 tests finish with a `Passed` verdict.
+7. Verify that all 161 tests finish with a `Passed` verdict.
 
 ### Project loading validation
 
@@ -92,15 +100,28 @@ Run the focused SDK regression after building:
 .\scripts\test-sdk-authoring.ps1 -Configuration Release
 ```
 
-It runs 41 tests without overwriting the full XML/HTML baseline. This subset does
+It now runs 43 tests without overwriting the full XML/HTML baseline. This subset does
 not replace the complete Debug and Release regressions before integration.
 The example is packaged under `artifacts/sdk-examples/x64/<Configuration>`,
-separate from the unchanged four-package reference catalog.
+separate from the four-package reference catalog.
 
 Use [the seven-case manual protocol](quality/manual-tests/stage-d3.3a/README.md).
 It covers solution loading, author-facing source, a real 12 V run, schema
 rejection, cancellation/cleanup, fault-test evidence, and a fresh 5 V/12 V run.
 Record actual results in the new Word report; do not overwrite earlier evidence.
+
+## Stage D3.3-B reference migration
+
+After building, run the focused reference regression without replacing reports:
+
+```powershell
+.\artifacts\bin\x64\Release\ARTestCLI.UnitTests.exe --gtest_filter=Reference*
+```
+
+Expected: 20 tests across three suites pass. The two additional SDK schema tests
+are included in the 43-test SDK subset and the complete 161-test regression.
+Use [the manual protocol](quality/manual-tests/stage-d3.3b/README.md) and its new
+Word evidence report. All fixtures use simulations, not physical instruments.
 
 ## Stage D3.3-C installed-SDK compatibility
 

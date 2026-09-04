@@ -145,7 +145,8 @@ inline ARTestStatus Return(const Result &result, const ARTestResultSinkV0 *sink,
     if (!sink || !result.Data())
         return ARTEST_STATUS_OK;
     const auto text = result.Data()->dump();
-    const auto payload = Payload(text);
+    auto payload = Payload(text);
+    payload.schema_id = View(result.SchemaId());
     try
     {
         return sink->write(sink->sink_context, &payload, error);

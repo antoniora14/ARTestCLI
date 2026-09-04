@@ -1,7 +1,8 @@
 # D3.3-C - SDK distribution and external consumer validation
 
-Status: implemented; manual acceptance pending. D3.3-B reference-extension
-migration remains independent and is not implied by this stage.
+Status: implemented; manual acceptance tracked separately. Reference migration
+was not part of this stage and is now implemented in
+[D3.3-B](stage-d3-3b-reference-migration.md).
 
 ## Outcome
 
@@ -48,7 +49,7 @@ matrix is evidence for compatibility, not an ABI 1.0 freeze.
 
 ## Deliberate limits
 
-- D3.3-B still owns migration of the existing ARTest reference extensions.
+- D3.3-B owns the separate migration of existing ARTest reference extensions.
 - The supported packaging target is Windows x64/MSBuild v145.
 - CMake, NuGet/vcpkg publication, signing and update feeds are future work.
 - The repository owner must select ARTest redistribution terms before a public

@@ -4,7 +4,7 @@ ARTestCLI is the command-line prototype of the ARTest test-sequencing engine.
 It loads versioned JSON scripts, validates commands and instrument bindings,
 initializes the required instruments, and executes each test step in sequence.
 
-The project is still under active development. Stage D3.3-A keeps ARTestCLI a true
+The project is still under active development. ARTestCLI remains a true
 thin host: every CLI command now uses the versioned C ABI exposed by
 ARTestEngine.dll. Command Plugins consume Instrument Driver services without
 linking to driver binaries, while ARTestEngine.Core remains a private static
@@ -13,12 +13,15 @@ implementation detail of the Engine DLL.
 Stage D3.3-A adds a C++20 extension authoring SDK: developers implement command
 and Instrument Driver behavior while a module-local adapter handles the C ABI.
 Start with the [SDK authoring guide](docs/sdk/extension-authoring.md) and its
-isolated, runnable example. Existing reference packages are not migrated yet.
+isolated, runnable example.
 
 Stage D3.3-C packages that SDK into a self-contained Windows x64 directory and
 ZIP. Its compatibility gate extracts the archive, builds a copied extension
 project without repository dependencies, and runs the DLL through the Engine.
-D3.3-B reference-package migration remains pending.
+D3.3-B now migrates all four reference packages to that public API. Small command
+and driver classes replace handwritten ABI support, with compatibility and fault
+regressions. See [the reference walkthrough](docs/sdk/reference-extensions.md).
+SDK package 0.1.1 retains Engine API 0.4 and native extension ABI 0.1.
 
 ## Current capabilities
 
@@ -257,7 +260,7 @@ The HTML generator is tested with synthetic passed, failed, and skipped cases.
 It also compares the aggregate Google Test counters with every individual test
 case. A contradictory report causes the build workflow to fail.
 
-The current Stage D3.3-A baseline contains 139 tests across 33 suites. See
+The current Stage D3.3-B baseline contains 161 tests across 36 suites. See
 [TESTING.md](TESTING.md) for the regression procedure.
 
 ## Architecture and roadmap
@@ -282,11 +285,12 @@ and [Schema Profile 1](docs/architecture/schema-profile-v1.md).
 [Stage D3.3-A - C++ extension authoring](docs/architecture/stage-d3-3a-extension-authoring.md)
 adds a friendly API without changing Engine API 0.4 or native ABI 0.1.
 Use the [developer tutorial](docs/sdk/extension-authoring.md) and
-[AI authoring checklist](docs/sdk/ai-extension-authoring.md). D3.3-B will migrate
-the reference DLLs; D3.3-C will address SDK distribution, project templates and
-external consumer compatibility. The seven-case
-[manual acceptance protocol](quality/manual-tests/stage-d3.3a/README.md)
-is pending execution; the automated regression has passed in Debug and Release.
+[AI authoring checklist](docs/sdk/ai-extension-authoring.md).
+
+[Stage D3.3-B - Reference migration](docs/architecture/stage-d3-3b-reference-migration.md)
+documents the migrated DLLs, preserved contracts and intentional input hardening.
+Use its [manual acceptance protocol](quality/manual-tests/stage-d3.3b/README.md)
+to record real evidence; manual acceptance remains pending.
 
 [Stage D3.3-C - SDK distribution](docs/architecture/stage-d3-3c-sdk-distribution.md)
 defines the package layout and external-consumer gate. Use the

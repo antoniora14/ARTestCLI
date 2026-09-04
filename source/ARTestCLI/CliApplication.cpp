@@ -83,8 +83,7 @@ namespace artest::cli
                 else throw std::invalid_argument("Unexpected command-line arguments.");
             }
 
-            return RunPlan(
-                command, arguments[1], std::move(breakpoints), extensionRoot);
+            return RunPlan(command, arguments[1], std::move(breakpoints), extensionRoot);
         }
         catch (const std::invalid_argument& exception)
         {

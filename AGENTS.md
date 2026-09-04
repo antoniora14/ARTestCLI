@@ -92,10 +92,9 @@ before adding a command or Instrument Driver.
 - Context and Parameters are call-scoped borrows. Propagate unsuccessful Result
   values; never turn cancellation, cleanup or service-release failures into success.
 - Keep shutdown available after partial initialization and cancellation.
-- The SDK example catalog is isolated in `artifacts/sdk-examples`. D3.3-B,
-  not A, migrates the existing sample/power/CAN packages.
-- Run the full Debug/Release regressions (139 tests) and the SDK boundary gate.
-  `scripts/test-sdk-authoring.ps1` runs 41 focused tests without replacing reports.
+- The SDK example catalog is isolated in `artifacts/sdk-examples`.
+- Run the full Debug/Release regressions (161 tests across 36 suites) and the SDK boundary gate.
+  `scripts/test-sdk-authoring.ps1` runs 43 focused tests without replacing reports.
 - Distribution/templates and external consumer verification belong to D3.3-C.
   Do not claim a published SDK or frozen ABI 1.0.
 
@@ -110,7 +109,21 @@ Read `docs/architecture/stage-d3-3c-sdk-distribution.md` and
 - A package is acceptable only if its complete hash inventory passes and a
   copied template builds from the extracted ZIP without repository includes.
 - Keep the starter free of Engine/Core linkage and handwritten ABI plumbing.
-- D3.3-B migration is still pending; do not rewrite reference extensions as
-  part of distribution maintenance.
+- Reference migration is implemented separately in D3.3-B; preserve the
+  independent installed-consumer gate during reference maintenance.
 - Do not claim ABI 1.0 or a public release. Licensing, signing, CMake and package
   feeds remain explicit release-readiness work.
+
+## D3.3-B reference packages
+
+Read `docs/architecture/stage-d3-3b-reference-migration.md` and
+`docs/sdk/reference-extensions.md` before modifying the four reference DLLs.
+
+- Entry files declare metadata only. Behavior classes consume the public SDK;
+  no private Engine dependency or handwritten ABI support is allowed.
+- SDK adapters own lifecycle state; Engine sessions own unconditional cleanup.
+- Preserve IDs, aliases, service operations, diagnostics and response schemas.
+  `Result::WithData(data, schemaId)` preserves a non-generic service schema.
+- SDK package 0.1.1 does not change Engine API 0.4 or native extension ABI 0.1.
+- Manifests and schemas remain source files. Automatic metadata generation is
+  future work, not part of this migration.

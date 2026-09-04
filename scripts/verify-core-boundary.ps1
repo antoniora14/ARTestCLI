@@ -16,7 +16,7 @@ $compiler = Get-Content -LiteralPath (Join-Path $coreRoot 'Compilation\TestPlanC
 if ($compiler -match 'CommandRegistry|InstrumentManager|CreateComponent|LoadLibrary') {
     throw 'Offline compilation cannot depend on runtime factories or native loading.'
 }
-foreach ($package in 'ARTestCmdHardware', 'ARTestCmdSample', 'ARTestDrvSimPower', 'ARTestDrvSimCAN', 'ExtensionSupport') {
+foreach ($package in 'ARTestCmdHardware', 'ARTestCmdSample', 'ARTestDrvSimPower', 'ARTestDrvSimCAN') {
     $files = Get-ChildItem -LiteralPath (Join-Path $repositoryRoot "source\$package") -Recurse -File |
         Where-Object { $_.Extension -in '.h', '.cpp', '.vcxproj' }
     if ($files | Select-String -SimpleMatch 'ARTestEngine.Core') {

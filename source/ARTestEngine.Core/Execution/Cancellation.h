@@ -28,6 +28,12 @@ namespace artest
         [[nodiscard]] CancellationReason Reason() const noexcept;
         [[nodiscard]] bool WaitFor(std::chrono::milliseconds duration) const;
         [[nodiscard]] CancellationToken WithTimeout(std::chrono::milliseconds timeout) const;
+        // Host adapters may project this deadline into their own transport contract.
+        // Core remains unaware of ABI layouts and platform-specific clock callbacks.
+        [[nodiscard]] std::optional<std::chrono::steady_clock::time_point> Deadline() const noexcept
+        {
+            return m_deadline;
+        }
 
     private:
         struct SharedState

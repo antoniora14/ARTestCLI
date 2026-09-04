@@ -14,6 +14,7 @@ struct Host
     ARTestStatus resolveStatus = ARTEST_STATUS_OK, invokeStatus = ARTEST_STATUS_OK;
     unsigned resolved = 0, released = 0, invoked = 0;
     std::string lastContract, lastInstance, lastOperation;
+    std::string responseSchema = "artest.schema.generic-json.v1";
     Json lastRequest;
     ARTestInvocationContextV0 lastInvocation{};
     std::vector<std::string> logs;
@@ -62,7 +63,8 @@ struct Host
         if (self.invokeStatus != ARTEST_STATUS_OK)
             return self.invokeStatus;
         const std::string text = self.malformedResult ? "{broken" : "{\"value\":42}";
-        const auto payload = detail::Payload(text);
+        auto payload = detail::Payload(text);
+        payload.schema_id = detail::View(self.responseSchema);
         (void)sink->write(sink->sink_context, &payload, error);
         if (self.doubleResult)
             (void)sink->write(sink->sink_context, &payload, error);
@@ -93,6 +95,7 @@ template <Extension (*Define)()> struct Harness
     std::vector<ARTestComponentHandle> components;
     detail::ErrorStorage error;
     Json output;
+    std::string schemaId;
     unsigned writes = 0;
 
     Harness()
@@ -130,6 +133,7 @@ template <Extension (*Define)()> struct Harness
             auto &self = *static_cast<Harness *>(state);
             ++self.writes;
             self.output = detail::Parse(payload);
+            self.schemaId = detail::Text(payload->schema_id);
             return ARTEST_STATUS_OK;
         });
     }
@@ -142,6 +146,7 @@ template <Extension (*Define)()> struct Harness
         invocation.deadline_monotonic_ns = deadline;
         ARTestResultSinkV0 sink{sizeof(ARTestResultSinkV0), 0, this, &Capture};
         output = nullptr;
+        schemaId.clear();
         writes = 0;
         return api.invoke_component(extension, component, detail::View(operation), &payload,
                                     &invocation, &sink, &error.value);

@@ -1,0 +1,36 @@
+{
+  "format": "ARTest.Script",
+  "version": 1,
+  "instruments": [
+    {
+      "type": "com.artest.driver.sim.power-legacy",
+      "id": "PS1",
+      "config": {
+        "hw-rsrc": "SIM::PS1"
+      }
+    },
+    {
+      "type": "com.artest.driver.sim.can",
+      "id": "CAN1",
+      "config": {
+        "hw-rsrc": "SIM::CAN1"
+      }
+    }
+  ],
+  "commands": [
+    {
+      "stepId": 2,
+      "name": "com.artest.command.can.send",
+      "instrument": "CAN1",
+      "params": {
+        "channel": 0,
+        "id": "0x123",
+        "dlc": 1,
+        "data": [
+          0,
+          255
+        ]
+      }
+    }
+  ]
+}
