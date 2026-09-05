@@ -6,8 +6,8 @@ Run from the repository root:
 
 Outputs:
 
-    artifacts\sdk-packages\x64\Release\ARTestSDK-0.1.1-windows-x64\
-    artifacts\sdk-packages\x64\Release\ARTestSDK-0.1.1-windows-x64.zip
+    artifacts\sdk-packages\x64\Release\ARTestSDK-0.2.0-windows-x64\
+    artifacts\sdk-packages\x64\Release\ARTestSDK-0.2.0-windows-x64.zip
 
 For the complete compatibility gate:
 

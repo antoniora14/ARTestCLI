@@ -1,4 +1,4 @@
-# ARTest SDK 0.1.1
+# ARTest SDK 0.2.0
 
 This is the experimental D3.3-C C++20 SDK for trusted native ARTest extensions.
 It targets Windows x64 and Visual Studio 18 Insiders with the v145 toolset.
@@ -14,7 +14,7 @@ Engine API 0.4 and native extension ABI 0.1 remain experimental.
 
 From Developer PowerShell:
 
-    $sdk = 'D:\SDKs\ARTestSDK-0.1.1-windows-x64'
+    $sdk = 'D:\SDKs\ARTestSDK-0.2.0-windows-x64'
     $project = '.\ARTestExtensionStarter\ARTestExtensionStarter.vcxproj'
     msbuild $project /p:Configuration=Release /p:Platform=x64 "/p:ARTestSDKRoot=$sdk"
 

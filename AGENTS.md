@@ -93,8 +93,8 @@ before adding a command or Instrument Driver.
   values; never turn cancellation, cleanup or service-release failures into success.
 - Keep shutdown available after partial initialization and cancellation.
 - The SDK example catalog is isolated in `artifacts/sdk-examples`.
-- Run the full Debug/Release regressions (161 tests across 36 suites) and the SDK boundary gate.
-  `scripts/test-sdk-authoring.ps1` runs 43 focused tests without replacing reports.
+- Run the full Debug/Release regressions (168 tests across 37 suites) and the SDK boundary gate.
+  `scripts/test-sdk-authoring.ps1` runs 50 focused tests without replacing reports.
 - Distribution/templates and external consumer verification belong to D3.3-C.
   Do not claim a published SDK or frozen ABI 1.0.
 
@@ -127,3 +127,13 @@ Read `docs/architecture/stage-d3-3b-reference-migration.md` and
 - SDK package 0.1.1 does not change Engine API 0.4 or native extension ABI 0.1.
 - Manifests and schemas remain source files. Automatic metadata generation is
   future work, not part of this migration.
+
+## D3.4.1 declarative metadata
+
+Read `docs/sdk/metadata-generation.md` for the complete D3.4 design and scope.
+Schema/Metadata are public, module-local C++ APIs; Engine/ABI remain unchanged.
+The source-tree SDK example shares one definition between its DLL and a build
+executable. Generation never invokes component factories. Its manifest/schemas
+are generated outputs; do not reintroduce their deleted source JSON files.
+SDK 0.2.0 retains legacy authoring calls. Generic MSBuild publication/validation
+belongs to D3.4.2, and reference/installed-starter migration belongs to D3.4.3.

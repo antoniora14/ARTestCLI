@@ -20,6 +20,7 @@
     <ClCompile Include="StageDThinHostTests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="StageD32Tests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="SdkAuthoringTests.cpp"><Filter>Tests</Filter></ClCompile>
+    <ClCompile Include="SdkMetadataTests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="SdkAbiAdapterTests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="SdkAuthoringIntegrationTests.cpp"><Filter>Tests</Filter></ClCompile>
     <ClCompile Include="ReferenceExtensionTests.cpp"><Filter>Tests</Filter></ClCompile>

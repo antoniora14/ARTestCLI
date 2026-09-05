@@ -57,5 +57,7 @@ the Engine or access physical equipment.
 Engine API 0.4 / extension ABI 0.1 remain experimental. D3.3-A authoring,
 D3.3-B reference migration and D3.3-C installed-SDK consumers are implemented.
 SDK package 0.1.1 adds schema-preserving Results without a C ABI change.
-Automatic manifest/schema generation remains a future authoring improvement.
+D3.4.1 introduces Schema/ComponentMetadata and generates the source-tree example.
+Read metadata-generation.md; do not invent a raw-JSON schema escape hatch or
+duplicate generated example manifests in source. SDK version is now 0.2.0.
 Python/.NET hosting, real driver certification and ABI 1.0 are not complete.

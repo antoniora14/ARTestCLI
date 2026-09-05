@@ -67,6 +67,7 @@
     <ClCompile Include="StageDExtensionTests.cpp" />
     <ClCompile Include="StageD32Tests.cpp" />
     <ClCompile Include="SdkAuthoringTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
+    <ClCompile Include="SdkMetadataTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="SdkAbiAdapterTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="SdkAuthoringIntegrationTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="ReferenceExtensionTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>

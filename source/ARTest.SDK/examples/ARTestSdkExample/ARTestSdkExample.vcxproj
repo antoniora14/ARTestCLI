@@ -36,10 +36,8 @@
     <ClCompile Include="ExampleExtension.cpp" />
     <ClInclude Include="ReadVoltageCommand.h" />
     <ClInclude Include="SimulatedSupplyDriver.h" />
-    <None Include="artest-extension.json" />
+    <None Include="MetadataGenerator.vcxproj" />
     <None Include="ExamplePlan.json" />
-    <None Include="schemas\parameters.json" />
-    <None Include="schemas\configuration.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="PackageSdkExample" AfterTargets="Build" Condition="'$(Platform)'=='x64'">
@@ -47,6 +45,8 @@
       <SdkRepositoryRoot>$(MSBuildThisFileDirectory)..\..\..\..\</SdkRepositoryRoot>
       <SdkExamplePackage>$(SdkRepositoryRoot)artifacts\sdk-examples\$(Platform)\$(Configuration)\ARTestSdkExample</SdkExamplePackage>
     </PropertyGroup>
-    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(SdkRepositoryRoot)scripts\package-extension.ps1&quot; -BinaryPath &quot;$(TargetPath)&quot; -ManifestPath &quot;$(ProjectDir)artest-extension.json&quot; -PackageDirectory &quot;$(SdkExamplePackage)&quot;" />
+    <MSBuild Projects="$(ProjectDir)MetadataGenerator.vcxproj" Targets="Build"
+             Properties="Configuration=$(Configuration);Platform=$(Platform)" />
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(SdkRepositoryRoot)scripts\generate-example-metadata.ps1&quot; -GeneratorPath &quot;$(OutDir)ARTestSdkExampleMetadata.exe&quot; -BinaryPath &quot;$(TargetPath)&quot; -PackageDirectory &quot;$(SdkExamplePackage)&quot;" />
   </Target>
 </Project>

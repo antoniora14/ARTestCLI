@@ -1,6 +1,10 @@
 # ARTest C++ extension authoring SDK
 
-Experimental SDK 0.1.1 - D3.3-B reference migration and D3.3-C distribution.
+Experimental SDK 0.2.0 - D3.4.1 declarative metadata and first generated example.
+
+The source-tree SDK example now generates its manifest and schemas from C++.
+See [metadata generation](../../docs/sdk/metadata-generation.md) for the design,
+supported API and build procedure. Installed starter migration follows in D3.4.3.
 C++20, native extension ABI 0.1.
 The Engine host API remains 0.4. The SDK can be packaged for external
 compatibility evaluation; it is not a frozen binary contract or public release.

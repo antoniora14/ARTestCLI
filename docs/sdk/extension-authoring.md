@@ -10,8 +10,9 @@ The SDK is header-only. Its only non-standard C++ dependency is
 nlohmann/json 3.12.0. Public headers use <nlohmann/json.hpp>; the repository
 provides an include adapter to its existing vendored copy. D3.3-C supplies the
 self-contained installed SDK ZIP; see [distribution](sdk-distribution.md) if
-you are building outside the repository. SDK 0.1.1 includes the compatibility
-fixes exercised by the D3.3-B [reference extensions](reference-extensions.md).
+you are building outside the repository. SDK 0.2.0 adds declarative metadata;
+see [generation](metadata-generation.md). It retains the compatibility fixes
+exercised by the D3.3-B [reference extensions](reference-extensions.md).
 
 ## 1. Build and run the complete example
 
@@ -144,10 +145,12 @@ The definition function is metadata-only and can run during Query. Do not open
 devices, call services, construct components or publish global registrations there.
 ARTEST_EXPORT_EXTENSION belongs exactly once in a .cpp, never a shared header.
 
-Keep IDs, versions, kinds, flags and contracts consistent between the definition
-and artest-extension.json. The Engine checks manifest/binary consistency when
-activating. Keep schemas next to the package and list their roles/paths in the
-manifest. The SDK does not generate a complete manifest in D3.3-A.
+The source-tree example declares its parameters/configuration through Schema and
+ComponentMetadata in ExampleExtension.cpp. Its build generates the manifest and
+schema files automatically; do not recreate the deleted source JSON files.
+The [generation guide](metadata-generation.md) explains the shared definition.
+The four reference packages and installed starter still use source manifests
+until D3.4.3; keep their JSON and C++ declarations consistent during that transition.
 
 ## 7. Test behavior locally, then test the native boundary
 

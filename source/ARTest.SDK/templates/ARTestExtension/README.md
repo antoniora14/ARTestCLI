@@ -8,7 +8,7 @@ manifest, schemas and plan consistently.
 
 Set ARTestSDKRoot to an extracted ARTest SDK package:
 
-    msbuild .\ARTestExtensionStarter.vcxproj /p:Configuration=Release /p:Platform=x64 "/p:ARTestSDKRoot=D:\SDKs\ARTestSDK-0.1.1-windows-x64"
+    msbuild .\ARTestExtensionStarter.vcxproj /p:Configuration=Release /p:Platform=x64 "/p:ARTestSDKRoot=D:\SDKs\ARTestSDK-0.2.0-windows-x64"
 
 The packaged extension is written below out/extensions by default. To test it:
 

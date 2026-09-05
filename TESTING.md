@@ -22,7 +22,7 @@ The `tests\ARTestCLI.UnitTests.vcxproj` project uses Google Test 1.18, is part o
 - `CliThinHostTests.cpp`: compile, run, debug, break, catalog list/validate/doctor,
   validation, cancellation, legacy output, and process exit-code contracts.
 
-The Stage D3.3-B baseline contains 161 test cases across 36 suites.
+The Stage D3.4.1 baseline contains 168 test cases across 37 suites.
 `StageD32Tests.cpp` adds schema, metadata-only compilation, transaction ownership,
 catalog revision, native lifetime, and ABI-prefix regressions. The official build
 also executes `scripts/verify-core-boundary.ps1`.
@@ -74,9 +74,9 @@ To compile without running tests:
 2. Select `x64` and `Debug` or `Release`.
 3. Open **Test > Test Explorer**.
 4. Build the solution with **Build > Build Solution**.
-5. Confirm that 161 tests from 36 suites are discovered.
+5. Confirm that 168 tests from 37 suites are discovered.
 6. Select **Run All Tests**.
-7. Verify that all 161 tests finish with a `Passed` verdict.
+7. Verify that all 168 tests finish with a `Passed` verdict.
 
 ### Project loading validation
 
@@ -100,7 +100,7 @@ Run the focused SDK regression after building:
 .\scripts\test-sdk-authoring.ps1 -Configuration Release
 ```
 
-It now runs 43 tests without overwriting the full XML/HTML baseline. This subset does
+It now runs 50 tests without overwriting the full XML/HTML baseline. This subset does
 not replace the complete Debug and Release regressions before integration.
 The example is packaged under `artifacts/sdk-examples/x64/<Configuration>`,
 separate from the four-package reference catalog.
@@ -119,9 +119,18 @@ After building, run the focused reference regression without replacing reports:
 ```
 
 Expected: 20 tests across three suites pass. The two additional SDK schema tests
-are included in the 43-test SDK subset and the complete 161-test regression.
+are included in the 50-test SDK subset and the complete 168-test regression.
 Use [the manual protocol](quality/manual-tests/stage-d3.3b/README.md) and its new
 Word evidence report. All fixtures use simulations, not physical instruments.
+
+## Stage D3.4.1 metadata generation
+
+D3.4.1 adds seven SdkMetadataTests and extends the real example integration test.
+See [metadata generation](docs/sdk/metadata-generation.md) for the build path and
+focused command. The new cases compare schemas with the Engine validator and
+exercise invalid declarations, collisions and generation without construction.
+Existing example tests now execute a package whose metadata is generated from C++.
+No additional manual acceptance workflow is required for this internal build slice.
 
 ## Stage D3.3-C installed-SDK compatibility
 

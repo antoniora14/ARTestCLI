@@ -58,6 +58,14 @@ Json Finish(EngineClient &client)
 } // namespace
 TEST(SdkAuthoringIntegrationTests, ExampleDllRunsThroughTheUnmodifiedEngine)
 {
+    // The example must remain self-describing: a clean checkout has no hand-maintained
+    // manifest/schema fallback that could hide a broken build-time generator.
+    EXPECT_FALSE(std::filesystem::exists(ExampleDirectory() / "artest-extension.json"));
+    const auto packaged = Json::parse(ReadText(Packages() / "ARTestSdkExample/artest-extension.json"));
+    for (const auto &component : packaged["components"])
+        for (const auto &schema : component["schemas"])
+            EXPECT_FALSE(ReadText(Packages() / "ARTestSdkExample" /
+                                  schema["path"].get<std::string>()).empty());
     EngineClient client;
     ASSERT_TRUE(client.Create(R"({"loadDefaultCatalog":false})").Succeeded());
     const auto prepared = client.PrepareCatalog(Packages().string());
