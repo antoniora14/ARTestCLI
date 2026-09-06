@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ARTestPublishTool>$(MSBuildThisFileDirectory)distribution\tools\Publish-ARTestPackage.ps1</ARTestPublishTool>
+    <ARTestValidatorPath>$(MSBuildThisFileDirectory)..\..\artifacts\bin\$(Platform)\$(Configuration)\ARTestSdkValidate.exe</ARTestValidatorPath>
+  </PropertyGroup>
+  <Import Project="distribution\ARTestMetadata.targets" />
+</Project>

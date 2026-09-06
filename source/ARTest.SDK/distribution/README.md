@@ -1,4 +1,4 @@
-# ARTest SDK 0.2.0
+# ARTest SDK 0.2.1
 
 This is the experimental D3.3-C C++20 SDK for trusted native ARTest extensions.
 It targets Windows x64 and Visual Studio 18 Insiders with the v145 toolset.
@@ -14,7 +14,7 @@ Engine API 0.4 and native extension ABI 0.1 remain experimental.
 
 From Developer PowerShell:
 
-    $sdk = 'D:\SDKs\ARTestSDK-0.2.0-windows-x64'
+    $sdk = 'D:\SDKs\ARTestSDK-0.2.1-windows-x64'
     $project = '.\ARTestExtensionStarter\ARTestExtensionStarter.vcxproj'
     msbuild $project /p:Configuration=Release /p:Platform=x64 "/p:ARTestSDKRoot=$sdk"
 
@@ -24,6 +24,11 @@ the native C ABI. tools/package-extension.ps1 packages the DLL, schemas and an
 integrity hash after a successful build.
 
 Read docs/extension-authoring.md and docs/ai-extension-authoring.md.
+For generated metadata, copy examples/ARTestSdkExample and read
+docs/metadata-generation.md. Its build imports ARTestMetadata.targets and invokes
+the bundled validator host plus matching Engine DLL. These are build tools;
+the extension and generator do not link to the Engine. The legacy starter above
+retains its manual manifest until D3.4.3.
 The complete file inventory and SHA-256 hashes are in sdk-manifest.json.
 
 ## Distribution status

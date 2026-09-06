@@ -7,5 +7,5 @@ if (-not (Test-Path -LiteralPath $testExecutable -PathType Leaf)) {
     throw 'Build the selected configuration with scripts/build.ps1 first.'
 }
 # Preserve full-baseline XML/HTML evidence when running this focused subset.
-& $testExecutable '--gtest_filter=Sdk*'
+& $testExecutable '--gtest_filter=Sdk*:BuildTools/SdkPublicationTests.*'
 if ($LASTEXITCODE -ne 0) { throw "SDK authoring regression failed: exit $LASTEXITCODE." }

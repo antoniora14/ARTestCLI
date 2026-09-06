@@ -6,8 +6,8 @@ Run from the repository root:
 
 Outputs:
 
-    artifacts\sdk-packages\x64\Release\ARTestSDK-0.2.0-windows-x64\
-    artifacts\sdk-packages\x64\Release\ARTestSDK-0.2.0-windows-x64.zip
+    artifacts\sdk-packages\x64\Release\ARTestSDK-0.2.1-windows-x64\
+    artifacts\sdk-packages\x64\Release\ARTestSDK-0.2.1-windows-x64.zip
 
 For the complete compatibility gate:
 
@@ -17,6 +17,10 @@ The gate verifies SHA-256 inventory and safe archive paths, extracts the ZIP,
 copies its starter project outside the installation, builds with only the
 installed headers and props, and executes the resulting DLL through ARTestCLI.
 No physical equipment is used.
+The gate additionally builds examples/ARTestSdkExample against the installed
+ARTestMetadata.targets, inspects its DLL and executes its generated package.
+SDK tools now include ARTestSdkValidate.exe and its matching ARTestEngine.dll.
+Package the SDK after building the solution for the requested configuration.
 
 Use sdk-version.json as the contract authority and sdk-manifest.json as the
 inventory authority. Do not manually edit a generated package. Rebuild it from

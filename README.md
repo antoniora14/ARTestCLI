@@ -21,9 +21,11 @@ project without repository dependencies, and runs the DLL through the Engine.
 D3.3-B now migrates all four reference packages to that public API. Small command
 and driver classes replace handwritten ABI support, with compatibility and fault
 regressions. See [the reference walkthrough](docs/sdk/reference-extensions.md).
-SDK package 0.2.0 retains Engine API 0.4 and native extension ABI 0.1.
+SDK package 0.2.1 retains Engine API 0.4 and native extension ABI 0.1.
 D3.4.1 adds [C++ metadata generation](docs/sdk/metadata-generation.md): the SDK
 example produces its manifest and schemas during its build, using one definition.
+D3.4.2 adds reusable installed-SDK build targets, Engine-backed DLL inspection,
+and inventory-owned, crash-recoverable package replacement.
 
 ## Current capabilities
 
@@ -262,7 +264,7 @@ The HTML generator is tested with synthetic passed, failed, and skipped cases.
 It also compares the aggregate Google Test counters with every individual test
 case. A contradictory report causes the build workflow to fail.
 
-The current Stage D3.4.1 baseline contains 168 tests across 37 suites. See
+The current Stage D3.4.2 baseline contains 180 tests across 38 suites. See
 [TESTING.md](TESTING.md) for the regression procedure.
 
 ## Architecture and roadmap

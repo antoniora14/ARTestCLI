@@ -43,6 +43,11 @@ $requiredFiles = @(
     'sdk-manifest.json',
     'sdk-version.json',
     'build\native\ARTestSDK.props',
+    'build\native\ARTestMetadata.targets',
+    'tools\Publish-ARTestPackage.ps1',
+    'tools\ARTestPackagePublication.psm1',
+    'tools\ARTestSdkValidate.exe',
+    'tools\ARTestEngine.dll',
     'include\ARTest\Extension.h',
     'include\ARTest\Testing.h',
     'include\ARTestExtensionAbi.h',
@@ -148,3 +153,19 @@ if ($runExitCode -ne 0 -or
 }
 
 Write-Host 'SDK package and external-consumer compatibility: PASSED'
+
+# Validate the reusable generation target using only the installed SDK. The
+# legacy starter remains an independent compatibility gate until D3.4.3.
+$generatedConsumer = Join-Path $testArtifactRoot 'external generated example'
+$generatedPackages = Join-Path $testArtifactRoot 'generated packages'
+Copy-Item -LiteralPath (Join-Path $installedSdkRoot 'examples\ARTestSdkExample') -Destination $generatedConsumer -Recurse
+$generatedProject = Join-Path $generatedConsumer 'ARTestSdkExample.vcxproj'
+& $msbuildPath $generatedProject /m "/p:Configuration=$Configuration" "/p:Platform=$Platform" "/p:ARTestSDKRoot=$installedSdkRoot" "/p:ARTestPackageRoot=$generatedPackages" /verbosity:minimal
+if ($LASTEXITCODE -ne 0) { throw 'Installed SDK metadata generation failed.' }
+$generatedPlan = Join-Path $generatedConsumer 'ExamplePlan.json'
+$generatedOutput = (& $cli run $generatedPlan --extensions $generatedPackages 2>&1 | Out-String)
+if ($LASTEXITCODE -ne 0 -or $generatedOutput -notmatch 'Measured 12\.000000 V\.' -or
+    $generatedOutput -notmatch 'Execution finished with PASSED') {
+    throw "Installed generated package execution failed: $generatedOutput"
+}
+Write-Host 'Installed SDK generation, binary validation and publication: PASSED'

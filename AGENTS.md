@@ -93,8 +93,8 @@ before adding a command or Instrument Driver.
   values; never turn cancellation, cleanup or service-release failures into success.
 - Keep shutdown available after partial initialization and cancellation.
 - The SDK example catalog is isolated in `artifacts/sdk-examples`.
-- Run the full Debug/Release regressions (168 tests across 37 suites) and the SDK boundary gate.
-  `scripts/test-sdk-authoring.ps1` runs 50 focused tests without replacing reports.
+- Run the full Debug/Release regressions (180 tests across 38 suites) and the SDK boundary gate.
+  `scripts/test-sdk-authoring.ps1` runs 62 focused tests without replacing reports.
 - Distribution/templates and external consumer verification belong to D3.3-C.
   Do not claim a published SDK or frozen ABI 1.0.
 
@@ -135,5 +135,27 @@ Schema/Metadata are public, module-local C++ APIs; Engine/ABI remain unchanged.
 The source-tree SDK example shares one definition between its DLL and a build
 executable. Generation never invokes component factories. Its manifest/schemas
 are generated outputs; do not reintroduce their deleted source JSON files.
-SDK 0.2.0 retains legacy authoring calls. Generic MSBuild publication/validation
-belongs to D3.4.2, and reference/installed-starter migration belongs to D3.4.3.
+SDK 0.2.1 retains legacy authoring calls. D3.4.2 supplies reusable MSBuild targets
+and crash-recoverable publication; reference/installed-starter migration is D3.4.3.
+
+## D3.4.2 build-time package publication
+
+- Read docs/sdk/metadata-generation.md before changing generation/publication.
+- ARTestSdkValidate is a build-time host of the public Engine API, not a new
+  validator implementation. Ship its matching Engine DLL only with SDK tools;
+  never add Engine linkage to extension projects or the metadata generator.
+- Match binary descriptors by stable ID, never enumeration order. Inspection
+  must not construct command/driver instances or invoke instrument operations.
+- Publication uses a sibling transaction journal, exclusive writer lock, full
+  candidate validation, and same-volume renames. Preserve the prior package on
+  failure. Do not claim atomic availability, power-loss durability or hot reload.
+- Only owned, inventory-checked outputs may be replaced or pruned. Unknown user
+  files, corrupt journals and reparse points fail closed; preserve them.
+- Metadata child builds must clear inherited solution dependency configuration
+  and isolate outputs. Existing custom post-build hooks must opt out when
+  ARTestMetadataBuild=true.
+- Each implementation includes an audited cleanup of demonstrably obsolete
+  generated outputs and replaced sources. Never delete pending manual evidence,
+  user IDE settings, active build outputs or recovery material still in use.
+- No D3.4.2 Word report is required: publication scenarios are automated Google
+  Test cases, including killed publisher subprocesses, with XML/HTML evidence.

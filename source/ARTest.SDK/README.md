@@ -1,6 +1,6 @@
 # ARTest C++ extension authoring SDK
 
-Experimental SDK 0.2.0 - D3.4.1 declarative metadata and first generated example.
+Experimental SDK 0.2.1 - declarative metadata and D3.4.2 safe build publication.
 
 The source-tree SDK example now generates its manifest and schemas from C++.
 See [metadata generation](../../docs/sdk/metadata-generation.md) for the design,

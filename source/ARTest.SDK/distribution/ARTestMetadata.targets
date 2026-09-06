@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Import after Microsoft.Cpp.targets. The child build shares source and
+       compiler settings, but owns separate intermediate/output directories. -->
+  <PropertyGroup>
+    <ARTestPublishTool Condition="'$(ARTestPublishTool)'==''">$(ARTestSDKRoot)\tools\Publish-ARTestPackage.ps1</ARTestPublishTool>
+    <ARTestValidatorPath Condition="'$(ARTestValidatorPath)'==''">$(ARTestSDKRoot)\tools\ARTestSdkValidate.exe</ARTestValidatorPath>
+    <ARTestMetadataDirectory Condition="'$(ARTestMetadataDirectory)'==''">$([System.IO.Path]::GetFullPath('$(IntDir)metadata\'))</ARTestMetadataDirectory>
+    <ARTestPackageRoot Condition="'$(ARTestPackageRoot)'==''">$(ProjectDir)out\extensions\$(Platform)\$(Configuration)</ARTestPackageRoot>
+    <ARTestPackageDirectory Condition="'$(ARTestPackageDirectory)'==''">$(ARTestPackageRoot)\$(TargetName)</ARTestPackageDirectory>
+    <ARTestToolTimeoutSeconds Condition="'$(ARTestToolTimeoutSeconds)'==''">120</ARTestToolTimeoutSeconds>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(ARTestMetadataBuild)'=='true'">
+    <ClCompile><PreprocessorDefinitions>ARTEST_METADATA_GENERATOR;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile>
+    <Link><SubSystem>Console</SubSystem></Link>
+  </ItemDefinitionGroup>
+  <Target Name="ARTestPublishMetadata" AfterTargets="Build"
+          Condition="'$(ARTestMetadataBuild)'!='true' and '$(DesignTimeBuild)'!='true'">
+    <Error Condition="'$(Platform)'!='x64' or '$(ConfigurationType)'!='DynamicLibrary'" Text="ARTest metadata publication requires a Windows x64 DLL project." />
+    <Error Condition="!Exists('$(ARTestPublishTool)') or !Exists('$(ARTestValidatorPath)')" Text="ARTest metadata publishing tools are missing. Install a complete SDK or build ARTestSdkValidate first." />
+    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Build"
+      RemoveProperties="CurrentSolutionConfigurationContents;SolutionDir;SolutionPath;SolutionName;SolutionFileName;SolutionExt"
+      Properties="ARTestMetadataBuild=true;BuildingSolutionFile=false;BuildProjectReferences=false;ConfigurationType=Application;TargetName=$(TargetName)Metadata;TargetExt=.exe;OutDir=$(ARTestMetadataDirectory)bin\;IntDir=$(ARTestMetadataDirectory)obj\" />
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(ARTestPublishTool)&quot; -GeneratorPath &quot;$(ARTestMetadataDirectory)bin\$(TargetName)Metadata.exe&quot; -BinaryPath &quot;$(TargetPath)&quot; -ValidatorPath &quot;$(ARTestValidatorPath)&quot; -PackageDirectory &quot;$(ARTestPackageDirectory)&quot; -ToolTimeoutSeconds $(ARTestToolTimeoutSeconds) -AdoptLegacyPackage &quot;$(ARTestAdoptLegacyPackage)&quot;" />
+  </Target>
+</Project>

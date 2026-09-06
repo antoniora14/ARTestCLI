@@ -22,7 +22,12 @@
     <UseDebugLibraries Condition="'$(Configuration)'=='Release'">false</UseDebugLibraries>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  <Import Project="..\..\ARTestSDK.props" />
+  <Import Project="..\..\ARTestSDK.props" Condition="'$(ARTestSDKRoot)'==''" />
+  <Import Project="$(ARTestSDKRoot)\build\native\ARTestSDK.props" Condition="'$(ARTestSDKRoot)'!=''" />
+  <PropertyGroup Condition="'$(ARTestSDKRoot)'!=''">
+    <OutDir>$(ProjectDir)out\bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)out\obj\$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -36,17 +41,13 @@
     <ClCompile Include="ExampleExtension.cpp" />
     <ClInclude Include="ReadVoltageCommand.h" />
     <ClInclude Include="SimulatedSupplyDriver.h" />
-    <None Include="MetadataGenerator.vcxproj" />
     <None Include="ExamplePlan.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <Target Name="PackageSdkExample" AfterTargets="Build" Condition="'$(Platform)'=='x64'">
-    <PropertyGroup>
-      <SdkRepositoryRoot>$(MSBuildThisFileDirectory)..\..\..\..\</SdkRepositoryRoot>
-      <SdkExamplePackage>$(SdkRepositoryRoot)artifacts\sdk-examples\$(Platform)\$(Configuration)\ARTestSdkExample</SdkExamplePackage>
-    </PropertyGroup>
-    <MSBuild Projects="$(ProjectDir)MetadataGenerator.vcxproj" Targets="Build"
-             Properties="Configuration=$(Configuration);Platform=$(Platform)" />
-    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(SdkRepositoryRoot)scripts\generate-example-metadata.ps1&quot; -GeneratorPath &quot;$(OutDir)ARTestSdkExampleMetadata.exe&quot; -BinaryPath &quot;$(TargetPath)&quot; -PackageDirectory &quot;$(SdkExamplePackage)&quot;" />
-  </Target>
+  <PropertyGroup Condition="'$(ARTestSDKRoot)'==''">
+    <ARTestPackageDirectory>$(MSBuildThisFileDirectory)..\..\..\..\artifacts\sdk-examples\$(Platform)\$(Configuration)\ARTestSdkExample</ARTestPackageDirectory>
+    <ARTestAdoptLegacyPackage>true</ARTestAdoptLegacyPackage>
+  </PropertyGroup>
+  <Import Project="..\..\ARTestMetadata.targets" Condition="'$(ARTestSDKRoot)'==''" />
+  <Import Project="$(ARTestSDKRoot)\build\native\ARTestMetadata.targets" Condition="'$(ARTestSDKRoot)'!=''" />
 </Project>

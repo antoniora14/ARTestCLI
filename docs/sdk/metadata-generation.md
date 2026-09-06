@@ -1,6 +1,7 @@
 # C++ metadata generation
 
-D3.4.1 implements the first complete generated example in SDK 0.2.0.
+D3.4.1 introduced generated definitions; D3.4.2 completes reusable build
+integration and safe package publication in SDK 0.2.1.
 A developer declares component identity and schemas in C++; building the example
 produces the deployable manifest and schema files. Engine API 0.4, extension ABI
 0.1 and manifest version 2 remain unchanged.
@@ -103,10 +104,12 @@ From D:\GitHub\main\ARTestCLI:
 
     .\scripts\build.ps1 -Configuration Release -Platform x64
 
-The solution still has ten top-level projects. The example invokes its small
-MetadataGenerator.vcxproj as a build utility; it has no Engine/Core linkage.
-Both DLL and generator compile with C++20 and /W4 /WX. The current example hook
-runs generation after linking, then reuses package-extension.ps1.
+The solution has eleven projects, including the ARTestSdkValidate build tool.
+After linking, ARTestMetadata.targets builds the same extension project as a
+metadata executable with ARTEST_METADATA_GENERATOR defined. The child build
+isolates intermediate/output directories and clears solution dependency state.
+It does not rebuild dependency projects as executables. Both DLL and generator
+compile with C++20 and /W4 /WX; neither links to Engine/Core.
 
 The output is under artifacts/sdk-examples/x64/Release/ARTestSdkExample:
 ARTestSdkExample.dll, artest-extension.json and two generated schema files.
@@ -127,24 +130,100 @@ already exercises these paths, invalid channel rejection and cancellation.
 
 Seven focused tests cover Engine schema conformance, local ownership, metadata
 errors, identity collisions, deterministic output and no component construction.
-The full Debug/Release regression has 168 tests and also checks the installed SDK.
+The full Debug/Release regression has 180 tests and also checks the installed SDK.
 
-## Publication and remaining deliveries
+## Reusable installed-SDK integration
 
-D3.4.1 uses an isolated temporary metadata directory, removed after packaging.
-Generation failures stop the build before touching the deployed package. The
-existing packager still performs sequential file copies: failure during package
-replacement is not yet a transactional update. Consumers must not execute a
-package while it is being rebuilt.
+Copy examples/ARTestSdkExample from the extracted SDK to your own project folder.
+Pass ARTestSDKRoot pointing to that SDK and build its vcxproj. No handwritten
+manifest, schema files or second generator project are required.
 
-D3.4.2 will move this example-specific hook into reusable installed-SDK MSBuild
-targets, add robust publication/recovery and stale-file pruning, and validate
-generated files against the actual DLL before publishing. Offline discovery must
-remain side-effect free; explicit post-build binary checks use trusted code.
+For another DLL project:
 
-D3.4.3 will migrate the four reference packages and the installed starter, removing
-only their replaced source manifests/schemas and validating external generation.
-The installed SDK already carries the new header API, but its starter retains
-manual JSON until that migration. Python/.NET backends and ABI freeze are later
-work; schemas and component identities remain transport-independent.
+1. Import build/native/ARTestSDK.props after Microsoft.Cpp.props.
+2. Keep one definition function and select ARTEST_GENERATE_METADATA versus
+   ARTEST_EXPORT_EXTENSION using ARTEST_METADATA_GENERATOR, as in the example.
+3. Import build/native/ARTestMetadata.targets after Microsoft.Cpp.targets.
+4. Remove the superseded manual packaging hook. Any other custom build hooks must
+   skip the child build when ARTestMetadataBuild=true.
+5. Select an output package directory separate from source and link outputs.
 
+| Property | Default / meaning |
+| --- | --- |
+| ARTestSDKRoot | Extracted SDK root |
+| ARTestPackageRoot | ProjectDir/out/extensions/Platform/Configuration |
+| ARTestPackageDirectory | ARTestPackageRoot/TargetName; named owned leaf |
+| ARTestMetadataDirectory | IntDir/metadata; private generator build products |
+| ARTestToolTimeoutSeconds | 120 seconds per generator/validator process |
+| ARTestAdoptLegacyPackage | Empty/false; explicit true permits narrow legacy adoption |
+
+Legacy adoption checks extension identity and the exact manifest/DLL/schema file
+set. It is not permission to erase arbitrary folders. The repository example
+opts in only to migrate D3.4.1 output; normal generated packages carry ownership.
+Do not place user notes or evidence inside a generated package directory.
+
+The SDK ships tools/ARTestSdkValidate.exe with its matching ARTestEngine.dll.
+The tool uses public Engine API 0.4: metadata-only ValidateCatalog, then explicit
+RefreshCatalog. It checks schema-profile compliance, integrity and native IDs,
+versions, kinds, flags and contracts. Descriptor enumeration is matched by ID,
+not position. This centralizes validation instead of duplicating Engine rules.
+The bundled Engine is a build-tool dependency, not a dependency developers must
+link into their extensions. The tool and DLL require the corresponding MSVC
+runtime for the selected Debug/Release SDK configuration.
+
+Inspection loads trusted native code, queries descriptors and creates the
+extension container, but never creates command/driver instances or starts a
+session. DllMain and definition code still execute: this is not a sandbox or a
+hardware-behavior certification. The current package backend stages one DLL and
+its schemas; additional vendor DLL deployment needs explicit future support.
+
+## Safe publication and recovery
+
+The publisher holds an exclusive per-package writer lock, generates metadata,
+stages a complete package in a sibling transaction directory and computes the
+copied DLL's SHA-256. It requires both validator exit code zero and a boolean
+valid=true result. Invalid output, a crash or a timeout stops publication.
+
+Before staging, a flushed ownership journal records the destination and prior
+file inventory. Only after validation is the existing package renamed to backup;
+the complete staged directory is then renamed to the destination. It never
+overlays new files over old files. Retired schemas disappear with the old owned
+generation.
+
+Recovery on the next publication attempt is conservative:
+
+- Backup present and destination absent: verify and restore the old generation.
+- Backup and destination present: verify the published generation before retiring
+  the old backup.
+- Validation failed before renames: discard only the owned staging transaction.
+- Corrupt ownership/journal, changed files, unknown user files or reparse points:
+  fail closed and preserve data for inspection.
+
+A normal promotion failure attempts rollback immediately. The transaction
+directory is removed after successful completion/recovery. The empty sibling
+.PackageName.artest-publish.lock file intentionally remains; deleting lock files
+would introduce a concurrency race. The package's .artest-generated-package.json
+owns its exact file inventory. Neither file is obsolete build garbage.
+
+Diagnostic codes ARTESTPKG_* identify publication and recovery; errors include the
+Engine's catalog diagnostics. The build log is the evidence, separate from runtime
+fault logging. Recovery repairs publication, not a running Engine's catalog.
+
+There is a brief name-availability gap between directory renames. Stop consumers
+before rebuilding: this is crash-recoverable replacement, not hot reload, an
+atomic directory-exchange guarantee, a signature or durable recovery from storage
+hardware failure/power loss. Do not automatically delete a corrupt transaction;
+inspect its journal and preserve a backup before any manual intervention.
+
+Twelve Google Test publication cases cover successful replacement/stale pruning,
+generator/DLL/schema/verdict failures, reordered descriptors, failed promotion,
+two forcibly killed publisher subprocesses, writer exclusion, foreign files and
+timeout. The installed-SDK gate builds and executes the generated example from
+an extracted SDK. There is no additional manual acceptance report for this slice.
+
+## Remaining delivery
+
+D3.4.3 migrates the four reference packages and the legacy installed starter.
+Their old package-extension.ps1 remains in use until then and does not acquire
+this new publisher's guarantees merely because the SDK was upgraded.
+Python/.NET backends and ABI freeze remain later work.

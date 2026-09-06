@@ -22,7 +22,7 @@ The `tests\ARTestCLI.UnitTests.vcxproj` project uses Google Test 1.18, is part o
 - `CliThinHostTests.cpp`: compile, run, debug, break, catalog list/validate/doctor,
   validation, cancellation, legacy output, and process exit-code contracts.
 
-The Stage D3.4.1 baseline contains 168 test cases across 37 suites.
+The Stage D3.4.2 baseline contains 180 test cases across 38 suites.
 `StageD32Tests.cpp` adds schema, metadata-only compilation, transaction ownership,
 catalog revision, native lifetime, and ABI-prefix regressions. The official build
 also executes `scripts/verify-core-boundary.ps1`.
@@ -74,13 +74,13 @@ To compile without running tests:
 2. Select `x64` and `Debug` or `Release`.
 3. Open **Test > Test Explorer**.
 4. Build the solution with **Build > Build Solution**.
-5. Confirm that 168 tests from 37 suites are discovered.
+5. Confirm that 180 tests from 38 suites are discovered.
 6. Select **Run All Tests**.
-7. Verify that all 168 tests finish with a `Passed` verdict.
+7. Verify that all 180 tests finish with a `Passed` verdict.
 
 ### Project loading validation
 
-The solution contains ten projects. `Directory.Build.targets` checks evaluated
+The solution contains eleven projects. `Directory.Build.targets` checks evaluated
 file items before each C++ build, including builds started directly in Visual
 Studio. Duplicate full paths (also across item types, imports or overlapping
 wildcards) fail with `ARTESTBUILD001`. Ordinary MSBuild compilation can otherwise
@@ -100,7 +100,7 @@ Run the focused SDK regression after building:
 .\scripts\test-sdk-authoring.ps1 -Configuration Release
 ```
 
-It now runs 50 tests without overwriting the full XML/HTML baseline. This subset does
+It now runs 62 tests without overwriting the full XML/HTML baseline. This subset does
 not replace the complete Debug and Release regressions before integration.
 The example is packaged under `artifacts/sdk-examples/x64/<Configuration>`,
 separate from the four-package reference catalog.
@@ -119,7 +119,7 @@ After building, run the focused reference regression without replacing reports:
 ```
 
 Expected: 20 tests across three suites pass. The two additional SDK schema tests
-are included in the 50-test SDK subset and the complete 168-test regression.
+are included in the 62-test SDK subset and the complete 180-test regression.
 Use [the manual protocol](quality/manual-tests/stage-d3.3b/README.md) and its new
 Word evidence report. All fixtures use simulations, not physical instruments.
 
@@ -131,6 +131,18 @@ focused command. The new cases compare schemas with the Engine validator and
 exercise invalid declarations, collisions and generation without construction.
 Existing example tests now execute a package whose metadata is generated from C++.
 No additional manual acceptance workflow is required for this internal build slice.
+
+D3.4.2 adds twelve parameterized BuildTools/SdkPublicationTests cases. They cover
+stale generated files, invalid generators/schemas/DLLs/verdicts, descriptor order,
+rollback, two killed-publisher recovery points, writer exclusion, user-file
+preservation and tool timeout. Each case appears separately in Google Test XML
+and HTML. Reproduce one from PowerShell with:
+
+    .\scripts\test-sdk-publication.ps1 -Configuration Release -Case InterruptedBackup
+
+These fixtures use unique temporary directories and simulated components only.
+The installed-SDK gate also builds the generated example without source-tree
+headers/tools and executes its resulting package.
 
 ## Stage D3.3-C installed-SDK compatibility
 

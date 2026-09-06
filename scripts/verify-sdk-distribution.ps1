@@ -7,18 +7,21 @@ $sdkSource = Join-Path $repositoryRoot 'source\ARTest.SDK'
 $version = Get-Content -LiteralPath (Join-Path $sdkSource 'sdk-version.json') -Raw |
     ConvertFrom-Json
 if ($version.schema -ne 'artest.schema.sdk-version.v1' -or
-    $version.sdkVersion -ne '0.2.0' -or
+    $version.sdkVersion -ne '0.2.1' -or
     $version.engineApi -ne '0.4' -or
     $version.nativeExtensionAbi -ne '0.1' -or
     $version.stability -ne 'experimental' -or
     $version.platform -ne 'windows-x64' -or
     $version.toolset -ne 'v145' -or
     $version.cppStandard -ne 'C++20') {
-    throw 'The SDK version declaration does not match the D3.4.1 compatibility baseline.'
+    throw 'The SDK version declaration does not match the D3.4.2 compatibility baseline.'
 }
 
 $required = @(
     'distribution\ARTestSDK.props',
+    'distribution\ARTestMetadata.targets',
+    'distribution\tools\Publish-ARTestPackage.ps1',
+    'distribution\tools\ARTestPackagePublication.psm1',
     'distribution\README.md',
     'distribution\THIRD_PARTY_NOTICES.md',
     'templates\ARTestExtension\ARTestExtensionStarter.vcxproj',
@@ -65,4 +68,11 @@ if ($manifest.schemaVersion -ne 2 -or
     throw 'The extension template manifest does not match the D3.3-C contract.'
 }
 
+$validatorRoot = Join-Path $repositoryRoot 'source\ARTestSdkValidate'
+foreach ($source in Get-ChildItem -LiteralPath $validatorRoot -File |
+    Where-Object { $_.Extension -in '.cpp', '.h', '.vcxproj' }) {
+    if ((Get-Content -LiteralPath $source.FullName -Raw) -match 'ARTestEngine\.Core|ARTestEngine[/\\].*\.h') {
+        throw "Build validator must consume the public Engine API only: $($source.FullName)"
+    }
+}
 Write-Host 'SDK distribution source verification: PASSED'

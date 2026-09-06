@@ -1,4 +1,6 @@
 #include "NativeModuleLoader.h"
+#include <algorithm>
+#include <set>
 namespace artest::extensions
 {
 LoadedCatalog LoadNativeModules(CatalogScan &scan, const ARTestHostApiV0 &hostApi)
@@ -90,6 +92,7 @@ LoadedCatalog LoadNativeModules(CatalogScan &scan, const ARTestHostApiV0 &hostAp
         }
 
         bool descriptorFailure = false;
+        std::set<std::string> inspectedIds;
         for (std::size_t index = 0; index < count; ++index)
         {
             ARTestComponentDescriptorV0 descriptor{};
@@ -97,7 +100,31 @@ LoadedCatalog LoadNativeModules(CatalogScan &scan, const ARTestHostApiV0 &hostAp
             ErrorStorage descriptorError;
             status = module->api.get_component_descriptor(module->extension, index, &descriptor,
                                                           &descriptorError.buffer);
-            const auto &declared = package.descriptor.components[index];
+            // Metadata generators canonicalize order; ABI enumeration order is
+            // not an identity contract. Match by ID and reject duplicate exports.
+            if (status != ARTEST_STATUS_OK || descriptor.struct_size < sizeof(descriptor))
+            {
+                addFailure(package, "EXTENSION_DESCRIPTOR_MISMATCH",
+                           descriptorError.Message("The binary descriptor is invalid."),
+                           package.manifestPath);
+                descriptorFailure = true;
+                break;
+            }
+            const auto typeId = ToString(descriptor.type_id);
+            const auto declaredEntry = std::find_if(package.descriptor.components.begin(),
+                package.descriptor.components.end(), [&typeId](const auto &entry) {
+                    return entry.typeId == typeId;
+                });
+            if (status != ARTEST_STATUS_OK || declaredEntry == package.descriptor.components.end() ||
+                !inspectedIds.insert(typeId).second)
+            {
+                addFailure(package, "EXTENSION_DESCRIPTOR_MISMATCH",
+                           "The binary exports an unknown or duplicate component identity.",
+                           package.manifestPath);
+                descriptorFailure = true;
+                break;
+            }
+            const auto &declared = *declaredEntry;
             ComponentRecord record{declared.kind == ComponentKind::Command
                                        ? ARTEST_COMPONENT_KIND_COMMAND
                                    : declared.kind == ComponentKind::InstrumentDriver

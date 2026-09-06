@@ -45,7 +45,7 @@ try {
     $null = New-Item -ItemType Directory -Path $stagingRoot
     foreach ($relativeDirectory in @(
             'include', 'include\nlohmann', 'build\native', 'docs',
-            'share\ARTest\schemas', 'templates', 'tools')) {
+            'share\ARTest\schemas', 'templates', 'tools', 'examples')) {
         $null = New-Item -ItemType Directory -Path (
             Join-Path $stagingRoot $relativeDirectory)
     }
@@ -58,8 +58,22 @@ try {
     Copy-Item -Path (Join-Path $repositoryRoot 'source\ARTest.SDK\schemas\*') -Destination (Join-Path $stagingRoot 'share\ARTest\schemas')
     Copy-Item -Path (Join-Path $repositoryRoot 'docs\sdk\*') -Destination (Join-Path $stagingRoot 'docs')
     Copy-Item -Path (Join-Path $repositoryRoot 'source\ARTest.SDK\templates\*') -Destination (Join-Path $stagingRoot 'templates') -Recurse
+    $exampleTarget = Join-Path $stagingRoot 'examples\ARTestSdkExample'
+    $null = New-Item -ItemType Directory -Path $exampleTarget
+    foreach ($exampleFile in 'ARTestSdkExample.vcxproj', 'ExampleExtension.cpp', 'ExamplePlan.json', 'ReadVoltageCommand.h', 'SimulatedSupplyDriver.h') {
+        Copy-Item -LiteralPath (Join-Path $repositoryRoot "source\ARTest.SDK\examples\ARTestSdkExample\$exampleFile") -Destination $exampleTarget
+    }
     Copy-Item -LiteralPath (Join-Path $repositoryRoot 'scripts\package-extension.ps1') -Destination (Join-Path $stagingRoot 'tools\package-extension.ps1')
     Copy-Item -LiteralPath (Join-Path $repositoryRoot 'source\ARTest.SDK\distribution\ARTestSDK.props') -Destination (Join-Path $stagingRoot 'build\native\ARTestSDK.props')
+    Copy-Item -LiteralPath (Join-Path $repositoryRoot 'source\ARTest.SDK\distribution\ARTestMetadata.targets') -Destination (Join-Path $stagingRoot 'build\native\ARTestMetadata.targets')
+    Copy-Item -Path (Join-Path $repositoryRoot 'source\ARTest.SDK\distribution\tools\*') -Destination (Join-Path $stagingRoot 'tools')
+    foreach ($tool in 'ARTestSdkValidate.exe', 'ARTestEngine.dll') {
+        $toolPath = Join-Path $repositoryRoot "artifacts\bin\$Platform\$Configuration\$tool"
+        if (-not (Test-Path -LiteralPath $toolPath -PathType Leaf)) {
+            throw "Build the solution before packaging the SDK; missing $tool."
+        }
+        Copy-Item -LiteralPath $toolPath -Destination (Join-Path $stagingRoot "tools\$tool")
+    }
     Copy-Item -LiteralPath (Join-Path $repositoryRoot 'source\ARTest.SDK\distribution\README.md') -Destination (Join-Path $stagingRoot 'README.md')
     Copy-Item -LiteralPath (Join-Path $repositoryRoot 'source\ARTest.SDK\distribution\THIRD_PARTY_NOTICES.md') -Destination (Join-Path $stagingRoot 'THIRD_PARTY_NOTICES.md')
     Copy-Item -LiteralPath $versionSource -Destination (Join-Path $stagingRoot 'sdk-version.json')
