@@ -149,8 +149,10 @@ The source-tree example declares its parameters/configuration through Schema and
 ComponentMetadata in ExampleExtension.cpp. Its build generates the manifest and
 schema files automatically; do not recreate the deleted source JSON files.
 The [generation guide](metadata-generation.md) explains the shared definition.
-The four reference packages and installed starter still use source manifests
-until D3.4.3; keep their JSON and C++ declarations consistent during that transition.
+The four reference packages and installed starter use this same flow in SDK 0.2.2.
+Declare schemas, aliases and requiredContracts in C++, not in handwritten package
+JSON. Script inputs remain JSON. The installed SDK README explains Visual Studio
+setup through the early-imported, machine-local ARTestSDK.local.props file.
 
 ## 7. Test behavior locally, then test the native boundary
 
@@ -182,6 +184,31 @@ service calls to a test callback. It does not replace ABI or lifecycle testing.
 
 This runs all Sdk* Google Tests without overwriting the complete XML/HTML report.
 The complete regression includes real Engine/DLL integration as well.
+
+## 8. Reuse one command with multiple instruments
+
+Register a driver type once. In a plan, declare multiple instruments with that
+same type and unique id values; each configuration initializes a separate driver
+object. Bind each step's instrument to the intended instance. CallInstrument
+automatically resolves that instance and verifies the required service contract.
+The command implementation and DLL are reused; driver state must be instance-local.
+
+The installed starter includes MultipleInstruments.json: ValueSource1 has value
+12, ValueSource2 has value 24, and the same read-value command (factor 2) runs on
+ValueSource1, ValueSource2, ValueSource1, producing 24, 48, 24. Run it with:
+
+```powershell
+& $cli run .\MultipleInstruments.json --extensions .\out\extensions\x64\Release
+```
+
+Use an absolute path to your built ARTestCLI.exe for $cli. A future oscilloscope
+driver follows the same pattern: DSO1/DSO2 select device instances, not different
+command types. The driver must implement the command's service contract and
+operations and open distinct physical resources (for example serial numbers).
+The distributed SDK does not include an oscilloscope driver; external extensions
+can supply their own contract and implementation. This
+example proves sequential instance routing, not parallel acquisition or safe
+sharing of one physical device between two instances.
 
 ## Troubleshooting
 

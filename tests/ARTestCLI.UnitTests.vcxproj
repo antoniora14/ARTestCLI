@@ -73,6 +73,8 @@
     <ClCompile Include="SdkAuthoringIntegrationTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="ReferenceExtensionTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="ReferenceExtensionIntegrationTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
+    <ClInclude Include="TestSupport\ReferenceCatalog.h" />
+    <None Include="TestSupport\Fixtures\reference-metadata-before-d3-4-3.json" />
     <ClCompile Include="..\source\ARTestDrvSimPower\SimPowerDriver.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="..\source\ARTestDrvSimCAN\SimCanDriver.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="..\source\ARTestCmdSample\PowerCycleCommand.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>

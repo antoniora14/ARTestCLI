@@ -81,8 +81,9 @@ semantic checks remain necessary for relationships such as CAN DLC/data length.
 - IDs use lowercase alphanumeric segments separated by dots or hyphens and are
   limited to 160 characters in this generator. Versions currently use numeric
   major.minor.patch; prerelease version authoring is deferred.
-- Aliases remain optional and case-sensitive. Duplicate IDs, aliases and schema
-  IDs fail; aliases cannot shadow another component in the package.
+- Aliases remain optional and case-sensitive. Duplicate component IDs and aliases
+  fail; aliases cannot shadow another component in the package. Multiple components
+  may share a schema ID only when their complete schema definitions are identical.
 - Configured command requirements are declared explicitly. The generator does
   not infer contracts from Execute or invent external drivers.
 - The primary contract supplies the capability; DriverMode supplies the flags.
@@ -128,9 +129,15 @@ already exercises these paths, invalid channel rejection and cancellation.
 
     .\artifacts\bin\x64\Release\ARTestCLI.UnitTests.exe --gtest_filter=SdkMetadataTests.*
 
-Seven focused tests cover Engine schema conformance, local ownership, metadata
-errors, identity collisions, deterministic output and no component construction.
-The full Debug/Release regression has 180 tests and also checks the installed SDK.
+Eight focused tests cover Engine schema conformance, local ownership, metadata
+errors, identity collisions, shared schemas, deterministic output and no component
+construction. The full regression has 183 tests across 39 suites in each of Debug
+and Release and also checks the installed SDK.
+
+If build artifacts have been manually removed, run scripts/build.ps1 for the
+required configuration before executing the test binary directly. Publication
+tests require the example DLL, its metadata executable and the validator; a
+previous PASSED report does not establish that these inputs are still present.
 
 ## Reusable installed-SDK integration
 
@@ -221,9 +228,34 @@ two forcibly killed publisher subprocesses, writer exclusion, foreign files and
 timeout. The installed-SDK gate builds and executes the generated example from
 an extracted SDK. There is no additional manual acceptance report for this slice.
 
-## Remaining delivery
+## D3.4.3 reference and starter migration (SDK 0.2.2)
 
-D3.4.3 migrates the four reference packages and the legacy installed starter.
-Their old package-extension.ps1 remains in use until then and does not acquire
-this new publisher's guarantees merely because the SDK was upgraded.
-Python/.NET backends and ABI freeze remain later work.
+All four reference packages and templates/ARTestExtension now use this flow.
+Their entry .cpp owns the declaration used by both the DLL and metadata executable.
+The copy-only packager and 13 handwritten manifest/schema files are removed.
+Test plans remain JSON inputs; a pre-migration fixture exists only for regression.
+No Engine API or native ABI change is introduced.
+
+Generation preserves canonical IDs, aliases, requirements, schema identities and
+validation rules. Sample emits manifest v2; v1 discovery remains supported. Schema
+IDs can be shared by multiple components only when their complete definitions are
+identical. Generated schema filenames are implementation details, not contract IDs.
+
+The solution orders Engine -> validator -> reference publication. Engine no longer
+has deployment-only references to reference DLL projects. Standalone reference
+project builds need the matching validator built first; external templates use
+the installed tool. Reference outputs explicitly opt into conservative legacy
+adoption; the installed starter defaults to owned/new outputs only.
+
+The installed starter and example both build from the extracted SDK, without
+repository includes or handwritten metadata. Google Tests compare the generated
+reference contracts/schemas with the original fixture and verify one command
+against independent instances of one driver type. Existing fault/publication,
+ABI and report-verdict regressions remain mandatory.
+Count-sensitive CLI/reference tests use an isolated copy of the four packages,
+so a developer's extra DLL in the deployment directory is preserved and does not
+change the expected reference catalog.
+
+Previous SDK installations still used by developer projects are preserved.
+Do not delete an SDK merely because a newer package was generated.
+Python/.NET backends, vendor dependency deployment and ABI freeze remain later work.

@@ -35,12 +35,12 @@
     <ClCompile Include="SimPowerExtension.cpp" />
     <ClCompile Include="SimPowerDriver.cpp" />
     <ClInclude Include="SimPowerDriver.h" />
-    <None Include="schemas\*.json" />
-    <None Include="artest-extension.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <Target Name="PackageExtension" AfterTargets="Build" Condition="'$(Platform)'=='x64'">
-    <PropertyGroup><PackageDir>$(MSBuildThisFileDirectory)..\..\artifacts\extensions\$(Platform)\$(Configuration)\ARTestDrvSimPower</PackageDir></PropertyGroup>
-    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\..\scripts\package-extension.ps1&quot; -BinaryPath &quot;$(TargetPath)&quot; -ManifestPath &quot;$(ProjectDir)artest-extension.json&quot; -PackageDirectory &quot;$(PackageDir)&quot;" />
-  </Target>
+  <PropertyGroup>
+    <ARTestPackageDirectory>$(MSBuildThisFileDirectory)..\..\artifacts\extensions\$(Platform)\$(Configuration)\ARTestDrvSimPower</ARTestPackageDirectory>
+    <!-- Adopt only a complete legacy package; publication rejects unknown files. -->
+    <ARTestAdoptLegacyPackage>true</ARTestAdoptLegacyPackage>
+  </PropertyGroup>
+  <Import Project="..\ARTest.SDK\ARTestMetadata.targets" />
 </Project>

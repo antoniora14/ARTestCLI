@@ -4,6 +4,12 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 16.0.36107.64
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ARTestCLI", "ARTestCLI\ARTestCLI.vcxproj", "{EE9B4638-8596-4838-AAE1-04C2214D673B}"
+    ProjectSection(ProjectDependencies) = postProject
+        {377B03F6-3D71-47A5-8A52-D3028BB8254B} = {377B03F6-3D71-47A5-8A52-D3028BB8254B}
+        {65CB4028-280C-4470-AB00-68B0F8EEA13F} = {65CB4028-280C-4470-AB00-68B0F8EEA13F}
+        {6D987EB2-7D43-4CF9-BC58-654A84769812} = {6D987EB2-7D43-4CF9-BC58-654A84769812}
+        {71D6AD2B-EA35-48FC-946A-FB64CD3412D3} = {71D6AD2B-EA35-48FC-946A-FB64CD3412D3}
+    EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ARTestEngine.Core", "ARTestEngine.Core\ARTestEngine.Core.vcxproj", "{A6B573A1-3A58-4F46-91C0-D2F2EAB65930}"
 EndProject
@@ -12,14 +18,26 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ARTestEngine", "ARTestEngine\ARTestEngine.vcxproj", "{D47C2447-5B74-4CC8-B915-D73FD7BE85CB}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ARTestDrvSimPower", "ARTestDrvSimPower\ARTestDrvSimPower.vcxproj", "{377B03F6-3D71-47A5-8A52-D3028BB8254B}"
+    ProjectSection(ProjectDependencies) = postProject
+        {782139A0-B28D-46AC-8107-920A64C8D701} = {782139A0-B28D-46AC-8107-920A64C8D701}
+    EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ARTestCmdSample", "ARTestCmdSample\ARTestCmdSample.vcxproj", "{65CB4028-280C-4470-AB00-68B0F8EEA13F}"
+    ProjectSection(ProjectDependencies) = postProject
+        {782139A0-B28D-46AC-8107-920A64C8D701} = {782139A0-B28D-46AC-8107-920A64C8D701}
+    EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ARTestAbi.ContractTests", "..\tests\ARTestAbi.ContractTests.vcxproj", "{79D3BE21-CEDC-4D28-B2B6-BA23B5DDFA94}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ARTestCmdHardware", "ARTestCmdHardware\ARTestCmdHardware.vcxproj", "{6D987EB2-7D43-4CF9-BC58-654A84769812}"
+    ProjectSection(ProjectDependencies) = postProject
+        {782139A0-B28D-46AC-8107-920A64C8D701} = {782139A0-B28D-46AC-8107-920A64C8D701}
+    EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ARTestDrvSimCAN", "ARTestDrvSimCAN\ARTestDrvSimCAN.vcxproj", "{71D6AD2B-EA35-48FC-946A-FB64CD3412D3}"
+    ProjectSection(ProjectDependencies) = postProject
+        {782139A0-B28D-46AC-8107-920A64C8D701} = {782139A0-B28D-46AC-8107-920A64C8D701}
+    EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ARTestSdkExample", "ARTest.SDK\examples\ARTestSdkExample\ARTestSdkExample.vcxproj", "{563DEA1B-752F-4A72-A83D-A6BFAF01333A}"
 	ProjectSection(ProjectDependencies) = postProject

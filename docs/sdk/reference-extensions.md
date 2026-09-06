@@ -51,5 +51,16 @@ For standalone extension development, copy the installed SDK template and follow
 [the distribution guide](sdk-distribution.md). The repository component sources
 are learning references, not dependencies that your DLL must link.
 
-Manifests and schemas are still maintained as source files and packaged by the
-build. Automatic metadata generation is a subsequent authoring improvement.
+In D3.4.3 all four entry files own their Schema/ComponentMetadata declarations.
+ARTestMetadata.targets generates JSON, validates the staged DLL, then publishes
+the complete package. The handwritten manifests/schemas and old copy-only
+packager have been removed. IDs, aliases, contracts and validation rules remain
+unchanged; Sample now emits manifest v2 instead of v1. Both formats remain readable.
+The two power types retain their shared schema ID; sharing is accepted only for
+identical schema definitions.
+
+Build source/ARTestCLI.sln for correct tool ordering. The validator depends on
+Engine; reference projects depend on the validator only through solution build
+ordering. Engine does not depend on reference packages. Direct project builds
+require ARTestSdkValidate to have been built for the same configuration first.
+No extension links the validator or Engine.

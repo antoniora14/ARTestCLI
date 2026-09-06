@@ -28,8 +28,13 @@ foreach ($package in 'ARTestCmdHardware', 'ARTestCmdSample', 'ARTestDrvSimPower'
     $project = Get-Content -LiteralPath (Join-Path $root "$package.vcxproj") -Raw
     if ($project -match 'ProjectReference|ExtensionSupport|ARTestEngine' -or
         $project -notmatch 'ARTestSDK\.props' -or
+        $project -notmatch 'ARTestMetadata\.targets' -or
         $project -notmatch '<TreatWarningAsError>true</TreatWarningAsError>') {
         throw "$package must be a strict standalone SDK consumer."
+    }
+    if ((Test-Path -LiteralPath (Join-Path $root 'artest-extension.json')) -or
+        @(Get-ChildItem -Path (Join-Path $root 'schemas\*.json') -ErrorAction SilentlyContinue).Count -gt 0) {
+        throw "$package must generate manifest/schema files from its C++ definition."
     }
     foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File |
              Where-Object { $_.Extension -in '.h', '.cpp' }) {

@@ -93,6 +93,46 @@ TEST(SdkAuthoringIntegrationTests, ExampleDllSupportsFreshSequentialSessions)
     EXPECT_EQ(second["status"], "passed");
     EXPECT_NE(second.dump().find("Measured 12.000000 V."), std::string::npos);
 }
+
+TEST(SdkAuthoringIntegrationTests, OneCommandTypeRoutesToIndependentDriverInstances)
+{
+    EngineClient client;
+    ASSERT_TRUE(client.Create(R"({"loadDefaultCatalog":false})").Succeeded());
+    ASSERT_TRUE(client.PrepareCatalog(Packages().string()).Succeeded());
+    auto plan = Plan();
+    auto first = plan["instruments"][0];
+    first["id"] = "PS1";
+    first["config"]["voltage"] = 3.3;
+    auto second = first;
+    second["id"] = "PS2";
+    second["config"]["voltage"] = 12.0;
+    plan["instruments"] = Json::array({first, second});
+    const auto command = plan["commands"][0];
+    plan["commands"] = Json::array();
+    for (const auto instrument : {"PS1", "PS2", "PS1"})
+    {
+        auto step = command;
+        step["stepId"] = plan["commands"].size() + 1;
+        step["instrument"] = instrument;
+        plan["commands"].push_back(std::move(step));
+    }
+    const auto compiled = client.Compile(plan.dump());
+    ASSERT_TRUE(compiled.Succeeded()) << compiled.message;
+    ASSERT_TRUE(client.Start().Succeeded());
+    const auto result = Finish(client);
+    ASSERT_EQ(result["status"], "passed") << result.dump();
+    ASSERT_EQ(result["steps"].size(), 3U);
+    EXPECT_EQ(result["summary"]["passedSteps"], 3);
+    EXPECT_NE(result["steps"][0].dump().find("Measured 3.300000 V."), std::string::npos);
+    EXPECT_NE(result["steps"][1].dump().find("Measured 12.000000 V."), std::string::npos);
+    EXPECT_NE(result["steps"][2].dump().find("Measured 3.300000 V."), std::string::npos);
+
+    plan["commands"][0]["instrument"] = "UNKNOWN";
+    EXPECT_FALSE(client.Compile(plan.dump()).Succeeded());
+    plan["commands"][0]["instrument"] = "PS1";
+    plan["instruments"][1]["id"] = "PS1";
+    EXPECT_FALSE(client.Compile(plan.dump()).Succeeded());
+}
 TEST(SdkAuthoringIntegrationTests, ExampleSchemasRejectInvalidParametersBeforeExecution)
 {
     EngineClient client;

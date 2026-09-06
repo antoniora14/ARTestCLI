@@ -154,3 +154,18 @@ TEST(SdkMetadataTests, GenerationIsDeterministicAndPreservesExplicitSchemaIdenti
     EXPECT_EQ(explicitId.manifest["components"][0]["schemas"][0]["schemaId"], "com.test.schema.custom.v2");
     EXPECT_FALSE(explicitId.manifest.contains("integrity")); // Hashing belongs to packaging.
 }
+
+TEST(SdkMetadataTests, IdenticalSchemasMayShareOneIdentityWithoutConstructingComponents)
+{
+    auto definition = Describe();
+    definition.AddCommand<NeverConstructCommand>({
+        .id = "com.test.other", .name = "Other",
+        .metadata = {
+            .schema = Schema::Object().Required("channel", Schema::Integer().Minimum(1).Maximum(4)),
+            .schemaId = "com.test.command.parameters.v1"}});
+    const auto bundle = GenerateMetadata(definition, "Example.dll");
+    EXPECT_EQ(bundle.schemas.at("schemas/com.test.command.parameters.json"),
+              bundle.schemas.at("schemas/com.test.other.parameters.json"));
+    EXPECT_EQ(bundle.manifest["components"][2]["schemas"][0]["schemaId"],
+              "com.test.command.parameters.v1");
+}

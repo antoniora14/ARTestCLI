@@ -71,10 +71,5 @@
       <Project>{A6B573A1-3A58-4F46-91C0-D2F2EAB65930}</Project>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\ARTestCmdHardware\ARTestCmdHardware.vcxproj"><Project>{6D987EB2-7D43-4CF9-BC58-654A84769812}</Project><LinkLibraryDependencies>false</LinkLibraryDependencies></ProjectReference>
-    <ProjectReference Include="..\ARTestDrvSimCAN\ARTestDrvSimCAN.vcxproj"><Project>{71D6AD2B-EA35-48FC-946A-FB64CD3412D3}</Project><LinkLibraryDependencies>false</LinkLibraryDependencies></ProjectReference>
-    <ProjectReference Include="..\ARTestDrvSimPower\ARTestDrvSimPower.vcxproj"><Project>{377B03F6-3D71-47A5-8A52-D3028BB8254B}</Project><LinkLibraryDependencies>false</LinkLibraryDependencies></ProjectReference>
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

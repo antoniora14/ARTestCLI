@@ -1,0 +1,419 @@
+{
+  "ARTestDrvSimPower": {
+    "manifest": {
+      "schemaVersion": 2,
+      "extensionId": "com.artest.extension.sim-power",
+      "displayName": "ARTest Simulated Power Driver",
+      "version": "0.1.0",
+      "publisher": "ARTest",
+      "description": "Reference Instrument Driver for the Stage D native vertical slice.",
+      "runtime": {
+        "kind": "native",
+        "entry": "ARTestDrvSimPower.dll",
+        "isolation": "inProcess",
+        "architecture": "x64",
+        "abi": {
+          "major": 0,
+          "minor": 1
+        }
+      },
+      "components": [
+        {
+          "kind": "instrumentDriver",
+          "typeId": "com.artest.driver.sim.power",
+          "contractId": "artest.contract.instrument.power-supply.v1",
+          "version": "0.1.0",
+          "displayName": "Simulated Power Supply",
+          "description": "Deterministic reference Instrument Driver.",
+          "capabilities": [
+            "artest.contract.instrument.power-supply.v1"
+          ],
+          "schemas": [
+            {
+              "role": "configuration",
+              "schemaId": "artest.schema.sim-power.configuration.v1",
+              "path": "schemas/configuration.json",
+              "mediaType": "application/json; charset=utf-8"
+            }
+          ],
+          "flags": [
+            "simulated"
+          ]
+        },
+        {
+          "kind": "instrumentDriver",
+          "typeId": "com.artest.driver.sim.power-legacy",
+          "aliases": [
+            "PowerSupply"
+          ],
+          "contractId": "artest.contract.instrument.power-supply.v1",
+          "version": "0.1.0",
+          "displayName": "Simulated Legacy Power Supply",
+          "capabilities": [
+            "artest.contract.instrument.power-supply.v1"
+          ],
+          "schemas": [
+            {
+              "role": "configuration",
+              "schemaId": "artest.schema.sim-power.configuration.v1",
+              "path": "schemas/configuration.json",
+              "mediaType": "application/json; charset=utf-8"
+            }
+          ],
+          "flags": [
+            "simulated"
+          ]
+        }
+      ]
+    },
+    "schemas": {
+      "artest.schema.sim-power.configuration.v1": {
+        "type": "object",
+        "properties": {
+          "failShutdown": {
+            "type": "boolean"
+          },
+          "failInitialize": {
+            "type": "boolean"
+          },
+          "failInitialization": {
+            "type": "boolean"
+          },
+          "failTurnOnAttempts": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "model": {
+            "type": "string"
+          },
+          "hw-rsrc": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "ARTestDrvSimCAN": {
+    "manifest": {
+      "schemaVersion": 2,
+      "extensionId": "com.artest.extension.sim-can",
+      "displayName": "ARTestDrvSimCAN",
+      "version": "0.1.0",
+      "publisher": "ARTest",
+      "runtime": {
+        "kind": "native",
+        "entry": "ARTestDrvSimCAN.dll",
+        "isolation": "inProcess",
+        "architecture": "x64",
+        "abi": {
+          "major": 0,
+          "minor": 1
+        }
+      },
+      "components": [
+        {
+          "kind": "instrumentDriver",
+          "typeId": "com.artest.driver.sim.can",
+          "aliases": [
+            "CAN"
+          ],
+          "contractId": "artest.contract.instrument.can.v1",
+          "version": "0.1.0",
+          "displayName": "Simulated CAN",
+          "capabilities": [
+            "artest.contract.instrument.can.v1"
+          ],
+          "schemas": [
+            {
+              "role": "configuration",
+              "schemaId": "artest.schema.sim-can-configuration.v1",
+              "path": "schemas/sim-can-configuration.json",
+              "mediaType": "application/json; charset=utf-8"
+            }
+          ],
+          "flags": [
+            "simulated"
+          ]
+        }
+      ]
+    },
+    "schemas": {
+      "artest.schema.sim-can-configuration.v1": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string"
+          },
+          "hw-rsrc": {
+            "type": "string"
+          },
+          "failInitialize": {
+            "type": "boolean"
+          },
+          "failShutdown": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "ARTestCmdHardware": {
+    "manifest": {
+      "schemaVersion": 2,
+      "extensionId": "com.artest.extension.hardware-commands",
+      "displayName": "ARTestCmdHardware",
+      "version": "0.1.0",
+      "publisher": "ARTest",
+      "runtime": {
+        "kind": "native",
+        "entry": "ARTestCmdHardware.dll",
+        "isolation": "inProcess",
+        "architecture": "x64",
+        "abi": {
+          "major": 0,
+          "minor": 1
+        }
+      },
+      "components": [
+        {
+          "kind": "command",
+          "typeId": "com.artest.command.power.turn-on",
+          "aliases": [
+            "PowerSupply.TurnOn"
+          ],
+          "contractId": "artest.contract.command.v1",
+          "version": "0.1.0",
+          "displayName": "Power On",
+          "capabilities": [
+            "artest.contract.command.v1"
+          ],
+          "requires": [
+            {
+              "contractId": "artest.contract.instrument.power-supply.v1",
+              "selection": "configured"
+            }
+          ],
+          "schemas": [
+            {
+              "role": "parameters",
+              "schemaId": "artest.schema.power-on.v1",
+              "path": "schemas/power-on.json",
+              "mediaType": "application/json; charset=utf-8"
+            }
+          ],
+          "flags": []
+        },
+        {
+          "kind": "command",
+          "typeId": "com.artest.command.power.turn-off",
+          "aliases": [
+            "PowerSupply.TurnOff"
+          ],
+          "contractId": "artest.contract.command.v1",
+          "version": "0.1.0",
+          "displayName": "Power Off",
+          "capabilities": [
+            "artest.contract.command.v1"
+          ],
+          "requires": [
+            {
+              "contractId": "artest.contract.instrument.power-supply.v1",
+              "selection": "configured"
+            }
+          ],
+          "schemas": [
+            {
+              "role": "parameters",
+              "schemaId": "artest.schema.power-off.v1",
+              "path": "schemas/power-off.json",
+              "mediaType": "application/json; charset=utf-8"
+            }
+          ],
+          "flags": []
+        },
+        {
+          "kind": "command",
+          "typeId": "com.artest.command.can.send",
+          "aliases": [
+            "CAN.SendMessage"
+          ],
+          "contractId": "artest.contract.command.v1",
+          "version": "0.1.0",
+          "displayName": "Send CAN Message",
+          "capabilities": [
+            "artest.contract.command.v1"
+          ],
+          "requires": [
+            {
+              "contractId": "artest.contract.instrument.can.v1",
+              "selection": "configured"
+            }
+          ],
+          "schemas": [
+            {
+              "role": "parameters",
+              "schemaId": "artest.schema.can-send.v1",
+              "path": "schemas/can-send.json",
+              "mediaType": "application/json; charset=utf-8"
+            }
+          ],
+          "flags": []
+        }
+      ]
+    },
+    "schemas": {
+      "artest.schema.power-on.v1": {
+        "type": "object",
+        "required": [
+          "channel",
+          "voltage",
+          "currentLimit"
+        ],
+        "properties": {
+          "channel": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "voltage": {
+            "type": "number",
+            "minimum": 0
+          },
+          "currentLimit": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "artest.schema.power-off.v1": {
+        "type": "object",
+        "required": [
+          "channel"
+        ],
+        "properties": {
+          "channel": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          }
+        },
+        "additionalProperties": false
+      },
+      "artest.schema.can-send.v1": {
+        "type": "object",
+        "required": [
+          "channel",
+          "id",
+          "dlc",
+          "data"
+        ],
+        "properties": {
+          "channel": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10
+          },
+          "dlc": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 8
+          },
+          "data": {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 8,
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "ARTestCmdSample": {
+    "manifest": {
+      "schemaVersion": 1,
+      "extensionId": "com.artest.extension.sample-command",
+      "displayName": "ARTest Sample Command",
+      "version": "0.1.0",
+      "publisher": "ARTest",
+      "description": "Reference command package for the Stage D native vertical slice.",
+      "runtime": {
+        "kind": "native",
+        "entry": "ARTestCmdSample.dll",
+        "isolation": "inProcess",
+        "architecture": "x64",
+        "abi": {
+          "major": 0,
+          "minor": 1
+        }
+      },
+      "components": [
+        {
+          "kind": "command",
+          "typeId": "com.artest.command.sample.power-cycle",
+          "contractId": "artest.contract.command.v1",
+          "version": "0.1.0",
+          "displayName": "Sample Power Cycle",
+          "description": "Invokes a configured power-supply service without linking to its driver.",
+          "capabilities": [
+            "artest.contract.command.v1"
+          ],
+          "requires": [
+            {
+              "contractId": "artest.contract.instrument.power-supply.v1",
+              "selection": "configured"
+            }
+          ],
+          "schemas": [
+            {
+              "role": "parameters",
+              "schemaId": "artest.schema.sample-power-cycle.parameters.v1",
+              "path": "schemas/parameters.json",
+              "mediaType": "application/json; charset=utf-8"
+            }
+          ],
+          "flags": []
+        }
+      ]
+    },
+    "schemas": {
+      "artest.schema.sample-power-cycle.parameters.v1": {
+        "type": "object",
+        "required": [
+          "channel",
+          "voltage"
+        ],
+        "properties": {
+          "channel": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "voltage": {
+            "type": "number",
+            "minimum": 0
+          },
+          "holdMs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 60000
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

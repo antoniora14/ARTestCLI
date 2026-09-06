@@ -93,8 +93,8 @@ before adding a command or Instrument Driver.
   values; never turn cancellation, cleanup or service-release failures into success.
 - Keep shutdown available after partial initialization and cancellation.
 - The SDK example catalog is isolated in `artifacts/sdk-examples`.
-- Run the full Debug/Release regressions (180 tests across 38 suites) and the SDK boundary gate.
-  `scripts/test-sdk-authoring.ps1` runs 62 focused tests without replacing reports.
+- Run the full Debug/Release regressions (183 tests across 39 suites) and the SDK boundary gate.
+  `scripts/test-sdk-authoring.ps1` runs 64 focused tests without replacing reports.
 - Distribution/templates and external consumer verification belong to D3.3-C.
   Do not claim a published SDK or frozen ABI 1.0.
 
@@ -125,8 +125,8 @@ Read `docs/architecture/stage-d3-3b-reference-migration.md` and
 - Preserve IDs, aliases, service operations, diagnostics and response schemas.
   `Result::WithData(data, schemaId)` preserves a non-generic service schema.
 - SDK package 0.1.1 does not change Engine API 0.4 or native extension ABI 0.1.
-- Manifests and schemas remain source files. Automatic metadata generation is
-  future work, not part of this migration.
+- D3.3-B preserved source manifests; D3.4.3 supersedes that transitional layout
+  with generated metadata for all reference packages.
 
 ## D3.4.1 declarative metadata
 
@@ -137,6 +137,20 @@ executable. Generation never invokes component factories. Its manifest/schemas
 are generated outputs; do not reintroduce their deleted source JSON files.
 SDK 0.2.1 retains legacy authoring calls. D3.4.2 supplies reusable MSBuild targets
 and crash-recoverable publication; reference/installed-starter migration is D3.4.3.
+
+## D3.4.3 generated reference packages
+
+- SDK 0.2.2 keeps Engine API 0.4 and native ABI 0.1 unchanged.
+- All reference entry files and the installed starter declare Schema/ComponentMetadata
+  in C++. Do not reintroduce source manifests/schemas or the removed copy-only packager.
+- Preserve IDs, aliases, contract/schema identities and input validation rules.
+  The pre-migration JSON fixture is regression evidence, never packaging input.
+- Shared schema IDs are valid only for identical definitions.
+- Engine -> validator -> reference publication is solution build ordering, not
+  extension linkage. Direct reference builds need the matching validator first.
+- Keep instance state local; one command type may target multiple driver instances
+  through each step's configured instrument ID. Do not imply parallel device I/O.
+- Preserve installed SDK versions still referenced by external developer projects.
 
 ## D3.4.2 build-time package publication
 

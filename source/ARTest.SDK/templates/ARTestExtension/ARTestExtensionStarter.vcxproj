@@ -4,6 +4,7 @@
     <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
     <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
   </ItemGroup>
+  <Import Project="ARTestSDK.local.props" Condition="Exists('ARTestSDK.local.props')" />
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
     <ProjectGuid>{52B2D553-945F-4788-ACD0-6DFAB4EE0C2A}</ProjectGuid>
@@ -12,7 +13,6 @@
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <ARTestSDKRoot Condition="'$(ARTestSDKRoot)'==''">$(MSBuildThisFileDirectory)..\..\</ARTestSDKRoot>
     <ARTestSDKPropsPath>$([System.IO.Path]::Combine('$(ARTestSDKRoot)', 'build\native\ARTestSDK.props'))</ARTestSDKPropsPath>
-    <ARTestPackageTool>$([System.IO.Path]::Combine('$(ARTestSDKRoot)', 'tools\package-extension.ps1'))</ARTestPackageTool>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
@@ -45,20 +45,13 @@
     <ClCompile Include="Extension.cpp" />
     <ClInclude Include="ReadValueCommand.h" />
     <ClInclude Include="SimulatedValueSource.h" />
-    <None Include="artest-extension.json" />
     <None Include="TestPlan.json" />
-    <None Include="schemas\configuration.json" />
-    <None Include="schemas\parameters.json" />
+    <None Include="MultipleInstruments.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="ValidateInstalledARTestSDK" BeforeTargets="PrepareForBuild">
     <Error Condition="!Exists('$(ARTestSDKPropsPath)')" Text="Set ARTestSDKRoot to the extracted ARTest SDK directory." />
     <Error Condition="'$(Platform)'!='x64'" Text="ARTest native ABI 0.1 supports x64 only." />
   </Target>
-  <Target Name="PackageARTestExtension" AfterTargets="Build">
-    <PropertyGroup>
-      <ARTestExtensionPackage>$(ARTestPackageRoot)\ARTestExtensionStarter</ARTestExtensionPackage>
-    </PropertyGroup>
-    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(ARTestPackageTool)&quot; -BinaryPath &quot;$(TargetPath)&quot; -ManifestPath &quot;$(ProjectDir)artest-extension.json&quot; -PackageDirectory &quot;$(ARTestExtensionPackage)&quot;" />
-  </Target>
+  <Import Project="$(ARTestSDKRoot)\build\native\ARTestMetadata.targets" Condition="Exists('$(ARTestSDKRoot)\build\native\ARTestMetadata.targets')" />
 </Project>

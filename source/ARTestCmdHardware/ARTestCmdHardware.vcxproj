@@ -39,12 +39,12 @@
     <ClInclude Include="PowerOnCommand.h" />
     <ClInclude Include="PowerOffCommand.h" />
     <ClInclude Include="SendCanMessageCommand.h" />
-    <None Include="artest-extension.json" />
-    <None Include="schemas\*.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <Target Name="PackageExtension" AfterTargets="Build" Condition="'$(Platform)'=='x64'">
-    <PropertyGroup><PackageDir>$(MSBuildThisFileDirectory)..\..\artifacts\extensions\$(Platform)\$(Configuration)\ARTestCmdHardware</PackageDir></PropertyGroup>
-    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\..\scripts\package-extension.ps1&quot; -BinaryPath &quot;$(TargetPath)&quot; -ManifestPath &quot;$(ProjectDir)artest-extension.json&quot; -PackageDirectory &quot;$(PackageDir)&quot;" />
-  </Target>
+  <PropertyGroup>
+    <ARTestPackageDirectory>$(MSBuildThisFileDirectory)..\..\artifacts\extensions\$(Platform)\$(Configuration)\ARTestCmdHardware</ARTestPackageDirectory>
+    <!-- Adopt only a complete legacy package; publication rejects unknown files. -->
+    <ARTestAdoptLegacyPackage>true</ARTestAdoptLegacyPackage>
+  </PropertyGroup>
+  <Import Project="..\ARTest.SDK\ARTestMetadata.targets" />
 </Project>

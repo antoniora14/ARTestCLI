@@ -250,7 +250,7 @@ TEST(OfflineCompilationTests, RejectsWrongConfiguredDriverContract)
 TEST(OfflineCompilationTests, RejectsUnsupportedSchemasDuringPreparation)
 {
     PackageFixture packages;
-    const auto path = packages.root / "ARTestCmdHardware/schemas/power-on.json";
+    const auto path = packages.root / "ARTestCmdHardware/schemas/com.artest.command.power.turn-on.parameters.json";
     auto schema = ReadJson(path);
     schema["$ref"] = "https://untrusted.invalid/schema";
     WriteJson(path, schema);
@@ -281,7 +281,7 @@ TEST(PreparedPlanTests, ChangedSchemaInvalidatesActivationOfAnAlreadyCompiledPla
     EngineClient client;
     Prepare(client, packages.root);
     ASSERT_TRUE(client.Compile(Plan().dump()).Succeeded());
-    const auto path = packages.root / "ARTestCmdHardware/schemas/power-on.json";
+    const auto path = packages.root / "ARTestCmdHardware/schemas/com.artest.command.power.turn-on.parameters.json";
     auto schema = ReadJson(path);
     schema["description"] = "Changed after compilation";
     WriteJson(path, schema);

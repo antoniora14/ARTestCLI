@@ -1,0 +1,6 @@
+.vs/
+bin/
+obj/
+out/
+*.user
+ARTestSDK.local.props

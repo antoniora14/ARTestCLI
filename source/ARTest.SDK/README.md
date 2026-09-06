@@ -1,10 +1,11 @@
 # ARTest C++ extension authoring SDK
 
-Experimental SDK 0.2.1 - declarative metadata and D3.4.2 safe build publication.
+Experimental SDK 0.2.2 - generated metadata and safe build publication.
 
-The source-tree SDK example now generates its manifest and schemas from C++.
+The SDK example, four reference packages and installed starter generate their
+manifests and schemas from C++.
 See [metadata generation](../../docs/sdk/metadata-generation.md) for the design,
-supported API and build procedure. Installed starter migration follows in D3.4.3.
+supported API and build procedure, including the D3.4.3 migration.
 C++20, native extension ABI 0.1.
 The Engine host API remains 0.4. The SDK can be packaged for external
 compatibility evaluation; it is not a frozen binary contract or public release.
@@ -19,7 +20,7 @@ For AI-assisted work, also read [the authoring checklist](../../docs/sdk/ai-exte
 | Command | Execute parameters against services; optionally validate semantic relationships |
 | InstrumentDriver | Initialize configuration, register operations, shut down resources |
 | Extension definition | Explicit component IDs, names, contracts and factories |
-| Manifest and schemas | Offline discovery, bindings and input validation |
+| Schema/ComponentMetadata | Declare offline validation and bindings in C++; JSON is generated |
 
 Include `<ARTest/Extension.h>` in the DLL entry point, and use the narrower
 `Command.h` / `InstrumentDriver.h` headers in component code.

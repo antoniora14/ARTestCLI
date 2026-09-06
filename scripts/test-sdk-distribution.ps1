@@ -52,8 +52,7 @@ $requiredFiles = @(
     'include\ARTest\Testing.h',
     'include\ARTestExtensionAbi.h',
     'include\nlohmann\json.hpp',
-    'templates\ARTestExtension\ARTestExtensionStarter.vcxproj',
-    'tools\package-extension.ps1'
+    'templates\ARTestExtension\ARTestExtensionStarter.vcxproj'
 )
 foreach ($requiredFile in $requiredFiles) {
     if (-not (Test-Path -LiteralPath (Join-Path $sdkRoot $requiredFile) -PathType Leaf)) {
@@ -119,9 +118,22 @@ $extensionsRoot = Join-Path $testArtifactRoot 'extension packages'
 Copy-Item -LiteralPath (Join-Path $installedSdkRoot 'templates\ARTestExtension') -Destination $consumerRoot -Recurse
 
 $consumerProject = Join-Path $consumerRoot 'ARTestExtensionStarter.vcxproj'
-& $msbuildPath $consumerProject /m "/p:Configuration=$Configuration" "/p:Platform=$Platform" "/p:ARTestSDKRoot=$installedSdkRoot" "/p:ARTestPackageRoot=$extensionsRoot" /verbosity:minimal
+# Exercise the same early local import used by Visual Studio, without a command-line SDK override.
+$localProps = '<Project><PropertyGroup><ARTestSDKRoot>' +
+    [Security.SecurityElement]::Escape($installedSdkRoot) +
+    '</ARTestSDKRoot></PropertyGroup></Project>'
+Set-Content -LiteralPath (Join-Path $consumerRoot 'ARTestSDK.local.props') -Value $localProps -Encoding UTF8
+if ((Test-Path -LiteralPath (Join-Path $consumerRoot 'artest-extension.json')) -or
+    @(Get-ChildItem -Path (Join-Path $consumerRoot 'schemas\*.json') -ErrorAction SilentlyContinue).Count -gt 0) {
+    throw 'The installed starter unexpectedly contains handwritten package metadata.'
+}
+& $msbuildPath $consumerProject /m "/p:Configuration=$Configuration" "/p:Platform=$Platform" "/p:ARTestPackageRoot=$extensionsRoot" /verbosity:minimal
 if ($LASTEXITCODE -ne 0) {
     throw "The installed SDK consumer build failed with exit code $LASTEXITCODE."
+}
+$starterPackage = Join-Path $extensionsRoot 'ARTestExtensionStarter'
+if (-not (Test-Path -LiteralPath (Join-Path $starterPackage '.artest-generated-package.json'))) {
+    throw 'The starter bypassed owned metadata publication.'
 }
 
 $cli = Join-Path $repositoryRoot "artifacts\bin\$Platform\$Configuration\ARTestCLI.exe"
@@ -154,8 +166,17 @@ if ($runExitCode -ne 0 -or
 
 Write-Host 'SDK package and external-consumer compatibility: PASSED'
 
+$multiplePlan = Join-Path $consumerRoot 'MultipleInstruments.json'
+$multipleOutput = (& $cli run $multiplePlan --extensions $extensionsRoot 2>&1 | Out-String)
+if ($LASTEXITCODE -ne 0 -or
+    $multipleOutput -notmatch '(?s)Computed value 24\.000000\..*Computed value 48\.000000\..*Computed value 24\.000000\.' -or
+    $multipleOutput -notmatch 'Execution finished with PASSED') {
+    throw "The installed starter failed independent instance routing: $multipleOutput"
+}
+Write-Host 'Installed starter multi-instrument sequence (24, 48, 24): PASSED'
+
 # Validate the reusable generation target using only the installed SDK. The
-# legacy starter remains an independent compatibility gate until D3.4.3.
+# generated starter and example remain independent installed-consumer gates.
 $generatedConsumer = Join-Path $testArtifactRoot 'external generated example'
 $generatedPackages = Join-Path $testArtifactRoot 'generated packages'
 Copy-Item -LiteralPath (Join-Path $installedSdkRoot 'examples\ARTestSdkExample') -Destination $generatedConsumer -Recurse

@@ -61,7 +61,8 @@ inline void MetadataVersion(const std::string &value)
         {"components", Json::array()}};
     // Sorting gives stable output even when registration order changes.
     std::vector<const detail::Registration *> entries;
-    std::set<std::string> identities, schemaIds;
+    std::set<std::string> identities;
+    std::map<std::string, Json> schemaDefinitions;
     for (const auto &entry : Access::Components(extension))
     {
         if (!identities.insert(entry.id).second)
@@ -81,9 +82,12 @@ inline void MetadataVersion(const std::string &value)
         const std::string role = driver ? "configuration" : "parameters";
         const auto schemaId = metadata.schemaId.empty() ? entry->id + "." + role + ".v1" : metadata.schemaId;
         detail::MetadataId(schemaId);
-        if (!schemaIds.insert(schemaId).second)
-            throw std::invalid_argument("Duplicate schema ID: " + schemaId);
         auto schema = metadata.schema->Document();
+        // Several component types may intentionally share one contract schema.
+        // The same identity must never describe conflicting validation rules.
+        const auto [existing, inserted] = schemaDefinitions.emplace(schemaId, schema);
+        if (!inserted && existing->second != schema)
+            throw std::invalid_argument("Conflicting schema ID: " + schemaId);
         if (schema["type"] != "object")
             throw std::invalid_argument("Component parameters/configuration must be an object.");
         const auto path = "schemas/" + entry->id + "." + role + ".json";

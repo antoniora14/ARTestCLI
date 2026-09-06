@@ -4,7 +4,9 @@
 #include <nlohmann/json.hpp>
 #include <gtest/gtest.h>
 #include <filesystem>
+#include <fstream>
 #include <set>
+#include "TestSupport/ReferenceCatalog.h"
 
 using artest::sdk::EngineClient;
 using Json = nlohmann::json;
@@ -42,11 +44,13 @@ Json Plan(bool aliases)
 class ReferenceEngineTests : public ::testing::Test
 {
   protected:
+    // Keep files alive until Engine destruction releases its module handles.
+    artest::tests::ReferenceCatalog referenceCatalog{Packages()};
     EngineClient client;
     void SetUp() override
     {
         ASSERT_TRUE(client.Create(R"({"loadDefaultCatalog":false})").Succeeded());
-        const auto prepared = client.PrepareCatalog(Packages().string());
+        const auto prepared = client.PrepareCatalog(referenceCatalog.Root().string());
         ASSERT_TRUE(prepared.Succeeded()) << prepared.message;
     }
     Json Run(const Json &plan)
@@ -134,4 +138,53 @@ TEST_F(ReferenceEngineTests, TimeoutAndPowerCleanupFailureCannotBecomePassed)
     // This generous bound separates a cooperative 20 ms wait from the full 5 s delay.
     EXPECT_LT(result["steps"][0]["durationMs"].get<int>(), 2500);
     EXPECT_NE(result.dump().find("Simulated shutdown failure was requested."), std::string::npos);
+}
+
+TEST(ReferenceMetadataTests, GeneratedPackagesPreserveThePreMigrationContracts)
+{
+    const auto root = Packages().parent_path().parent_path().parent_path().parent_path();
+    std::ifstream baselineFile{root / "tests/TestSupport/Fixtures/reference-metadata-before-d3-4-3.json"};
+    ASSERT_TRUE(baselineFile.is_open());
+    const auto baseline = Json::parse(baselineFile);
+    const auto normalize = [](Json manifest) {
+        // Only packaging representation and editorial text may change.
+        // Compare components by identity, not their registration/serialization order.
+        manifest.erase("schemaVersion");
+        manifest.erase("integrity");
+        manifest.erase("description");
+        Json components = Json::object();
+        for (auto component : manifest["components"])
+        {
+            component.erase("description");
+            for (auto &schema : component["schemas"]) schema.erase("path");
+            const auto id = component["typeId"].get<std::string>();
+            components[id] = std::move(component);
+        }
+        manifest["components"] = std::move(components);
+        return manifest;
+    };
+    for (const auto name : {"ARTestCmdHardware", "ARTestCmdSample", "ARTestDrvSimCAN", "ARTestDrvSimPower"})
+    {
+        SCOPED_TRACE(name);
+        const auto package = Packages() / name;
+        EXPECT_FALSE(std::filesystem::exists(root / "source" / name / "artest-extension.json"));
+        EXPECT_TRUE(std::filesystem::exists(package / ".artest-generated-package.json"));
+        std::ifstream manifestFile{package / "artest-extension.json"};
+        ASSERT_TRUE(manifestFile.is_open());
+        const auto actual = Json::parse(manifestFile);
+        EXPECT_EQ(actual["schemaVersion"], 2);
+        EXPECT_EQ(normalize(actual), normalize(baseline.at(name).at("manifest")));
+        for (const auto &component : actual["components"])
+            for (const auto &reference : component["schemas"])
+            {
+                std::ifstream schemaFile{package / reference["path"].get<std::string>()};
+                ASSERT_TRUE(schemaFile.is_open());
+                auto schema = Json::parse(schemaFile);
+                auto expected = baseline.at(name).at("schemas").at(reference["schemaId"].get<std::string>());
+                // Empty required and omitted required both mean no required properties.
+                if (expected.value("required", Json::array()).empty()) expected.erase("required");
+                if (schema.value("required", Json::array()).empty()) schema.erase("required");
+                EXPECT_EQ(schema, expected) << reference["schemaId"];
+            }
+    }
 }

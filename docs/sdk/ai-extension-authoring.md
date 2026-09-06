@@ -59,8 +59,12 @@ D3.3-B reference migration and D3.3-C installed-SDK consumers are implemented.
 SDK package 0.1.1 adds schema-preserving Results without a C ABI change.
 D3.4.1 introduces Schema/ComponentMetadata and generates the source-tree example.
 Read metadata-generation.md; do not invent a raw-JSON schema escape hatch or
-duplicate generated example manifests in source. SDK version is now 0.2.1.
+duplicate generated manifests in source. SDK version is now 0.2.2.
 D3.4.2 adds ARTestMetadata.targets and owned, recoverable publication. Read the
 publication section before changing build hooks. Do not bypass a failed DLL
 inspection or remove an ownership marker to force replacement of unknown files.
+D3.4.3 applies generation to all reference packages and the installed starter.
+Edit Schema/ComponentMetadata in the entry .cpp; only input test plans remain
+handwritten JSON. Shared schema IDs require identical definitions. Use unique
+instrument instance IDs and instance-local device state for repeated driver types.
 Python/.NET hosting, real driver certification and ABI 1.0 are not complete.

@@ -63,7 +63,6 @@ try {
     foreach ($exampleFile in 'ARTestSdkExample.vcxproj', 'ExampleExtension.cpp', 'ExamplePlan.json', 'ReadVoltageCommand.h', 'SimulatedSupplyDriver.h') {
         Copy-Item -LiteralPath (Join-Path $repositoryRoot "source\ARTest.SDK\examples\ARTestSdkExample\$exampleFile") -Destination $exampleTarget
     }
-    Copy-Item -LiteralPath (Join-Path $repositoryRoot 'scripts\package-extension.ps1') -Destination (Join-Path $stagingRoot 'tools\package-extension.ps1')
     Copy-Item -LiteralPath (Join-Path $repositoryRoot 'source\ARTest.SDK\distribution\ARTestSDK.props') -Destination (Join-Path $stagingRoot 'build\native\ARTestSDK.props')
     Copy-Item -LiteralPath (Join-Path $repositoryRoot 'source\ARTest.SDK\distribution\ARTestMetadata.targets') -Destination (Join-Path $stagingRoot 'build\native\ARTestMetadata.targets')
     Copy-Item -Path (Join-Path $repositoryRoot 'source\ARTest.SDK\distribution\tools\*') -Destination (Join-Path $stagingRoot 'tools')

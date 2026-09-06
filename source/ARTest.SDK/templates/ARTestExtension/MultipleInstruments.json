@@ -1,0 +1,36 @@
+{
+  "format": "ARTest.Script",
+  "version": 1,
+  "instruments": [
+    {
+      "id": "ValueSource1",
+      "type": "com.example.artest.driver.sim-value-source",
+      "config": { "initialValue": 12 }
+    },
+    {
+      "id": "ValueSource2",
+      "type": "com.example.artest.driver.sim-value-source",
+      "config": { "initialValue": 24 }
+    }
+  ],
+  "commands": [
+    {
+      "stepId": 1,
+      "name": "com.example.artest.command.read-value",
+      "instrument": "ValueSource1",
+      "params": { "factor": 2 }
+    },
+    {
+      "stepId": 2,
+      "name": "com.example.artest.command.read-value",
+      "instrument": "ValueSource2",
+      "params": { "factor": 2 }
+    },
+    {
+      "stepId": 3,
+      "name": "com.example.artest.command.read-value",
+      "instrument": "ValueSource1",
+      "params": { "factor": 2 }
+    }
+  ]
+}

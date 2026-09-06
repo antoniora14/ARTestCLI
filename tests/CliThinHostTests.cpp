@@ -11,6 +11,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include "TestSupport/ReferenceCatalog.h"
 
 namespace
 {
@@ -54,10 +55,11 @@ namespace
     [[nodiscard]] std::string CatalogPath()
     {
 #ifdef _DEBUG
-        return PathText("artifacts/extensions/x64/Debug");
+        static const artest::tests::ReferenceCatalog catalog{PathText("artifacts/extensions/x64/Debug")};
 #else
-        return PathText("artifacts/extensions/x64/Release");
+        static const artest::tests::ReferenceCatalog catalog{PathText("artifacts/extensions/x64/Release")};
 #endif
+        return catalog.Root().string();
     }
 }
 

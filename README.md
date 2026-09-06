@@ -21,11 +21,14 @@ project without repository dependencies, and runs the DLL through the Engine.
 D3.3-B now migrates all four reference packages to that public API. Small command
 and driver classes replace handwritten ABI support, with compatibility and fault
 regressions. See [the reference walkthrough](docs/sdk/reference-extensions.md).
-SDK package 0.2.1 retains Engine API 0.4 and native extension ABI 0.1.
+SDK package 0.2.2 retains Engine API 0.4 and native extension ABI 0.1.
 D3.4.1 adds [C++ metadata generation](docs/sdk/metadata-generation.md): the SDK
 example produces its manifest and schemas during its build, using one definition.
 D3.4.2 adds reusable installed-SDK build targets, Engine-backed DLL inspection,
 and inventory-owned, crash-recoverable package replacement.
+D3.4.3 applies that flow to all four reference DLLs and the installed starter.
+Developers declare package metadata in C++; handwritten package JSON is no longer
+required. The starter includes a sequence using two instances of one driver type.
 
 ## Current capabilities
 
