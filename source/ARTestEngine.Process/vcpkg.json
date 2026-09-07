@@ -1,0 +1,7 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "artest-process-runtime",
+  "version-string": "0.1.0",
+  "builtin-baseline": "21a093fd906aa328bf40559e3011d0e34a96c124",
+  "dependencies": [{ "name": "protobuf", "default-features": false }]
+}

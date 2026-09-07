@@ -267,10 +267,23 @@ The HTML generator is tested with synthetic passed, failed, and skipped cases.
 It also compares the aggregate Google Test counters with every individual test
 case. A contradictory report causes the build workflow to fail.
 
-The current Stage D3.4.2 baseline contains 180 tests across 38 suites. See
+The current D4.1 foundation contains 208 tests across 43 suites (including the
+183-test native baseline). See
 [TESTING.md](TESTING.md) for the regression procedure.
 
+The [independent native compatibility kit](docs/sdk/native-compatibility.md)
+adds frozen SDK-consumer versus candidate-Engine checks without rebuilding the
+consumer. Its separate JSON/HTML/JUnit evidence does not imply an ABI 1.0 freeze.
+
 ## Architecture and roadmap
+
+The [D4.1 process foundation](docs/architecture/stage-d4-1-process-foundation.md)
+implements the runtime-neutral seam, private process protocol and supervised C++
+test worker. The next bounded delivery is D4.2 Python host/SDK, following
+[D4 - Python/.NET](docs/architecture/stage-d4-managed-execution.md). See the
+[managed SDK prerequisites and performance guidance](docs/sdk/managed-extension-design.md).
+The initial implementation order is shared runtime seam/protocol, Python,
+.NET parity, then measured acceptance; managed execution is not shipped yet.
 
 Stage C adds robust session execution on top of the Stage B boundaries.
 ARTestCLI remains a thin composition root and console adapter while

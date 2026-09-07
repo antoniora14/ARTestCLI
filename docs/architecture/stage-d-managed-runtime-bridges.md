@@ -2,6 +2,11 @@
 
 ## Status
 
+The post-D3.4 implementation proposal is now
+[D4 - Python and .NET execution design](stage-d4-managed-execution.md).
+Use it for current process granularity, dependency policy and delivery gates.
+The examples below remain historical design sketches, not usable SDK APIs.
+
 Forward-compatible design baseline. Managed runtime hosting is planned for D4,
 after the native D1 vertical slice and ABI stabilization work. Decisions in D0
 must not make D4 require changes to command IDs, driver contracts, schemas,

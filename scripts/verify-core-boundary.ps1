@@ -5,7 +5,7 @@ $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $coreRoot = Join-Path $repositoryRoot 'source\ARTestEngine.Core'
 $coreFiles = Get-ChildItem -LiteralPath $coreRoot -Recurse -File |
     Where-Object { $_.Extension -in '.h', '.cpp', '.vcxproj' }
-$forbidden = 'ARTest.SDK|Windows.h|LoadLibrary|FakePowerSupply|FakeCanDevice|PowerOnCommand|PowerOffCommand|SendCanMessageCommand|std::cout|std::cin'
+$forbidden = 'ARTest.SDK|ARTestEngine.Process|google/protobuf|artest_process.pb|Windows.h|LoadLibrary|FakePowerSupply|FakeCanDevice|PowerOnCommand|PowerOffCommand|SendCanMessageCommand|std::cout|std::cin'
 $violations = $coreFiles | Select-String -Pattern $forbidden
 if ($violations) { throw "Core production boundary violation: $($violations -join [Environment]::NewLine)" }
 $model = Get-Content -LiteralPath (Join-Path $coreRoot 'Model\CompiledStep.h') -Raw

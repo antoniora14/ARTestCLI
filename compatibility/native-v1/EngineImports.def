@@ -1,0 +1,3 @@
+LIBRARY ARTestEngine.dll
+EXPORTS
+    ARTestEngine_QueryApi

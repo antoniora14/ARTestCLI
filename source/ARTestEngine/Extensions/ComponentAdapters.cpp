@@ -1,11 +1,10 @@
-#include "NativeComponentAdapters.h"
-#include "NativeModule.h"
+#include "ComponentAdapters.h"
 namespace artest::extensions
 {
-class NativeInstrumentAdapter final : public IInstrument
+class ExtensionInstrumentAdapter final : public IInstrument
 {
   public:
-    NativeInstrumentAdapter(std::shared_ptr<NativeExtensionRuntime> runtime,
+    ExtensionInstrumentAdapter(std::shared_ptr<IExtensionRuntime> runtime,
                             std::string typeId) noexcept
         : m_runtime(std::move(runtime)), m_typeId(std::move(typeId))
     {
@@ -60,16 +59,16 @@ class NativeInstrumentAdapter final : public IInstrument
     }
 
   private:
-    std::shared_ptr<NativeExtensionRuntime> m_runtime;
+    std::shared_ptr<IExtensionRuntime> m_runtime;
     std::string m_typeId;
     std::string m_id;
-    std::shared_ptr<NativeComponentInstance> m_component;
+    std::shared_ptr<ComponentLease> m_component;
 };
 
-class NativeCommandAdapter final : public ICommand
+class ExtensionCommandAdapter final : public ICommand
 {
   public:
-    NativeCommandAdapter(std::shared_ptr<NativeExtensionRuntime> runtime,
+    ExtensionCommandAdapter(std::shared_ptr<IExtensionRuntime> runtime,
                          std::string typeId) noexcept
         : m_runtime(std::move(runtime)), m_typeId(std::move(typeId))
     {
@@ -116,21 +115,21 @@ class NativeCommandAdapter final : public ICommand
     }
 
   private:
-    std::shared_ptr<NativeExtensionRuntime> m_runtime;
+    std::shared_ptr<IExtensionRuntime> m_runtime;
     std::string m_typeId;
     nlohmann::json m_request;
-    std::shared_ptr<NativeComponentInstance> m_component;
+    std::shared_ptr<ComponentLease> m_component;
 };
 
-std::unique_ptr<ICommand> MakeNativeCommand(std::shared_ptr<NativeExtensionRuntime> runtime,
+std::unique_ptr<ICommand> MakeExtensionCommand(std::shared_ptr<IExtensionRuntime> runtime,
                                             const std::string &typeId)
 {
-    return std::make_unique<NativeCommandAdapter>(std::move(runtime), typeId);
+    return std::make_unique<ExtensionCommandAdapter>(std::move(runtime), typeId);
 }
-std::unique_ptr<IInstrument> MakeNativeInstrument(std::shared_ptr<NativeExtensionRuntime> runtime,
+std::unique_ptr<IInstrument> MakeExtensionInstrument(std::shared_ptr<IExtensionRuntime> runtime,
                                                   const std::string &typeId)
 {
-    return std::make_unique<NativeInstrumentAdapter>(std::move(runtime), typeId);
+    return std::make_unique<ExtensionInstrumentAdapter>(std::move(runtime), typeId);
 }
 
 } // namespace artest::extensions

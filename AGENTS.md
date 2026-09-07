@@ -69,6 +69,28 @@ unless the user explicitly requests them.
 
 ## Maintenance guidance
 
+- D4.1 implements the shared foundation, not managed language execution. Read
+  docs/architecture/stage-d4-1-process-foundation.md,
+  docs/architecture/stage-d4-managed-execution.md and
+  docs/sdk/managed-extension-design.md before adding Python/.NET code.
+  Preserve IExtensionRuntime/ComponentLease and keep sequencing policy in Core/Engine.
+  ARTestEngine.Process and protobuf are private; never expose them through Core/SDK.
+  The supervisor is owner-thread/reentrant; callbacks must remain bounded.
+  Manifest v3 is a draft projection, not production catalog activation.
+  Managed workers are session/package scoped. Cross-runtime services go through
+  the Engine broker. Process termination never proves physical hardware cleanup.
+  Native-only use must not require Python/.NET. Metadata remains generated and
+  offline discovery must not execute language code or install dependencies.
+
+- Read docs/sdk/native-compatibility.md before modifying the independent kit.
+  Baseline creation and validation are separate. Never rebuild an old consumer
+  during validation or replace its baseline to hide an incompatibility.
+  SDK 0.2.1 -> current Engine checks do not prove multiple ABI-version support:
+  Engine API 0.4 and native ABI 0.1 remain experimental.
+  Run test-native-compatibility.ps1 for each explicitly supported matrix cell
+  and test-native-compatibility-guards.ps1 when changing the harness.
+  Preserve frozen baselines, old SDK packages and manual evidence during cleanup.
+
 - Preserve existing diagnostics and exit codes when adding behavior.
 - Never let C++ exceptions, STL objects, or cross-module allocation ownership
   cross a C ABI boundary.
@@ -93,7 +115,7 @@ before adding a command or Instrument Driver.
   values; never turn cancellation, cleanup or service-release failures into success.
 - Keep shutdown available after partial initialization and cancellation.
 - The SDK example catalog is isolated in `artifacts/sdk-examples`.
-- Run the full Debug/Release regressions (183 tests across 39 suites) and the SDK boundary gate.
+- Run the full Debug/Release regressions (208 tests across 43 suites) and the SDK boundary gate.
   `scripts/test-sdk-authoring.ps1` runs 64 focused tests without replacing reports.
 - Distribution/templates and external consumer verification belong to D3.3-C.
   Do not claim a published SDK or frozen ABI 1.0.

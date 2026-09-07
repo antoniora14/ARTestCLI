@@ -2,6 +2,7 @@
 #include "EngineFunctions.h"
 #include "EngineHandles.h"
 #include "EngineMarshalling.h"
+#include "../Extensions/NativeExtensionRuntime.h"
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 namespace artest::engine

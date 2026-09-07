@@ -46,6 +46,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ARTestSdkExample", "ARTest.
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ARTestSdkValidate", "ARTestSdkValidate\ARTestSdkValidate.vcxproj", "{782139A0-B28D-46AC-8107-920A64C8D701}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ARTestEngine.Process", "ARTestEngine.Process\ARTestEngine.Process.vcxproj", "{203DC804-6976-4B60-A9E8-8C93E3D437CA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -54,6 +56,12 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{203DC804-6976-4B60-A9E8-8C93E3D437CA}.Debug|x64.ActiveCfg = Debug|x64
+		{203DC804-6976-4B60-A9E8-8C93E3D437CA}.Debug|x64.Build.0 = Debug|x64
+		{203DC804-6976-4B60-A9E8-8C93E3D437CA}.Release|x64.ActiveCfg = Release|x64
+		{203DC804-6976-4B60-A9E8-8C93E3D437CA}.Release|x64.Build.0 = Release|x64
+		{203DC804-6976-4B60-A9E8-8C93E3D437CA}.Debug|x86.ActiveCfg = Debug|x64
+		{203DC804-6976-4B60-A9E8-8C93E3D437CA}.Release|x86.ActiveCfg = Release|x64
 		{782139A0-B28D-46AC-8107-920A64C8D701}.Debug|x64.ActiveCfg = Debug|x64
 		{782139A0-B28D-46AC-8107-920A64C8D701}.Debug|x64.Build.0 = Debug|x64
 		{782139A0-B28D-46AC-8107-920A64C8D701}.Release|x64.ActiveCfg = Release|x64

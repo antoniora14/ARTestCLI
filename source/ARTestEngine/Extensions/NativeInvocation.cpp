@@ -1,10 +1,10 @@
 #include "NativeRuntimeState.h"
 namespace artest::extensions
 {
-ValueResult<std::shared_ptr<NativeComponentInstance>> NativeExtensionRuntime::CreateComponent(
+ValueResult<std::shared_ptr<ComponentLease>> NativeExtensionRuntime::CreateComponent(
     const std::string &typeId, const nlohmann::json &configuration)
 {
-    ValueResult<std::shared_ptr<NativeComponentInstance>> result;
+    ValueResult<std::shared_ptr<ComponentLease>> result;
     std::pair<std::shared_ptr<NativeModule>, ComponentRecord> entry;
     {
         std::scoped_lock lock{m_implementation->catalogMutex};
@@ -53,9 +53,10 @@ ValueResult<std::shared_ptr<NativeComponentInstance>> NativeExtensionRuntime::Cr
 }
 
 OperationResult NativeExtensionRuntime::Invoke(
-    const std::shared_ptr<NativeComponentInstance> &component, const std::string &operationId,
+    const std::shared_ptr<ComponentLease> &lease, const std::string &operationId,
     const nlohmann::json &request, const CancellationToken *cancellation, nlohmann::json *response)
 {
+    const auto component = std::dynamic_pointer_cast<NativeComponentInstance>(lease);
     if (!component)
         return OperationResult::Failure("EXTENSION_COMPONENT_INVALID",
                                         "A valid extension component is required.");
@@ -134,8 +135,9 @@ OperationResult NativeExtensionRuntime::Invoke(
 }
 
 OperationResult NativeExtensionRuntime::RegisterService(
-    std::string instanceId, const std::shared_ptr<NativeComponentInstance> &component)
+    std::string instanceId, const std::shared_ptr<ComponentLease> &lease)
 {
+    const auto component = std::dynamic_pointer_cast<NativeComponentInstance>(lease);
     if (instanceId.empty() || !component)
         return OperationResult::Failure("EXTENSION_SERVICE_INVALID",
                                         "Service instance ID and component are required.");

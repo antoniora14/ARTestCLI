@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{203DC804-6976-4B60-A9E8-8C93E3D437CA}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword><WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType><PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <UseDebugLibraries Condition="'$(Configuration)'=='Debug'">true</UseDebugLibraries>
+    <UseDebugLibraries Condition="'$(Configuration)'=='Release'">false</UseDebugLibraries>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="ProcessDependencies.props" />
+  <ItemDefinitionGroup>
+    <ClCompile><LanguageStandard>stdcpp20</LanguageStandard><TreatWarningAsError>true</TreatWarningAsError><WarningLevel>Level4</WarningLevel></ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="Protocol.cpp" /><ClCompile Include="PipeChannel.cpp" />
+    <ClCompile Include="ManagedPackage.cpp" /><ClInclude Include="ManagedPackage.h" />
+    <ClCompile Include="WorkerLaunch.cpp" /><ClCompile Include="WorkerSupervisor.cpp" />
+    <ClCompile Include="$(ARTestProcessGenerated)artest_process.pb.cc"><TreatWarningAsError>false</TreatWarningAsError><WarningLevel>TurnOffAllWarnings</WarningLevel></ClCompile>
+    <ClInclude Include="Protocol.h" /><ClInclude Include="PipeChannel.h" />
+    <ClInclude Include="WorkerLaunch.h" /><ClInclude Include="WorkerSupervisor.h" />
+    <None Include="protocol\artest_process.proto" /><None Include="vcpkg.json" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="RestoreProcessDependencies" BeforeTargets="PrepareForBuild">
+    <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(ARTestProcessRoot)scripts\restore-process-dependencies.ps1&quot; -VisualStudioPath &quot;$(VSInstallDir.TrimEnd('\'))&quot;" />
+  </Target>
+  <Target Name="GenerateProcessProtocol" BeforeTargets="ClCompile" DependsOnTargets="RestoreProcessDependencies"
+          Inputs="$(ProjectDir)protocol\artest_process.proto;$(ARTestProcessDependencies)tools\protobuf\protoc.exe"
+          Outputs="$(ARTestProcessGenerated)artest_process.pb.cc;$(ARTestProcessGenerated)artest_process.pb.h">
+    <MakeDir Directories="$(ARTestProcessGenerated)" />
+    <Exec Command="&quot;$(ARTestProcessDependencies)tools\protobuf\protoc.exe&quot; --proto_path=&quot;$(ProjectDir)protocol&quot; --cpp_out=&quot;$(ARTestProcessGenerated.TrimEnd('\'))&quot; &quot;$(ProjectDir)protocol\artest_process.proto&quot;" />
+  </Target>
+</Project>

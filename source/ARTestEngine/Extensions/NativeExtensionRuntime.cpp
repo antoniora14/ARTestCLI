@@ -1,4 +1,4 @@
-#include "NativeComponentAdapters.h"
+#include "ComponentAdapters.h"
 #include "NativeModuleLoader.h"
 #include "NativeRuntimeState.h"
 namespace artest::extensions
@@ -83,10 +83,10 @@ OperationResult NativeExtensionRuntime::Refresh(const std::filesystem::path &app
         {
             if (entry.second.kind == ARTEST_COMPONENT_KIND_COMMAND)
                 commandBatch.push_back(
-                    {typeId, [self, typeId] { return MakeNativeCommand(self, typeId); }});
+                    {typeId, [self, typeId] { return MakeExtensionCommand(self, typeId); }});
             else if (entry.second.kind == ARTEST_COMPONENT_KIND_INSTRUMENT_DRIVER)
                 instrumentBatch.push_back({typeId, [self, typeId](IEventSink &) {
-                                               return MakeNativeInstrument(self, typeId);
+                                               return MakeExtensionInstrument(self, typeId);
                                            }});
         }
         std::string activeStatus = "active";

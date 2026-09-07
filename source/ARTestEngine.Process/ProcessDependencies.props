@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ARTestProcessRoot>$(MSBuildThisFileDirectory)..\..\</ARTestProcessRoot>
+    <ARTestProcessDependencies>$(ARTestProcessRoot)artifacts\vcpkg-process\artest-x64-windows-static-md\</ARTestProcessDependencies>
+    <ARTestProcessGenerated>$(ARTestProcessRoot)artifacts\obj\ARTestEngine.Process\$(Platform)\$(Configuration)\generated\</ARTestProcessGenerated>
+    <ARTestProcessLibDir>$(ARTestProcessDependencies)lib\</ARTestProcessLibDir>
+    <ARTestProcessLibDir Condition="'$(Configuration)'=='Debug'">$(ARTestProcessDependencies)debug\lib\</ARTestProcessLibDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ARTestProcessGenerated);$(ARTestProcessDependencies)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <AdditionalOptions>/external:I"$(ARTestProcessDependencies)include" %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link><AdditionalDependencies>bcrypt.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
+  </ItemDefinitionGroup>
+  <!-- Static, /MD dependencies stay private; no protobuf DLL accompanies the SDK. -->
+  <Target Name="ARTestProcessLinkDependencies" BeforeTargets="Link">
+    <ItemGroup><ARTestProcessLibrary Include="$(ARTestProcessLibDir)*.lib" /></ItemGroup>
+    <Error Condition="'@(ARTestProcessLibrary)'==''" Text="Restore/build ARTestEngine.Process before linking its consumers." />
+    <ItemGroup><Link Include="@(ARTestProcessLibrary)" /></ItemGroup>
+  </Target>
+</Project>

@@ -1,7 +1,7 @@
 #pragma once
 #include "../../ARTestEngine.Core/Catalog/ComponentCatalog.h"
 #include "../Extensions/ExtensionCatalog.h"
-#include "../Extensions/NativeExtensionRuntime.h"
+#include "../Extensions/IExtensionRuntime.h"
 #include "EngineEvents.h"
 namespace artest::engine
 {
@@ -13,7 +13,7 @@ struct EngineContext
     artest::OperationResult Prepare(const std::filesystem::path &root);
     artest::OperationResult Activate();
     EventHub events;
-    std::shared_ptr<artest::extensions::NativeExtensionRuntime> runtime;
+    std::shared_ptr<artest::extensions::IExtensionRuntime> runtime;
     artest::CommandRegistry commands;
     artest::InstrumentRegistry instruments;
     artest::ComponentCatalog catalog;

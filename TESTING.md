@@ -262,8 +262,49 @@ process returns `5`.
 
 ## Add a test
 
+For native binary compatibility, additionally follow the
+[independent compatibility kit](docs/sdk/native-compatibility.md). Its eight
+isolated scenarios and harness guards produce separate evidence, not Google
+Test counts. Run each intended candidate/consumer configuration explicitly.
+These checks require a retained, hash-verified baseline and do not run in the
+default build: rebuilding that baseline in ordinary regression would invalidate
+the old-consumer compatibility claim.
+
 1. Choose the suite that owns the changed responsibility.
 2. Name the test after observable behavior.
 3. Do not depend on physical hardware; use fake instruments or local doubles.
 4. Run Debug and Release.
 5. Confirm that the case appears in Test Explorer, XML, and HTML.
+
+## D4.1 process foundation regression
+
+The normal Debug/Release builds now run 208 Google Tests across 43 suites:
+183 existing native tests plus 25 process/protocol/managed-projection/runtime-seam
+tests. Both configurations passed, including XML/HTML consistency, ABI layout,
+SDK boundary gates and the extracted-SDK template build.
+
+For a focused rerun after building the selected configuration:
+
+~~~powershell
+& '.\artifacts\bin\x64\Debug\ARTestCLI.UnitTests.exe' '--gtest_filter=Process*:RuntimeSeam*:ManagedManifest*' '--gtest_output=xml:artifacts/test-results/x64/Debug/D41.Focused.xml'
+if ($LASTEXITCODE -ne 0) { throw 'D4.1 focused tests failed.' }
+~~~
+
+The worker is a C++ test mode of that executable, not an installed Python host.
+Cases cover wire golden bytes, malformed frames, draft manifest requirements,
+repeated calls, fragmented pipe input, nested service callbacks, cycle rejection,
+parent cancellation, new-work rejection after cancellation, stop during callbacks,
+crash/timeout, unresponsive workers, process-tree cleanup, bounded logs and
+environment/handshake isolation. Tests start and terminate only owned subprocesses.
+No hardware or Python/.NET installation is required for these checks.
+
+Also run the independent compatibility validator with the retained
+SDK 0.2.1 native-v1 x64 Release baseline against both candidate configurations.
+All eight scenarios passed in each cell after D4.1; the historical host and
+extension were not rebuilt. Reports are under each configuration's
+native-compatibility directory.
+
+See [D4.1 implementation](docs/architecture/stage-d4-1-process-foundation.md)
+for boundaries, pinned dependencies and the D4.2 installation checklist.
+This slice needs no additional manual Word report: its acceptance checks are
+automated; existing pending evidence is preserved.

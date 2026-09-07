@@ -1,4 +1,5 @@
 #pragma once
+#include "IExtensionRuntime.h"
 #include "../../ThirdParty/json.hpp"
 #include "NativeAbiSupport.h"
 #define WIN32_LEAN_AND_MEAN
@@ -39,7 +40,7 @@ struct NativeModule
     mutable std::recursive_mutex invocationMutex;
 };
 
-class NativeComponentInstance final
+class NativeComponentInstance final : public ComponentLease
 {
   public:
     NativeComponentInstance(std::shared_ptr<NativeModule> owner, ComponentRecord descriptor,
@@ -47,7 +48,7 @@ class NativeComponentInstance final
         : module(std::move(owner)), record(std::move(descriptor)), handle(value)
     {
     }
-    ~NativeComponentInstance()
+    ~NativeComponentInstance() override
     {
         if (handle != nullptr)
         {

@@ -22,6 +22,7 @@
     <UseDebugLibraries Condition="'$(Configuration)'=='Release'">false</UseDebugLibraries>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="..\source\ARTestEngine.Process\ProcessDependencies.props" />
   <Import Project="..\source\ARTest.SDK\ARTestSDK.props" />
   <PropertyGroup>
     <VcpkgRoot Condition="'$(VcpkgRoot)'==''">$(VCInstallDir)vcpkg\</VcpkgRoot>
@@ -56,6 +57,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="TestMain.cpp" />
+    <ClCompile Include="ProcessRuntimeTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
+    <ClCompile Include="TestSupport\ProcessWorker.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
+    <ClCompile Include="..\source\ARTestEngine\Extensions\ComponentAdapters.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="TestSupport\Fakes\FakePowerSupply.cpp" />
     <ClCompile Include="TestSupport\Fakes\FakeCanDevice.cpp" />
     <ClCompile Include="TestSupport\Fakes\RegisterFakeInstruments.cpp" />
@@ -92,6 +96,9 @@
     <ProjectReference Include="..\source\ARTestDrvSimCAN\ARTestDrvSimCAN.vcxproj">
       <Project>{71D6AD2B-EA35-48FC-946A-FB64CD3412D3}</Project>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+    <ProjectReference Include="..\source\ARTestEngine.Process\ARTestEngine.Process.vcxproj">
+      <Project>{203DC804-6976-4B60-A9E8-8C93E3D437CA}</Project>
     </ProjectReference>
     <ProjectReference Include="..\source\ARTestCmdHardware\ARTestCmdHardware.vcxproj">
       <Project>{6D987EB2-7D43-4CF9-BC58-654A84769812}</Project>

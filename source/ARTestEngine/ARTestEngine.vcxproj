@@ -22,6 +22,7 @@
     <UseDebugLibraries Condition="'$(Configuration)'=='Release'">false</UseDebugLibraries>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="..\ARTestEngine.Process\ProcessDependencies.props" />
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -55,8 +56,9 @@
     <ClCompile Include="Extensions\NativeExtensionRuntime.cpp" />
     <ClInclude Include="Extensions\NativeAbiSupport.h" />
     <ClInclude Include="Extensions\NativeModule.h" />
-    <ClInclude Include="Extensions\NativeComponentAdapters.h" />
-    <ClCompile Include="Extensions\NativeComponentAdapters.cpp" />
+    <ClInclude Include="Extensions\IExtensionRuntime.h" />
+    <ClInclude Include="Extensions\ComponentAdapters.h" />
+    <ClCompile Include="Extensions\ComponentAdapters.cpp" />
     <ClInclude Include="Extensions\NativeServiceBroker.h" />
     <ClInclude Include="Extensions\NativeRuntimeState.h" />
     <ClInclude Include="Extensions\NativeModuleLoader.h" />
@@ -69,6 +71,9 @@
   <ItemGroup>
     <ProjectReference Include="..\ARTestEngine.Core\ARTestEngine.Core.vcxproj">
       <Project>{A6B573A1-3A58-4F46-91C0-D2F2EAB65930}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\ARTestEngine.Process\ARTestEngine.Process.vcxproj">
+      <Project>{203DC804-6976-4B60-A9E8-8C93E3D437CA}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
