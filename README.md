@@ -1,339 +1,296 @@
+<div align="center">
+
 # ARTestCLI
 
-ARTestCLI is the command-line prototype of the ARTest test-sequencing engine.
-It loads versioned JSON scripts, validates commands and instrument bindings,
-initializes the required instruments, and executes each test step in sequence.
+### Instrument automation with a shared engine and extensible C++ and Python SDKs
 
-The project is still under active development. ARTestCLI remains a true
-thin host: every CLI command now uses the versioned C ABI exposed by
-ARTestEngine.dll. Command Plugins consume Instrument Driver services without
-linking to driver binaries, while ARTestEngine.Core remains a private static
-implementation detail of the Engine DLL.
+Build reusable test commands. Connect instrument drivers through contracts. Run sequences with explicit results and failure policies.
 
-Stage D3.3-A adds a C++20 extension authoring SDK: developers implement command
-and Instrument Driver behavior while a module-local adapter handles the C ABI.
-Start with the [SDK authoring guide](docs/sdk/extension-authoring.md) and its
-isolated, runnable example.
+![Platform: Windows x64](https://img.shields.io/badge/platform-Windows_x64-0078D4)
+![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C)
+![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB)
+![Status: Experimental](https://img.shields.io/badge/status-experimental-D97706)
 
-Stage D3.3-C packages that SDK into a self-contained Windows x64 directory and
-ZIP. Its compatibility gate extracts the archive, builds a copied extension
-project without repository dependencies, and runs the DLL through the Engine.
-D3.3-B now migrates all four reference packages to that public API. Small command
-and driver classes replace handwritten ABI support, with compatibility and fault
-regressions. See [the reference walkthrough](docs/sdk/reference-extensions.md).
-SDK package 0.3.0 retains Engine API 0.4 and native extension ABI 0.1.
+[Quick start](#quick-start) · [Develop extensions](#develop-extensions) · [Documentation](#documentation) · [Roadmap](#roadmap)
 
-D4.2 adds the isolated Python host, typed SDK, generated metadata and prepared
-environments. Start with the [Python guide](docs/sdk/python-extension-authoring.md)
-and [architecture and finding dispositions](docs/architecture/stage-d4-2-python-runtime.md).
-Python acceptance is a separate explicit gate; native-only builds need no interpreter.
-The CLI uses structured run results v2; existing hosts retain v1 unless they opt in.
-D3.4.1 adds [C++ metadata generation](docs/sdk/metadata-generation.md): the SDK
-example produces its manifest and schemas during its build, using one definition.
-D3.4.2 adds reusable installed-SDK build targets, Engine-backed DLL inspection,
-and inventory-owned, crash-recoverable package replacement.
-D3.4.3 applies that flow to all four reference DLLs and the installed starter.
-Developers declare package metadata in C++; handwritten package JSON is no longer
-required. The starter includes a sequence using two instances of one driver type.
+</div>
 
-## Current capabilities
+ARTestCLI is the command-line host for **ARTestEngine**, a test-sequencing engine for instrument automation. Define a versioned JSON test plan, validate it without opening hardware, and execute it using native C++ or isolated Python extensions.
 
-- Visual Studio 18 Insiders with the `v145` toolset and x64 targets.
-- C++20, `/W4`, standard conformance mode, and UTF-8 source compilation.
-- Canonical, versioned JSON documents using `ARTest.Script` version `1`.
-- Offline script compilation and validation without opening hardware resources.
-- Explicit instrument initialization and shutdown during execution.
-- Typed diagnostics and per-step/run results.
-- Non-zero process exit codes for invalid input, initialization failures,
-  execution failures, and unexpected exceptions.
-- Native power/CAN command packages, a Core wait intrinsic, and reserved IF.
-- Interactive step-by-step execution and command-index breakpoints.
-- Google Test regression suite with XML and validated HTML reports.
-- Reusable `ARTestEngine.Core` static library with no console dependency.
-- Typed `TestPlan`, `StepDefinition`, and `CompiledStep` models.
-- Separate JSON parser, semantic compiler, and runtime executor.
-- Injectable command and instrument registries with explicit registration.
-- Structured engine events through `IEventSink`.
-- Simulated driver DLLs for development; private test doubles for unit tests.
-- Validated execution state machine with asynchronous session ownership.
-- Cooperative Ctrl+C cancellation and per-step timeouts.
-- Per-step retry, retry-delay, and stop/continue failure policies.
-- Guaranteed reverse-order instrument cleanup with cleanup diagnostics.
-- Attempt-level, step-level, and aggregate execution reports.
-- Experimental ARTestEngine host C ABI and first-party C++ RAII facade.
-- Manifest-first catalog restricted to an explicitly approved extension root.
-- Native Command Plugin and Instrument Driver packages with opaque handles.
-- Service routing by stable instance and contract IDs.
-- ABI-safe cancellation, diagnostics, result sinks, cleanup, and module unload.
-- ARTestEngine API 0.2 detailed compilation reports and host-controlled sessions.
-- ARTestEngine API 0.3 side-effect-free catalog validation and report schema v2.
-- Manifest schema, path-containment, duplicate-ID, and optional SHA-256 checks.
-- Failure-contained catalog activation plus `extensions list|validate|doctor`.
-- API 0.4 metadata-only preparation, typed schemas, and data-only compiled plans.
-- Fresh per-session native instances and owner-token atomic factory registration.
-- Unified compile/run/debug/break with an optional --extensions root.
-- API 0.1, 0.2 and 0.3 table-size negotiation retained for compatibility tests.
-- Thin-host enforcement in MSBuild and Google Test; ARTestCLI cannot reference Core.
-- Legacy compile, run, debug, break, output, and exit-code contracts preserved.
-- C++ Command/InstrumentDriver authoring with typed Parameters, Result and Context.
-- Explicit extension registration and generated ABI adapters without global registries.
-- Local deterministic SDK tests plus real Engine/DLL integration and fault tests.
-- Versioned SDK directory/ZIP with SHA-256 inventory and third-party notices.
-- Runnable external extension template and installed-SDK compatibility gate.
+This repository contains the Engine, CLI, developer SDKs, reference commands, simulated drivers, and regression tooling. It is the execution foundation intended for future integration with **ARTestStudio**, the visual diagram editor.
 
-The extension ABI remains experimental at version 0.1, and the Engine host API
-is experimental at version 0.4. No 1.0 stability promise has been made. Production hardware
-drivers, managed runtime hosts, parallel execution, and persistent report files
-remain later-stage work.
+> **Development preview.** C++ and Python execution are implemented; .NET is next. Public contracts remain experimental. The included instrument drivers are simulations, not production hardware drivers.
 
-## Requirements
+## Why ARTest?
 
-- Windows x64.
-- Visual Studio 18 Insiders with the Desktop development with C++ workload.
-- Default installation path:
+- **Reusable commands, replaceable drivers.** Commands request an instrument contract instead of linking to a vendor DLL. A compatible driver can support the same command for a different instrument model.
+- **Choose C++ or Python.** Use native extensions for low-overhead integration, or Python for automation libraries and rapid development. Commands and drivers can call across both runtimes through Engine services.
+- **Declare metadata once.** Package manifests and parameter schemas are generated from code. Developers still author test plans and deployment configuration; they do not maintain duplicate command/driver JSON metadata.
+- **Validate before execution.** Offline compilation checks the plan, schemas, command IDs, and instrument bindings without initializing devices or starting Python.
+- **Keep verdicts meaningful.** A failed measurement is different from a communication error. Structured results preserve measurements, attempts, step status, and the overall outcome.
+- **Make failure behavior explicit.** Cancellation, deadlines, retry policies, and cleanup diagnostics are part of execution. Indeterminate external effects block automatic retry and continuation.
 
-  ```text
-  D:\Program Files\Microsoft Visual Studio\18\Insiders
-  ```
+## Quick start
 
-- vcpkg integration available through Visual Studio/MSBuild. The repository
-  manifest restores Google Test automatically.
+### 1. Prepare the build environment
 
-## Repository layout
+| Requirement | Current baseline |
+| --- | --- |
+| Operating system | Windows x64 |
+| C++ toolchain | Visual Studio 18 Insiders, Desktop development with C++, MSVC v145 and Windows SDK |
+| Language | C++20 |
+| Dependencies | Visual Studio vcpkg integration; build-time restoration of Google Test and process/protobuf dependencies |
+| Python — optional | Standard GIL-enabled CPython 3.13 x64, only for Python extensions |
 
-| Path | Purpose |
-|---|---|
-| `source/ARTestEngine.Core/` | Private parser, metadata compiler, executor, models, intrinsics, events, and registries |
-| `source/ARTestEngine/` | Public Engine DLL, native catalog, loader, and runtime adapter |
-| `source/ARTest.SDK/` | C ABI, C++ host facade and C++ extension authoring SDK |
-| `source/ARTest.SDK/examples/ARTestSdkExample/` | Isolated SDK command/driver example |
-| `source/ARTest.SDK/templates/ARTestExtension/` | External installed-SDK starter project |
-| `source/ARTestCmdSample/` | Reference native Command Plugin |
-| `source/ARTestDrvSimPower/` | Reference simulated Instrument Driver |
-| `source/ARTestCmdHardware/` | Power and CAN commands using driver services |
-| `source/ARTestDrvSimCAN/` | Simulated CAN Instrument Driver |
-| `tests/TestSupport/Fakes/` | Test-only C++ instrument doubles |
-| `source/ARTestCLI/` | Thin command-line host and console adapters |
-| `source/Scripts/` | Versioned sample test plans |
-| `tests/` | Google Test project and characterization tests |
-| `scripts/` | Reproducible build, report, and manual-test tooling |
-| `docs/architecture/` | Architecture decisions and stage boundaries |
-| `docs/sdk/` | Extension developer tutorial and AI authoring checklist |
-| `quality/manual-tests/` | Manual regression fixtures and local evidence templates |
-| `artifacts/` | Local binaries and generated reports; excluded from Git |
+Native-only execution does **not** require a Python interpreter or a .NET runtime. The initial dependency restore requires network access.
 
-The Visual Studio solution is located at:
+From PowerShell:
 
-```text
-source\ARTestCLI.sln
+```powershell
+git clone https://github.com/antoniora14/ARTestCLI.git
+Set-Location ARTestCLI
+.\scripts\build.ps1 -Configuration Release -Platform x64
 ```
 
-## Build and test
+The build script defaults to Visual Studio at:
 
-Run the following commands from the repository root:
+```text
+D:\Program Files\Microsoft Visual Studio\18\Insiders
+```
+
+If your installation is elsewhere, pass its actual path:
+
+```powershell
+.\scripts\build.ps1 -Configuration Release -Platform x64 -VisualStudioPath 'C:\Program Files\Microsoft Visual Studio\18\Insiders'
+```
+
+Prefer the IDE? Open [source/ARTestCLI.sln](source/ARTestCLI.sln), select **Release | x64**, and build the solution. The PowerShell workflow additionally runs the automated acceptance gates. [build.cmd](build.cmd) exposes that workflow with a console that stays open.
+
+### 2. Run your first simulated sequence
+
+No physical equipment is needed. The [sample plan](source/Scripts/ExtensionScript.json) uses a native command and simulated power supply.
+
+```powershell
+$cli = '.\artifacts\bin\x64\Release\ARTestCLI.exe'
+$catalog = '.\artifacts\extensions\x64\Release'
+$plan = '.\source\Scripts\ExtensionScript.json'
+
+& $cli extensions validate $catalog
+& $cli compile $plan --extensions $catalog
+& $cli run $plan --extensions $catalog
+$LASTEXITCODE
+```
+
+Expected: offline compilation confirms that no instruments were initialized; execution initializes the simulator, runs the power-cycle command, attempts shutdown, and finishes with status **passed** and exit code **0**.
+
+### 3. Try Python — optional
+
+After the native build, set the absolute path to your supported interpreter:
+
+```powershell
+$python = 'C:\Path\To\Python313\python.exe' # Replace with your actual path.
+.\scripts\prepare-python-example.ps1 -Python $python -IncludeFaultTests
+
+$pythonCatalog = '.\artifacts\python\extensions'
+$mapping = '.\artifacts\python\environments\python-environments.json'
+$pythonPlan = '.\source\ARTest.Python\examples\PythonMeasurement.json'
+
+& $cli compile $pythonPlan --extensions $pythonCatalog
+& $cli extension-run $pythonPlan $pythonCatalog --python-environments $mapping
+$LASTEXITCODE
+```
+
+Preparation generates metadata and creates isolated environments with pinned dependencies; it does not install packages globally. The optional fault-test package stays outside the normal example catalog.
+
+The example measures a simulated **5.0 V** against a **4.8 V** minimum and returns **passed**, with the measurement preserved in the final JSON. Results are printed to the terminal, not automatically saved as run-report files.
+
+See the [Python guide](docs/sdk/python-extension-authoring.md) for dependency locks, package creation, environment mappings, and rebuilding changed packages into a new output root. Python 3.7 and free-threaded builds are not supported.
+
+## Develop extensions
+
+An extension can provide commands, instrument drivers, or both:
+
+| Component | Responsibility | Example |
+| --- | --- | --- |
+| Test command | Express a test action or measurement and its verdict | Power cycle, voltage check, CAN transmission |
+| Instrument driver | Implement a device contract and manage its resources | Power supply or CAN interface |
+| Test plan | Select instances, parameters, step order, and failure policies | Use PS1 in one step and PS2 in the next |
+
+A single driver type can back multiple configured instrument IDs. A command selects an instance through its step binding; reuse depends on the driver's **contract and behavior**, not just matching vendor names. This does not imply parallel sequence execution.
+
+### C++ authoring
+
+Derive from SDK Command or InstrumentDriver classes. Use typed parameters and call-scoped Context services; SDK adapters handle the C ABI boundary.
+
+A command can request a measurement without knowing the driver's DLL:
+
+```cpp
+auto response = context.CallInstrument(
+    "artest.contract.instrument.power-supply.v1",
+    "artest.instrument.power-supply.v1/read-state",
+    {{"channel", parameters.Get<int>("channel")}});
+
+if (!response)
+    return response;
+```
+
+This is an excerpt from a command, not a complete extension. Start with the [runnable C++ example](source/ARTest.SDK/examples/ARTestSdkExample/) and [authoring tutorial](docs/sdk/extension-authoring.md). For a separate repository or workstation, use the [installed SDK starter](docs/sdk/sdk-distribution.md).
+
+The native build generates metadata, validates it against the DLL, and publishes an inventory-checked package. See [metadata generation and publication](docs/sdk/metadata-generation.md).
+
+### Python authoring
+
+Implement async command/driver methods, declare parameters with dataclasses, and register components in a metadata-only definition function. The host manages communication and lifecycle.
+
+A measurement command returns a verdict with its data:
+
+```python
+return Result.verdict(
+    measured >= 4.8,
+    {"value": measured, "unit": "V", "minimum": 4.8},
+    "artest.schema.measurement.voltage.v1",
+    "Voltage minimum check",
+)
+```
+
+This is an excerpt from an execute method. The [complete simulated extension](source/ARTest.Python/examples/simulated/extension.py) shows registration, parameter declarations, service calls, and driver shutdown.
+
+Start with the [Python authoring guide](docs/sdk/python-extension-authoring.md). Use cooperative waits and bounded vendor I/O; do not detach hardware work or retain a call's Context.
+
+## How the pieces fit
+
+```mermaid
+flowchart TD
+    CLI["ARTestCLI — command-line host"] --> ENGINE["ARTestEngine.dll — public host API"]
+    ENGINE --> CORE["Private Core — parse, compile, sequence, policy"]
+    ENGINE --> RUNTIME["Extension runtime and instrument service broker"]
+    RUNTIME --> NATIVE["Native C++ commands and drivers"]
+    RUNTIME <-->|Supervised IPC| PYTHON["Python worker — host, SDK and extensions"]
+```
+
+The CLI is a thin host: it uses the public Engine API and does not link to Core. The Engine owns catalog activation and cross-runtime service routing. Core owns sequencing and execution policy; Python and protocol types stay out of its interfaces.
+
+Native extensions run in-process. Python uses one worker per package per session, reused across steps. See the [current Python architecture](docs/architecture/stage-d4-2-python-runtime.md) for ownership, cleanup, result compatibility, and outstanding integration findings.
+
+### Know the boundaries
+
+- **Performance:** Python interpretation, serialization, and IPC add overhead. Native C++ or batched driver operations are better fits for frequent small transactions. No hard-real-time guarantee or measured latency ratio is claimed.
+- **Safety:** native cancellation is cooperative. An unresponsive Python worker can be terminated, but process termination cannot prove physical equipment is safe or powered off.
+- **Trust:** package hashes and isolated environments detect changes and separate dependencies. They are not publisher signatures or a security sandbox.
+- **Stability:** native SDK **0.3.0**, Python SDK **0.1.0**, Engine API **0.4**, and native ABI **0.1** are experimental. Compatibility tests are not an ABI 1.0 freeze.
+
+## Validation and test evidence
+
+The **D4.2 acceptance baseline** has 210 passing native Google Tests and 17 passing Python integration tests in each of Debug and Release. It also includes 8 Python SDK tests, plus 8 frozen-native-consumer compatibility checks in each native build configuration. These are recorded acceptance results, not a live CI badge.
 
 ```powershell
 .\scripts\build.ps1 -Configuration Debug -Platform x64
 .\scripts\build.ps1 -Configuration Release -Platform x64
+
+# Requires the prepared environments, including -IncludeFaultTests.
+.\scripts\test-python-runtime.ps1 -Configuration Debug
+.\scripts\test-python-runtime.ps1 -Configuration Release
 ```
 
-The default Visual Studio installation path can be overridden:
+Native runs deliberately leave the 17 Python integration cases disabled; the explicit Python gate executes them and fails if prerequisites are missing. Do not count skipped cases as passes.
 
-```powershell
-.\scripts\build.ps1 `
-    -Configuration Debug `
-    -Platform x64 `
-    -VisualStudioPath 'D:\CustomPath\Microsoft Visual Studio\18\Insiders'
-```
-
-To build without executing Google Test:
-
-```powershell
-.\scripts\build.ps1 -Configuration Debug -Platform x64 -SkipTests
-```
-
-`build.cmd` provides the same workflow and keeps its console window open so
-the result can be reviewed.
-
-Build outputs are written to:
+Reports are generated under:
 
 ```text
-artifacts\bin\<Platform>\<Configuration>\
+artifacts/test-results/x64/<Debug|Release>/
+    ARTestCLI.UnitTests.xml
+    ARTestCLI.UnitTests.html
+    ARTestPython.Integration.xml
+    ARTestPython.Integration.html
 ```
 
-## Command-line usage
+The HTML generator checks individual outcomes against aggregate counters. Full builds also exercise ABI contracts, SDK boundaries, and installed SDK consumers. The [native compatibility kit](docs/sdk/native-compatibility.md) checks frozen consumers without rebuilding them.
+
+See [TESTING.md](TESTING.md) for regression procedures and the [D4.2 manual report](quality/manual-tests/ARTestCLI_Stage_D4_2_Manual_Test_Report.docx) for submitted acceptance evidence.
+
+## Documentation
+
+| I want to… | Start here |
+| --- | --- |
+| Write a C++ command or driver | [C++ authoring guide](docs/sdk/extension-authoring.md) |
+| Write a Python command or driver | [Python authoring guide](docs/sdk/python-extension-authoring.md) |
+| Build outside this repository | [Native SDK distribution and starter](docs/sdk/sdk-distribution.md) |
+| Understand generated package metadata | [Metadata generation](docs/sdk/metadata-generation.md) |
+| Learn from reference drivers and commands | [Reference walkthrough](docs/sdk/reference-extensions.md) |
+| Report measurements and failures correctly | [Results and verdicts](docs/sdk/result-verdicts.md) |
+| Develop with an AI coding agent | [Maintainer context](AGENTS.md) and [extension authoring checklist](docs/sdk/ai-extension-authoring.md) |
+| Integrate an Engine host | [Host API design](docs/architecture/stage-d-engine-api-v0.md) and [public C++ facade](source/ARTest.SDK/include/ARTestEngineClient.h) |
+
+<details>
+<summary><strong>CLI reference</strong></summary>
+
+Run from the repository root, using the variables from the quick start:
 
 ```powershell
-$cli = '.\artifacts\bin\x64\Debug\ARTestCLI.exe'
-
 & $cli help
-& $cli compile '.\source\Scripts\TestScript.json'
-& $cli run     '.\source\Scripts\TestScript.json'
-& $cli debug   '.\source\Scripts\TestScript.json'
-& $cli break   '.\source\Scripts\TestScript.json' 0 2
-& $cli extension-run '.\source\Scripts\ExtensionScript.json' '.\artifacts\extensions\x64\Debug'
-& $cli extensions validate '.\artifacts\extensions\x64\Debug'
-& $cli extensions doctor   '.\artifacts\extensions\x64\Debug'
+& $cli debug $plan --extensions $catalog
+& $cli break $plan 0 --extensions $catalog
+& $cli extensions list $catalog
+& $cli extensions doctor $catalog
 ```
 
-| Command | Behavior |
-|---|---|
-| `help` | Displays CLI usage |
-| `compile` | Parses and validates the complete script without initializing instruments |
-| `run` | Initializes instruments and executes the complete sequence |
-| `debug` | Pauses before every command and accepts next, continue, or quit |
-| `break` | Pauses at the supplied zero-based command indexes |
-| `extension-run` | Loads an approved catalog and executes through ARTestEngine.dll |
-| `extensions list` | Safely validates manifests and prints a package summary |
-| `extensions validate` | Emits the catalog v2 report without loading extension code |
-| `extensions doctor` | Runs validation, DLL/ABI inspection, and atomic activation |
+- compile validates without initializing instruments.
+- run executes the sequence; debug pauses before each command.
+- break uses zero-based positions in the commands array, not stepId values.
+- extensions list and validate inspect metadata without executing extension code.
+- extensions doctor activates and inspects a catalog; it is not an offline metadata-only operation.
+- Ctrl+C requests cooperative cancellation.
 
-Breakpoint arguments currently refer to positions in the `commands` array,
-starting at zero. They do not refer to the script's `stepId` values.
-
-## Script format
-
-Every script must use the canonical root object:
-
-```json
-{
-  "format": "ARTest.Script",
-  "version": 1,
-  "instruments": [
-    {
-      "type": "PowerSupply",
-      "id": "PS1",
-      "config": {
-        "model": "Example supply",
-        "hw-rsrc": "GPIB0::2::INSTR"
-      }
-    }
-  ],
-  "commands": [
-    {
-      "stepId": 1,
-      "name": "PowerSupply.TurnOn",
-      "instrument": "PS1",
-      "params": {
-        "channel": 1,
-        "voltage": 12.0,
-        "currentLimit": 3.0
-      },
-      "policy": {
-        "maxAttempts": 3,
-        "retryDelayMs": 250,
-        "timeoutMs": 5000,
-        "onFailure": "stop"
-      }
-    }
-  ]
-}
-```
-
-The loader rejects malformed JSON, unsupported versions, files larger than
-4 MiB, duplicate identifiers, unknown commands, missing instrument bindings,
-and invalid command parameters. Validation is atomic: an invalid definition
-prevents the entire sequence from running.
-
-The optional `policy` object is backward compatible with existing version 1
-scripts. Its defaults are one attempt, no retry delay, no timeout, and stop on
-failure. `maxAttempts` must be from 1 through 100; delay and timeout values are
-non-negative milliseconds; `onFailure` is either `stop` or `continue`.
-
-Cancellation and timeout are cooperative. Commands receive a cancellation
-token and must observe it during long-running operations. The built-in wait
-command wakes immediately on cancellation or timeout. The engine does not
-detach command threads or forcibly terminate driver code because doing so could
-leave physical instruments in an unsafe state.
-
-## Exit codes
-
-| Code | Meaning |
-|---:|---|
-| 0 | Operation completed successfully |
-| 2 | Invalid command-line arguments |
+| Exit code | Meaning |
+| ---: | --- |
+| 0 | Success |
+| 2 | Invalid CLI arguments |
 | 3 | Invalid script or configuration |
-| 4 | Instrument initialization failed |
-| 5 | Sequence execution failed |
-| 10 | Unexpected failure contained at the process boundary |
+| 4 | Instrument initialization failure |
+| 5 | Unsuccessful sequence execution |
+| 6 | Invalid extension catalog or failed activation/preparation |
+| 10 | Unexpected failure or Engine API operation failure |
 
-These codes are part of the CLI automation contract and can be consumed by
-PowerShell, CI systems, or a future ARTestStudio process adapter.
+Test plans use ARTest.Script version 1. See the [native sample](source/Scripts/ExtensionScript.json), [Python sample](source/ARTest.Python/examples/PythonMeasurement.json), and [schema profile](docs/architecture/schema-profile-v1.md). Per-step policies support maxAttempts, retryDelayMs, timeoutMs, and onFailure. Indeterminate effects override retry/continue requests.
 
-## Automated test reports
+</details>
 
-Each build with tests enabled generates:
+<details>
+<summary><strong>Repository map</strong></summary>
 
-```text
-artifacts\test-results\<Platform>\<Configuration>\ARTestCLI.UnitTests.xml
-artifacts\test-results\<Platform>\<Configuration>\ARTestCLI.UnitTests.html
-```
+| Path | Purpose |
+| --- | --- |
+| source/ARTestCLI/ | Thin command-line host |
+| source/ARTestEngine/ | Engine DLL, catalog, runtime coordination, service broker |
+| source/ARTestEngine.Core/ | Private models, parser, compiler, executor, policy |
+| source/ARTestEngine.Process/ | Private process supervision and protocol |
+| source/ARTest.SDK/ | Native SDK, host facade, examples and external starter |
+| source/ARTest.Python/ | Python SDK, host, tooling and simulated example |
+| source/ARTestCmd*/ and source/ARTestDrv*/ | Native reference commands and simulated drivers |
+| source/Scripts/ | Sample test plans |
+| tests/ and scripts/ | Regression, build, packaging and verification tooling |
+| docs/ and quality/manual-tests/ | Developer documentation and manual acceptance evidence |
+| artifacts/ | Generated local outputs; excluded from Git |
 
-The HTML generator is tested with synthetic passed, failed, and skipped cases.
-It also compares the aggregate Google Test counters with every individual test
-case. A contradictory report causes the build workflow to fail.
+</details>
 
-The D4.1 baseline contained 208 tests across 43 suites (including the
-183-test native baseline). See
-[TESTING.md](TESTING.md) for the regression procedure.
+## Roadmap
 
-The [independent native compatibility kit](docs/sdk/native-compatibility.md)
-adds frozen SDK-consumer versus candidate-Engine checks without rebuilding the
-consumer. Its separate JSON/HTML/JUnit evidence does not imply an ABI 1.0 freeze.
+| Milestone | Status |
+| --- | --- |
+| Native SDK, generated metadata and independent compatibility kit | Implemented |
+| D4.2 — Python host, SDK and cross-runtime execution | Implemented; automated and manual acceptance recorded |
+| D4.3 — .NET host and SDK | Next |
+| D4.4 — Deployment, compatibility, soak and performance acceptance | Planned |
+| ARTestStudio integration | Planned after the pre-integration gates |
 
-## Architecture and roadmap
+Outstanding findings include public subscription/session-close semantics, complete offline catalog descriptors, stable diagnostic correlation, and long-running host validation. Their disposition is tracked in the [D4.2 architecture record](docs/architecture/stage-d4-2-python-runtime.md#planning-findings-before-arteststudio).
 
-The [D4.1 process foundation](docs/architecture/stage-d4-1-process-foundation.md)
-implements the runtime-neutral seam, private process protocol and supervised C++
-test worker. The next bounded delivery is D4.2 Python host/SDK, following
-[D4 - Python/.NET](docs/architecture/stage-d4-managed-execution.md). See the
-[managed SDK prerequisites and performance guidance](docs/sdk/managed-extension-design.md).
-The initial implementation order is shared runtime seam/protocol, Python,
-.NET parity, then measured acceptance; managed execution is not shipped yet.
+Remote workers, hot reload, parallel sequence execution, and production hardware certification are outside the current implementation.
 
-Stage C adds robust session execution on top of the Stage B boundaries.
-ARTestCLI remains a thin composition root and console adapter while
-`ARTestEngine.Core` owns state, policy evaluation, cancellation, reporting, and
-cleanup orchestration.
+## Community and project status
 
-See
-[Stage B - ARTestEngine.Core](docs/architecture/stage-b-engine-core.md)
-for the current architecture boundary, dependency rules, and deferred decisions.
-See also
-[Stage C - Robust execution](docs/architecture/stage-c-robust-execution.md)
-and
-[Stage D3.1 - Production extension catalog](docs/architecture/stage-d3-production-catalog.md)
-for the extension discovery, integrity, and activation baseline.
-The current boundaries are documented in
-[Stage D3.2 - Offline compilation and session ownership](docs/architecture/stage-d3-2-offline-compilation.md)
-and [Schema Profile 1](docs/architecture/schema-profile-v1.md).
+Feedback on SDK usability, reproducible bug reports, and small simulated examples are especially useful at this stage. When reporting a problem, include the commit, toolchain/runtime versions, reproduction steps, expected versus actual behavior, and relevant diagnostics. Remove credentials and sensitive device details from shared logs.
 
-[Stage D3.3-A - C++ extension authoring](docs/architecture/stage-d3-3a-extension-authoring.md)
-adds a friendly API without changing Engine API 0.4 or native ABI 0.1.
-Use the [developer tutorial](docs/sdk/extension-authoring.md) and
-[AI authoring checklist](docs/sdk/ai-extension-authoring.md).
+Before proposing a new driver or contract, review the authoring guides and existing reference packages. Keep hardware-specific behavior in drivers, test intent in commands, and sequencing policy in the Engine.
 
-[Stage D3.3-B - Reference migration](docs/architecture/stage-d3-3b-reference-migration.md)
-documents the migrated DLLs, preserved contracts and intentional input hardening.
-Use its [manual acceptance protocol](quality/manual-tests/stage-d3.3b/README.md)
-to record real evidence; manual acceptance remains pending.
-
-[Stage D3.3-C - SDK distribution](docs/architecture/stage-d3-3c-sdk-distribution.md)
-defines the package layout and external-consumer gate. Use the
-[distribution guide](docs/sdk/sdk-distribution.md) to create or verify the ZIP.
-This completes distribution mechanics, not ABI 1.0 or public-release readiness.
-
-Stage D1 implements the first trusted-native vertical slice. The extension
-platform uses a versioned C ABI for native DLLs and preserves isolated runtime
-bridges for future Python and .NET packages. See
-[Stage D - Extension platform](docs/architecture/stage-d-extension-platform.md),
-[Engine host API 0.x](docs/architecture/stage-d-engine-api-v0.md),
-[Native ABI 0.x](docs/architecture/stage-d-native-abi-v0.md), and
-[Managed runtime bridges](docs/architecture/stage-d-managed-runtime-bridges.md).
-The implemented slice and current limitations are recorded in
-[Stage D1 - Native vertical slice](docs/architecture/stage-d1-native-vertical-slice.md).
-
-Stage D2 removes the final direct dependency from ARTestCLI to
-ARTestEngine.Core. The public API now supports structured offline compilation
-and synchronous before-step control callbacks for debugger-style hosts. See
-[Stage D2 - Thin-host migration](docs/architecture/stage-d2-thin-host-migration.md).
