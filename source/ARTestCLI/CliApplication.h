@@ -30,6 +30,7 @@ namespace artest::cli
         std::istream& m_input;
         std::ostream& m_output;
         std::ostream& m_error;
+        std::string m_pythonEnvironments;
 
         [[nodiscard]] int RunExtensionCommand(const std::vector<std::string>& arguments);
         [[nodiscard]] int RunCatalogCommand(const std::vector<std::string>& arguments);

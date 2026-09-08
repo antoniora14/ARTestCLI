@@ -1,37 +1,37 @@
 #include "../../ARTestEngine.Core/Catalog/SchemaValidator.h"
 #include "CatalogValidation.h"
 #include <fstream>
+
 namespace artest::extensions
 {
-void ValidateComponent(const nlohmann::json &component, artest::extensions::CatalogPackage &package,
-                       std::set<std::string> &packageTypes)
-{
-    if (!component.is_object())
+    void ValidateComponent(const nlohmann::json &component, artest::extensions::CatalogPackage &package, std::set<std::string> &packageTypes)
+    {
+        if (!component.is_object())
     {
         AddPackageDiagnostic(package, "EXTENSION_COMPONENT_INVALID",
                              "Every component declaration must be a JSON object.");
         return;
     }
-
-    if (!HasOnlyProperties(component,
-                           {"kind", "typeId", "contractId", "version", "displayName", "description",
+    
+        if (!HasOnlyProperties(component,
+                               {"kind", "typeId", "contractId", "version", "displayName", "description",
                             "capabilities", "requires", "schemas", "flags", "aliases"}))
-        AddPackageDiagnostic(package, "EXTENSION_COMPONENT_PROPERTY_UNKNOWN",
-                             "A component contains a property outside the manifest schema.");
-
-    const auto kind = StringValue(component, "kind");
-    const auto typeId = StringValue(component, "typeId");
-    const auto contractId = StringValue(component, "contractId");
-    const auto version = StringValue(component, "version");
-    artest::ComponentDescriptor typed;
-    typed.kind = kind == "command"            ? artest::ComponentKind::Command
-                 : kind == "instrumentDriver" ? artest::ComponentKind::InstrumentDriver
-                                              : artest::ComponentKind::Tool;
-    typed.typeId = typeId;
-    typed.contractId = contractId;
-    typed.version = version;
-    typed.displayName = StringValue(component, "displayName");
-    const auto readStrings = [&](const char *key, std::vector<std::string> &target) {
+            AddPackageDiagnostic(package, "EXTENSION_COMPONENT_PROPERTY_UNKNOWN",
+                                 "A component contains a property outside the manifest schema.");
+    
+        const auto kind = StringValue(component, "kind");
+        const auto typeId = StringValue(component, "typeId");
+        const auto contractId = StringValue(component, "contractId");
+        const auto version = StringValue(component, "version");
+        artest::ComponentDescriptor typed;
+        typed.kind = kind == "command"            ? artest::ComponentKind::Command
+                     : kind == "instrumentDriver" ? artest::ComponentKind::InstrumentDriver
+                                                  : artest::ComponentKind::Tool;
+        typed.typeId = typeId;
+        typed.contractId = contractId;
+        typed.version = version;
+        typed.displayName = StringValue(component, "displayName");
+        const auto readStrings = [&](const char *key, std::vector<std::string> &target) {
         if (!component.contains(key))
             return;
         if (!component[key].is_array())
@@ -52,21 +52,21 @@ void ValidateComponent(const nlohmann::json &component, artest::extensions::Cata
                 target.push_back(value.get<std::string>());
         }
     };
-    readStrings("aliases", typed.aliases);
-    readStrings("capabilities", typed.capabilities);
-    readStrings("flags", typed.flags);
-    for (const auto &flag : typed.flags)
-        if (flag != "simulated" && flag != "requiresHardware")
-            AddPackageDiagnostic(package, "EXTENSION_FLAG_INVALID", "Unsupported component flag.",
-                                 typeId);
-    if (!typed.aliases.empty() && UnsignedValue(package.manifest, "schemaVersion", 0U) < 2U)
-        AddPackageDiagnostic(package, "EXTENSION_ALIAS_VERSION_INVALID",
-                             "Aliases require manifest schemaVersion 2.", typeId);
-    for (const auto &capability : typed.capabilities)
-        if (!IsStableId(capability))
-            AddPackageDiagnostic(package, "EXTENSION_CAPABILITY_INVALID",
-                                 "Capability IDs must be stable IDs.", typeId);
-    if (component.contains("requires"))
+        readStrings("aliases", typed.aliases);
+        readStrings("capabilities", typed.capabilities);
+        readStrings("flags", typed.flags);
+        for (const auto &flag : typed.flags)
+            if (flag != "simulated" && flag != "requiresHardware")
+                AddPackageDiagnostic(package, "EXTENSION_FLAG_INVALID", "Unsupported component flag.",
+                                     typeId);
+        if (!typed.aliases.empty() && UnsignedValue(package.manifest, "schemaVersion", 0U) < 2U)
+            AddPackageDiagnostic(package, "EXTENSION_ALIAS_VERSION_INVALID",
+                                 "Aliases require manifest schemaVersion 2.", typeId);
+        for (const auto &capability : typed.capabilities)
+            if (!IsStableId(capability))
+                AddPackageDiagnostic(package, "EXTENSION_CAPABILITY_INVALID",
+                                     "Capability IDs must be stable IDs.", typeId);
+        if (component.contains("requires"))
     {
         if (!component["requires"].is_array())
             AddPackageDiagnostic(package, "EXTENSION_REQUIREMENT_INVALID",
@@ -85,27 +85,27 @@ void ValidateComponent(const nlohmann::json &component, artest::extensions::Cata
                     typed.requiredContracts.push_back(StringValue(requirement, "contractId"));
             }
     }
-    if (kind != "command" && kind != "instrumentDriver" && kind != "tool")
-        AddPackageDiagnostic(package, "EXTENSION_COMPONENT_KIND_INVALID",
-                             "Component kind must be command, instrumentDriver, or tool.");
-    if (!IsStableId(typeId))
-        AddPackageDiagnostic(package, "EXTENSION_COMPONENT_ID_INVALID",
-                             "Component typeId must be a lower-case stable identifier.");
-    else if (!packageTypes.emplace(typeId).second)
-        AddPackageDiagnostic(package, "EXTENSION_COMPONENT_DUPLICATE",
-                             "A component typeId is declared more than once in the package.",
-                             typeId);
-    if (!IsStableId(contractId))
-        AddPackageDiagnostic(package, "EXTENSION_CONTRACT_ID_INVALID",
-                             "Component contractId must be a lower-case stable identifier.");
-    if (!IsSemanticVersion(version))
-        AddPackageDiagnostic(package, "EXTENSION_COMPONENT_VERSION_INVALID",
-                             "Component version must use semantic versioning.", typeId);
-    if (StringValue(component, "displayName").empty())
-        AddPackageDiagnostic(package, "EXTENSION_COMPONENT_DISPLAY_NAME_INVALID",
-                             "Component displayName must be a non-empty string.", typeId);
-
-    if (component.contains("schemas"))
+        if (kind != "command" && kind != "instrumentDriver" && kind != "tool")
+            AddPackageDiagnostic(package, "EXTENSION_COMPONENT_KIND_INVALID",
+                                 "Component kind must be command, instrumentDriver, or tool.");
+        if (!IsStableId(typeId))
+            AddPackageDiagnostic(package, "EXTENSION_COMPONENT_ID_INVALID",
+                                 "Component typeId must be a lower-case stable identifier.");
+        else if (!packageTypes.emplace(typeId).second)
+            AddPackageDiagnostic(package, "EXTENSION_COMPONENT_DUPLICATE",
+                                 "A component typeId is declared more than once in the package.",
+                                 typeId);
+        if (!IsStableId(contractId))
+            AddPackageDiagnostic(package, "EXTENSION_CONTRACT_ID_INVALID",
+                                 "Component contractId must be a lower-case stable identifier.");
+        if (!IsSemanticVersion(version))
+            AddPackageDiagnostic(package, "EXTENSION_COMPONENT_VERSION_INVALID",
+                                 "Component version must use semantic versioning.", typeId);
+        if (StringValue(component, "displayName").empty())
+            AddPackageDiagnostic(package, "EXTENSION_COMPONENT_DISPLAY_NAME_INVALID",
+                                 "Component displayName must be a non-empty string.", typeId);
+    
+        if (component.contains("schemas"))
     {
         if (!component["schemas"].is_array())
         {
@@ -176,11 +176,12 @@ void ValidateComponent(const nlohmann::json &component, artest::extensions::Cata
             }
         }
     }
-    if (UnsignedValue(package.manifest, "schemaVersion", 0U) >= 2U &&
-        !typed.Schema(typed.kind == artest::ComponentKind::Command ? "parameters"
-                                                                   : "configuration"))
-        AddPackageDiagnostic(package, "EXTENSION_SCHEMA_REQUIRED",
-                             "Manifest v2 requires the compilation schema.", typeId);
-    package.descriptor.components.push_back(std::move(typed));
-}
+        if (UnsignedValue(package.manifest, "schemaVersion", 0U) >= 2U &&
+            !typed.Schema(typed.kind == artest::ComponentKind::Command ? "parameters"
+                                                                       : "configuration"))
+            AddPackageDiagnostic(package, "EXTENSION_SCHEMA_REQUIRED",
+                                 "Manifest v2 requires the compilation schema.", typeId);
+        package.descriptor.components.push_back(std::move(typed));
+    }
+
 } // namespace artest::extensions

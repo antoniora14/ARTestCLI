@@ -108,10 +108,10 @@ If a data object contains message, it must be a string. Data() is optional:
 check it before reading a service response. Message() also exposes a successful
 message directly, without requiring JSON access.
 
-A Result is an operation status, not a measurement verdict. Engine API 0.4
-preserves command messages in run reports; arbitrary data fields are not yet
-mapped into persistent step measurements. Do not invent a PASS/FAIL payload
-convention that the Engine does not interpret.
+SDK 0.3.0 adds Result::TestVerdict(passed, data, schemaId, message) for explicit
+measurement verdicts. WithData still reports technical success; the Engine does
+not infer verdicts from arbitrary fields. Opt in to resultSchemaVersion 2 to
+retain structured step/attempt data. See [result contracts](result-verdicts.md).
 
 ## 5. Respect lifetimes, cancellation and cleanup
 

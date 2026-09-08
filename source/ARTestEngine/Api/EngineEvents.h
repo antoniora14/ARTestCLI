@@ -4,6 +4,7 @@
 #include "EngineMarshalling.h"
 #include <mutex>
 #include <unordered_map>
+
 namespace artest::engine
 {
 class EventHub final : public artest::IEventSink
@@ -78,8 +79,7 @@ class HostExecutionControl final : public artest::IExecutionControl
     {
     }
 
-    [[nodiscard]] artest::ExecutionDecision BeforeStep(
-        const artest::StepExecutionInfo &step) override
+    [[nodiscard]] artest::ExecutionDecision BeforeStep(const artest::StepExecutionInfo &step) override
     {
         if (m_options.before_step == nullptr)
             return artest::ExecutionDecision::Continue;

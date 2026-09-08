@@ -88,6 +88,17 @@ TEST(SdkResultTests, ExplicitSchemaIsOwnedAndValidated)
     EXPECT_THROW((void)Result::WithData(Json::object(), ""), std::invalid_argument);
     EXPECT_THROW((void)Result::WithData(Json::object(), std::string{"bad\0id", 6}), std::invalid_argument);
 }
+TEST(SdkResultTests, MeasurementFailureIsDistinctFromInvocationFailure)
+{
+    const auto result = Result::TestVerdict(false, {{"value", 4.2}, {"unit", "V"}, {"minimum", 4.8}},
+        "artest.schema.measurement.voltage.v1", "Below the minimum.");
+    EXPECT_TRUE(result);
+    EXPECT_EQ(result.SchemaId(), "artest.schema.command-result.v1");
+    ASSERT_TRUE(result.Data());
+    EXPECT_EQ(result.Data()->at("verdict"), "failed");
+    EXPECT_EQ(result.Data()->at("data").at("value"), 4.2);
+    EXPECT_THROW((void)Result::TestVerdict(true, Json::object(), ""), std::invalid_argument);
+}
 
 TEST(SdkAuthoringTests, CommandBehaviorIsTestableWithoutEngineOrDll)
 {

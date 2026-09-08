@@ -205,6 +205,30 @@ TEST(ExecutionPolicyTests, RetriesUntilTheStepPasses)
     EXPECT_EQ(run.summary.totalAttempts, 2U);
     EXPECT_EQ(sink.Count(EngineEventKind::StepRetryScheduled), 1U);
 }
+TEST(ExecutionPolicyTests, IndeterminateEffectsBlockRetryAndContinue)
+{
+    auto uncertain = StepResult::Error("Worker died after a possible effect.");
+    uncertain.indeterminate = true;
+    uncertain.dataSchema = "test.effect.v1";
+    uncertain.data = {{"effect", "unknown"}};
+    auto first = std::make_unique<ResultSequenceCommand>(std::vector<StepResult>{uncertain, StepResult::Pass()});
+    auto *observed = first.get();
+    RuntimeStep step{1, first->Name(), std::move(first)};
+    step.policy.maxAttempts = 4;
+    step.policy.onFailure = FailureAction::Continue;
+    std::vector<RuntimeStep> steps;
+    steps.push_back(std::move(step));
+    steps.push_back({2, "next", std::make_unique<ResultSequenceCommand>(std::vector<StepResult>{StepResult::Pass()})});
+    RecordingEventSink sink;
+    const auto run = TestExecutor{sink}.Execute(steps);
+    EXPECT_EQ(observed->Executions(), 1U);
+    EXPECT_EQ(run.summary.totalAttempts, 1U);
+    EXPECT_EQ(run.summary.skippedSteps, 1U);
+    EXPECT_EQ(sink.Count(EngineEventKind::StepRetryScheduled), 0U);
+    ASSERT_EQ(run.steps.size(), 1U);
+    EXPECT_TRUE(run.steps[0].result.indeterminate);
+    EXPECT_EQ(run.steps[0].attempts[0].result.data["effect"], "unknown");
+}
 
 TEST(ExecutionPolicyTests, ContinuePolicyExecutesFollowingStepsAndPreservesFailure)
 {

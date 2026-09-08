@@ -1,10 +1,12 @@
 #pragma once
 #include "../../ARTestEngine.Core/Execution/ExecutionSession.h"
 #include "EngineContext.h"
+
 struct ARTestEngineOpaque
 {
     std::unique_ptr<artest::engine::EngineContext> value;
 };
+
 struct ARTestCompiledPlanOpaque
 {
     artest::engine::EngineContext *owner = nullptr;
@@ -12,11 +14,13 @@ struct ARTestCompiledPlanOpaque
     std::vector<artest::CompiledStep> steps;
     std::uint64_t revision = 0;
 };
+
 struct ARTestSubscriptionOpaque
 {
     artest::engine::EngineContext *owner = nullptr;
     std::uint64_t id = 0U;
 };
+
 struct ARTestSessionOpaque
 {
     artest::engine::EngineContext *owner = nullptr;
@@ -28,7 +32,9 @@ struct ARTestSessionOpaque
     std::optional<artest::RunResult> result;
     std::mutex mutex;
 };
+
 struct ARTestResultOpaque
 {
     artest::RunResult value;
+    int schemaVersion = 1;
 };

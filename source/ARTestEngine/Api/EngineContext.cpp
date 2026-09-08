@@ -2,15 +2,17 @@
 #include "EngineFunctions.h"
 #include "EngineHandles.h"
 #include "EngineMarshalling.h"
-#include "../Extensions/NativeExtensionRuntime.h"
+#include "../Extensions/ExtensionRuntime.h"
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+
 namespace artest::engine
 {
 EngineContext::EngineContext()
-    : runtime(std::make_shared<artest::extensions::NativeExtensionRuntime>(events))
+    : runtime(std::make_shared<artest::extensions::ExtensionRuntime>(events))
 {
 }
+
 artest::OperationResult EngineContext::Initialize(bool discoverDefault)
 {
     auto result = artest::RegisterIntrinsicCommands(commands);
@@ -108,8 +110,8 @@ artest::OperationResult EngineContext::Activate()
     }
     return result;
 }
-ARTestStatus ARTEST_ABI_CALL CreateEngine(const ARTestPayloadView *configuration,
-                                          ARTestEngineHandle *output, ARTestErrorBuffer *error)
+
+ARTestStatus ARTEST_ABI_CALL CreateEngine(const ARTestPayloadView *configuration, ARTestEngineHandle *output, ARTestErrorBuffer *error)
 {
     if (output == nullptr)
     {
@@ -126,6 +128,11 @@ ARTestStatus ARTEST_ABI_CALL CreateEngine(const ARTestPayloadView *configuration
             throw std::invalid_argument("Engine configuration must be an object.");
         auto engine = std::make_unique<ARTestEngineOpaque>();
         engine->value = std::make_unique<EngineContext>();
+        engine->value->runtime->Configure(options);
+        const auto schemaVersion = options.value("resultSchemaVersion", 1);
+        if (schemaVersion != 1 && schemaVersion != 2)
+            throw std::invalid_argument("resultSchemaVersion must be 1 or 2.");
+        engine->value->resultSchemaVersion = schemaVersion;
         const auto initialized =
             engine->value->Initialize(options.value("loadDefaultCatalog", true));
         if (!initialized.Succeeded())

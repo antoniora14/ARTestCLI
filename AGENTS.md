@@ -20,7 +20,8 @@ stage-specific architecture documents before changing a public contract.
 - Engine host API: experimental `0.4`. API additions are append-only.
 - Native extension ABI: experimental `0.1`.
 - Script document: `ARTest.Script` version `1`.
-- Extension manifest: version `2` for new packages; version `1` discovery remains supported.
+- Extension manifest: native versions `1`/`2`; Python uses managed version `3`.
+  .NET activation is not implemented yet.
 - Catalog report: `artest.schema.extension-catalog.v2`.
 - Do not claim ABI `1.0` stability until external consumer compatibility has
   been validated and a formal freeze decision is recorded.
@@ -69,14 +70,16 @@ unless the user explicitly requests them.
 
 ## Maintenance guidance
 
-- D4.1 implements the shared foundation, not managed language execution. Read
+- D4.2 implements Python hosting on the D4.1 shared foundation. Read
+  docs/architecture/stage-d4-2-python-runtime.md and docs/sdk/python-extension-authoring.md,
+  then
   docs/architecture/stage-d4-1-process-foundation.md,
   docs/architecture/stage-d4-managed-execution.md and
   docs/sdk/managed-extension-design.md before adding Python/.NET code.
   Preserve IExtensionRuntime/ComponentLease and keep sequencing policy in Core/Engine.
   ARTestEngine.Process and protobuf are private; never expose them through Core/SDK.
   The supervisor is owner-thread/reentrant; callbacks must remain bounded.
-  Manifest v3 is a draft projection, not production catalog activation.
+  Manifest v3 activates validated Python packages with an explicitly prepared environment.
   Managed workers are session/package scoped. Cross-runtime services go through
   the Engine broker. Process termination never proves physical hardware cleanup.
   Native-only use must not require Python/.NET. Metadata remains generated and
@@ -115,7 +118,13 @@ before adding a command or Instrument Driver.
   values; never turn cancellation, cleanup or service-release failures into success.
 - Keep shutdown available after partial initialization and cancellation.
 - The SDK example catalog is isolated in `artifacts/sdk-examples`.
-- Run the full Debug/Release regressions (208 tests across 43 suites) and the SDK boundary gate.
+- Run the full Debug/Release regressions and the SDK boundary gate.
+  Also run scripts/test-python-runtime.ps1 in both configurations for D4 work.
+  Its explicitly enabled optional suite requires prepared environments; do not
+  count native-only runs as Python acceptance. Keep fault packages under tests.
+  Result::TestVerdict / Result.verdict share a measurement envelope. Engine defaults
+  to legacy result v1; opt in to resultSchemaVersion 2 for structured outcomes.
+  Never retry or continue after an indeterminate external effect.
   `scripts/test-sdk-authoring.ps1` runs 64 focused tests without replacing reports.
 - Distribution/templates and external consumer verification belong to D3.3-C.
   Do not claim a published SDK or frozen ABI 1.0.

@@ -1,0 +1,12 @@
+{
+  "format": "ARTest.Script",
+  "version": 1,
+  "instruments": [
+    {"type": "com.artest.python.driver.power", "id": "PythonPower1", "config": {}}
+  ],
+  "commands": [
+    {"stepId": 1, "name": "com.artest.python.command.measure-voltage",
+     "instrument": "PythonPower1", "params": {"voltage": 5.0, "minimum": 4.8},
+     "policy": {"maxAttempts": 1, "timeoutMs": 2000, "onFailure": "stop"}}
+  ]
+}

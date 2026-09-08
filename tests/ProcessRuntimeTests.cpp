@@ -337,7 +337,7 @@ class TestRuntime final : public artest::extensions::IExtensionRuntime
     }
     artest::OperationResult Invoke(const std::shared_ptr<artest::extensions::ComponentLease> &,
         const std::string &operation, const nlohmann::json &, const artest::CancellationToken *,
-        nlohmann::json *) override
+        artest::extensions::InvocationOutput *) override
     {
         operations.push_back(operation);
         return failInitialize && operation == "artest.lifecycle.initialize.v1"

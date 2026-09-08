@@ -1,21 +1,23 @@
 #include "NativeModuleLoader.h"
 #include <algorithm>
 #include <set>
+
 namespace artest::extensions
 {
-LoadedCatalog LoadNativeModules(CatalogScan &scan, const ARTestHostApiV0 &hostApi)
-{
-    LoadedCatalog candidate;
-    auto &loaded = candidate.modules;
-    auto &types = candidate.types;
-    const auto addFailure = [](CatalogPackage &package, std::string code, std::string message,
-                               const std::filesystem::path &location) {
+    LoadedCatalog LoadNativeModules(CatalogScan &scan, const ARTestHostApiV0 &hostApi)
+    {
+        LoadedCatalog candidate;
+        auto &loaded = candidate.modules;
+        auto &types = candidate.types;
+        const auto addFailure = [](CatalogPackage &package, std::string code, std::string message,
+                                   const std::filesystem::path &location) {
         package.diagnostics.push_back(
             {DiagnosticSeverity::Error, std::move(code), std::move(message), location.string()});
     };
-
-    for (auto &package : scan.packages)
+    
+        for (auto &package : scan.packages)
     {
+        if (package.descriptor.runtime.kind != "native") continue;
         auto module = std::make_shared<NativeModule>();
         module->packageRoot = package.packageRoot;
         module->manifest = package.manifest;
@@ -164,7 +166,7 @@ LoadedCatalog LoadNativeModules(CatalogScan &scan, const ARTestHostApiV0 &hostAp
         if (!descriptorFailure)
             loaded.push_back(std::move(module));
     }
-    return candidate;
-}
+        return candidate;
+    }
 
 } // namespace artest::extensions

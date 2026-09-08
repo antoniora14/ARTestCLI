@@ -1,4 +1,4 @@
-# ARTest SDK 0.2.2
+# ARTest SDK 0.3.0
 
 This is the experimental C++20 SDK for trusted native ARTest extensions.
 It targets Windows x64 and Visual Studio 18 Insiders with the v145 toolset.
@@ -17,7 +17,7 @@ Machine-local SDK location, loaded before the SDK imports:
 ```xml
 <Project>
   <PropertyGroup>
-    <ARTestSDKRoot>D:\SDKs\ARTestSDK-0.2.2-windows-x64</ARTestSDKRoot>
+    <ARTestSDKRoot>D:\SDKs\ARTestSDK-0.3.0-windows-x64</ARTestSDKRoot>
   </PropertyGroup>
 </Project>
 ```
@@ -29,7 +29,7 @@ and MSVC runtime; the SDK itself does not require the repository.
 
 From Developer PowerShell:
 
-    $sdk = 'D:\SDKs\ARTestSDK-0.2.2-windows-x64'
+    $sdk = 'D:\SDKs\ARTestSDK-0.3.0-windows-x64'
     $project = '.\ARTestExtensionStarter\ARTestExtensionStarter.vcxproj'
     msbuild $project /p:Configuration=Release /p:Platform=x64 "/p:ARTestSDKRoot=$sdk"
 

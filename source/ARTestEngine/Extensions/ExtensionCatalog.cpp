@@ -2,6 +2,7 @@
 #include "../../ARTestEngine.Core/Catalog/ComponentCatalog.h"
 #include "CatalogValidation.h"
 #include "FileIntegrity.h"
+#include "ManagedIntegrity.h"
 #include <fstream>
 #include <sstream>
 #include <unordered_map>
@@ -71,13 +72,16 @@ CatalogScan ExtensionCatalog::Discover(const std::filesystem::path &approvedRoot
             const auto &manifest = current.manifest;
             if (!HasOnlyProperties(manifest, {"schemaVersion", "extensionId", "displayName",
                                               "version", "publisher", "description", "runtime",
-                                              "components", "integrity"}))
+                                              "components", "integrity", "inventory"}))
                 AddPackageDiagnostic(current, "EXTENSION_MANIFEST_PROPERTY_UNKNOWN",
                                      "The manifest contains a property outside schemaVersion 1.");
             current.extensionId = StringValue(manifest, "extensionId");
+            if (manifest.contains("inventory") && UnsignedValue(manifest, "schemaVersion", 0U) != 3U)
+                AddPackageDiagnostic(current, "EXTENSION_MANIFEST_PROPERTY_UNKNOWN", "inventory requires managed manifest v3.");
             current.version = StringValue(manifest, "version");
             if (UnsignedValue(manifest, "schemaVersion", UINT32_MAX) != 1U &&
-                UnsignedValue(manifest, "schemaVersion", UINT32_MAX) != 2U)
+                UnsignedValue(manifest, "schemaVersion", UINT32_MAX) != 2U &&
+                UnsignedValue(manifest, "schemaVersion", UINT32_MAX) != 3U)
                 AddPackageDiagnostic(current, "EXTENSION_SCHEMA_VERSION_UNSUPPORTED",
                                      "Only extension manifest schemaVersion 1 or 2 is supported.");
             if (!IsStableId(current.extensionId))
@@ -121,17 +125,18 @@ CatalogScan ExtensionCatalog::Discover(const std::filesystem::path &approvedRoot
                 const auto &runtime = manifest["runtime"];
                 if (!HasOnlyProperties(runtime,
                                        {"kind", "entry", "entryPoint", "isolation", "architecture",
-                                        "abi", "protocol", "python", "targetFramework"}))
+                                        "abi", "protocol", "python", "targetFramework", "runtimeVersion", "dependencyLock"}))
                     AddPackageDiagnostic(
                         current, "EXTENSION_RUNTIME_PROPERTY_UNKNOWN",
                         "The runtime contains a property outside the manifest schema.");
-                if (StringValue(runtime, "kind") != "native" ||
+                const bool managed = UnsignedValue(manifest, "schemaVersion", 0U) == 3U;
+                if (!managed && (StringValue(runtime, "kind") != "native" ||
                     StringValue(runtime, "isolation") != "inProcess" ||
                     StringValue(runtime, "architecture") != "x64" || !runtime.contains("abi") ||
                     !runtime["abi"].is_object() ||
                     UnsignedValue(runtime["abi"], "major", UINT32_MAX) !=
                         ARTEST_EXTENSION_ABI_MAJOR ||
-                    UnsignedValue(runtime["abi"], "minor", UINT32_MAX) > ARTEST_EXTENSION_ABI_MINOR)
+                    UnsignedValue(runtime["abi"], "minor", UINT32_MAX) > ARTEST_EXTENSION_ABI_MINOR))
                 {
                     AddPackageDiagnostic(
                         current, "EXTENSION_RUNTIME_INCOMPATIBLE",
@@ -156,11 +161,22 @@ CatalogScan ExtensionCatalog::Discover(const std::filesystem::path &approvedRoot
                 current.entryPath = entryPath;
                 if (entry.empty() || entryRelative.is_absolute() ||
                     !IsContained(current.packageRoot, entryPath) ||
-                    !std::filesystem::is_regular_file(entryPath))
+                    !(managed ? std::filesystem::is_directory(entryPath) : std::filesystem::is_regular_file(entryPath)))
                 {
                     AddPackageDiagnostic(
                         current, "EXTENSION_ENTRY_INVALID",
                         "The runtime entry must be an existing file inside its package.");
+                }
+                if (managed)
+                {
+                    try
+                    {
+                        (void)ValidateManagedPackage(current);
+                        current.integrityStatus = "verified";
+                        current.descriptor.integrity.contentSha256 = Sha256(current.manifestPath);
+                    }
+                    catch (const std::exception &error)
+                    { AddPackageDiagnostic(current, "MANAGED_PACKAGE_INVALID", error.what()); }
                 }
             }
 

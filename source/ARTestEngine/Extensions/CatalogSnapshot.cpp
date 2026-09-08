@@ -1,6 +1,7 @@
 #include "../../ARTest.SDK/include/ARTestExtensionAbi.h"
 #include "ExtensionCatalog.h"
 #include <algorithm>
+
 namespace artest::extensions
 {
 [[nodiscard]] std::string SeverityName(artest::DiagnosticSeverity severity)
@@ -63,8 +64,7 @@ bool CatalogScan::IsValid() const noexcept
     });
 }
 
-nlohmann::json CatalogScan::ToJson(std::string status, std::uint64_t generation,
-                                   const nlohmann::json &activeExtensions) const
+nlohmann::json CatalogScan::ToJson(std::string status, std::uint64_t generation, const nlohmann::json &activeExtensions) const
 {
     nlohmann::json value{
         {"schema", "artest.schema.extension-catalog.v2"},

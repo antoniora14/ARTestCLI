@@ -21,7 +21,13 @@ project without repository dependencies, and runs the DLL through the Engine.
 D3.3-B now migrates all four reference packages to that public API. Small command
 and driver classes replace handwritten ABI support, with compatibility and fault
 regressions. See [the reference walkthrough](docs/sdk/reference-extensions.md).
-SDK package 0.2.2 retains Engine API 0.4 and native extension ABI 0.1.
+SDK package 0.3.0 retains Engine API 0.4 and native extension ABI 0.1.
+
+D4.2 adds the isolated Python host, typed SDK, generated metadata and prepared
+environments. Start with the [Python guide](docs/sdk/python-extension-authoring.md)
+and [architecture and finding dispositions](docs/architecture/stage-d4-2-python-runtime.md).
+Python acceptance is a separate explicit gate; native-only builds need no interpreter.
+The CLI uses structured run results v2; existing hosts retain v1 unless they opt in.
 D3.4.1 adds [C++ metadata generation](docs/sdk/metadata-generation.md): the SDK
 example produces its manifest and schemas during its build, using one definition.
 D3.4.2 adds reusable installed-SDK build targets, Engine-backed DLL inspection,
@@ -267,7 +273,7 @@ The HTML generator is tested with synthetic passed, failed, and skipped cases.
 It also compares the aggregate Google Test counters with every individual test
 case. A contradictory report causes the build workflow to fail.
 
-The current D4.1 foundation contains 208 tests across 43 suites (including the
+The D4.1 baseline contained 208 tests across 43 suites (including the
 183-test native baseline). See
 [TESTING.md](TESTING.md) for the regression procedure.
 

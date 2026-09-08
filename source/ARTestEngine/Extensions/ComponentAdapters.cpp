@@ -1,11 +1,17 @@
 #include "ComponentAdapters.h"
+
 namespace artest::extensions
 {
 class ExtensionInstrumentAdapter final : public IInstrument
 {
-  public:
-    ExtensionInstrumentAdapter(std::shared_ptr<IExtensionRuntime> runtime,
-                            std::string typeId) noexcept
+private:
+    std::shared_ptr<IExtensionRuntime> m_runtime;
+    std::string m_typeId;
+    std::string m_id;
+    std::shared_ptr<ComponentLease> m_component;
+
+public:
+    ExtensionInstrumentAdapter(std::shared_ptr<IExtensionRuntime> runtime, std::string typeId) noexcept
         : m_runtime(std::move(runtime)), m_typeId(std::move(typeId))
     {
     }
@@ -58,27 +64,27 @@ class ExtensionInstrumentAdapter final : public IInstrument
         return result;
     }
 
-  private:
-    std::shared_ptr<IExtensionRuntime> m_runtime;
-    std::string m_typeId;
-    std::string m_id;
-    std::shared_ptr<ComponentLease> m_component;
 };
 
 class ExtensionCommandAdapter final : public ICommand
 {
-  public:
-    ExtensionCommandAdapter(std::shared_ptr<IExtensionRuntime> runtime,
-                         std::string typeId) noexcept
+private:
+    std::shared_ptr<IExtensionRuntime> m_runtime;
+    std::string m_typeId;
+    nlohmann::json m_request;
+    std::shared_ptr<ComponentLease> m_component;
+
+public:
+    ExtensionCommandAdapter(std::shared_ptr<IExtensionRuntime> runtime, std::string typeId) noexcept
         : m_runtime(std::move(runtime)), m_typeId(std::move(typeId))
     {
     }
+    
     [[nodiscard]] std::string Name() const override
     {
         return m_typeId;
     }
-    [[nodiscard]] OperationResult Configure(const nlohmann::json &parameters,
-                                            std::shared_ptr<IInstrument> instrument) override
+    [[nodiscard]] OperationResult Configure(const nlohmann::json &parameters, std::shared_ptr<IInstrument> instrument) override
     {
         m_request = {{"parameters", parameters},
                      {"instrumentId", instrument ? instrument->GetId() : std::string{}}};
@@ -96,38 +102,55 @@ class ExtensionCommandAdapter final : public ICommand
         return m_runtime->Invoke(m_component, "artest.component.validate.v1", m_request, nullptr,
                                  nullptr);
     }
-    [[nodiscard]] StepResult Execute(ExecutionContext &,
-                                     const CancellationToken &cancellation) override
+    [[nodiscard]] StepResult Execute(ExecutionContext &, const CancellationToken &cancellation) override
     {
-        nlohmann::json response;
+        InvocationOutput response;
         const auto result = m_runtime->Invoke(m_component, "artest.command.execute.v1", m_request,
                                               &cancellation, &response);
         if (result.Succeeded())
-            return StepResult::Pass(
-                response.value("message", std::string{"Extension command passed."}));
+        {
+            const auto &data = response.data;
+            auto step = StepResult::Pass(data.is_object()
+                ? data.value("message", std::string{"Extension command passed."}) : "Extension command passed.");
+            step.data = data;
+            step.dataSchema = response.schemaId;
+            if (response.schemaId == "artest.schema.command-result.v1")
+            {
+                if (!data.is_object() || !data.contains("verdict") || !data["verdict"].is_string() ||
+                    !data.contains("data") || !data.contains("dataSchema") || !data["dataSchema"].is_string() ||
+                    data["dataSchema"].get<std::string>().empty() ||
+                    (data["verdict"] != "passed" && data["verdict"] != "failed"))
+                    return StepResult::Error("EXTENSION_RESULT_INVALID: malformed command verdict.");
+                step.status = data["verdict"] == "passed" ? StepStatus::Passed : StepStatus::Failed;
+                step.data = data["data"];
+                step.dataSchema = data["dataSchema"];
+            }
+            return step;
+        }
         const auto message = result.diagnostics.empty() ? std::string{"Extension command failed."}
                                                         : result.diagnostics.front().message;
+        for (const auto &diagnostic : result.diagnostics)
+            if (diagnostic.code == "EXTENSION_OUTCOME_INDETERMINATE")
+            {
+                auto step = StepResult::Error(diagnostic.code + ": " + message);
+                step.indeterminate = true;
+                return step;
+            }
         if (cancellation.IsTimedOut())
             return StepResult::Timeout(message);
         if (cancellation.IsCancellationRequested())
             return StepResult::Cancel(message);
         return StepResult::Error(message);
     }
-
-  private:
-    std::shared_ptr<IExtensionRuntime> m_runtime;
-    std::string m_typeId;
-    nlohmann::json m_request;
-    std::shared_ptr<ComponentLease> m_component;
+  
 };
 
-std::unique_ptr<ICommand> MakeExtensionCommand(std::shared_ptr<IExtensionRuntime> runtime,
-                                            const std::string &typeId)
+std::unique_ptr<ICommand> MakeExtensionCommand(std::shared_ptr<IExtensionRuntime> runtime, const std::string &typeId)
 {
     return std::make_unique<ExtensionCommandAdapter>(std::move(runtime), typeId);
 }
-std::unique_ptr<IInstrument> MakeExtensionInstrument(std::shared_ptr<IExtensionRuntime> runtime,
-                                                  const std::string &typeId)
+
+std::unique_ptr<IInstrument> MakeExtensionInstrument(std::shared_ptr<IExtensionRuntime> runtime, const std::string &typeId)
 {
     return std::make_unique<ExtensionInstrumentAdapter>(std::move(runtime), typeId);
 }

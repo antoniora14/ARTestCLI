@@ -226,11 +226,11 @@ namespace artest
 
                 if (cancellation.IsCancellationRequested())
                 {
-                    attemptResult = StepResult::Cancel();
+                    attemptResult.status = StepStatus::Cancelled;
                 }
                 else if (attemptToken.IsTimedOut())
                 {
-                    attemptResult = StepResult::Timeout();
+                    attemptResult.status = StepStatus::TimedOut;
                 }
 
                 const auto attemptDuration = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -239,6 +239,7 @@ namespace artest
                 record.result = attemptResult;
 
                 if (attemptResult.Succeeded()
+                    || attemptResult.indeterminate
                     || attemptResult.status == StepStatus::Cancelled
                     || attempt >= maximumAttempts)
                 {
@@ -288,6 +289,7 @@ namespace artest
             {
                 run.failureKind = RunFailureKind::Execution;
                 if (finalStatus == StepStatus::Cancelled
+                    || run.steps.back().result.indeterminate
                     || step.policy.onFailure == FailureAction::Stop)
                 {
                     break;

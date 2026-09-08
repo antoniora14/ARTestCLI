@@ -92,9 +92,7 @@ namespace artest::sdk
             return Start();
         }
 
-        [[nodiscard]] ClientStatus ValidateCatalog(
-            const std::string& approvedRoot,
-            std::string& reportJson)
+        [[nodiscard]] ClientStatus ValidateCatalog(const std::string& approvedRoot, std::string& reportJson)
         {
             reportJson.clear();
             if (m_engine == nullptr) return InvalidState("The engine was not created.");

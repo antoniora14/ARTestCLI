@@ -33,7 +33,8 @@ namespace artest
             InstrumentManager& instruments,
             IEventSink& eventSink,
             IExecutionControl& executionControl,
-            std::function<OperationResult()> prepareRuntime);
+            std::function<OperationResult()> prepareRuntime,
+            std::function<OperationResult()> finishRuntime = {});
         ~ExecutionSession();
 
         ExecutionSession(const ExecutionSession&) = delete;
@@ -55,6 +56,7 @@ namespace artest
         CommandRegistry* m_commands = nullptr;
         std::size_t m_plannedSteps = 0;
         std::function<OperationResult()> m_prepareRuntime;
+        std::function<OperationResult()> m_finishRuntime;
         [[nodiscard]] OperationResult BindCommands();
         InstrumentManager& m_instruments;
         IEventSink& m_eventSink;

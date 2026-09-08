@@ -1,6 +1,7 @@
 #include "EngineMarshalling.h"
 #include <algorithm>
 #include <stdexcept>
+
 namespace artest::engine
 {
 [[nodiscard]] std::string ToString(ARTestStringView value)
@@ -119,7 +120,7 @@ void SetError(ARTestErrorBuffer *error, const std::string &message) noexcept
     return result;
 }
 
-[[nodiscard]] nlohmann::json SerializeResult(const artest::RunResult &value)
+[[nodiscard]] nlohmann::json SerializeResult(const artest::RunResult &value, int schemaVersion)
 {
     nlohmann::json result{{"schema", "artest.schema.run-result.v1"},
                           {"status", RunStatusText(value.status)},
@@ -139,26 +140,38 @@ void SetError(ARTestErrorBuffer *error, const std::string &message) noexcept
                           {"steps", nlohmann::json::array()}};
     for (const auto &diagnostic : value.diagnostics)
         result["diagnostics"].push_back(SerializeDiagnostic(diagnostic));
+    if (schemaVersion == 2) result["schema"] = "artest.schema.run-result.v2";
     for (const auto &step : value.steps)
     {
         nlohmann::json item{{"stepId", step.stepId},
                             {"command", step.commandName},
                             {"status", StepStatusText(step.result.status)},
                             {"message", step.result.message},
+                            {"outcome", {{"schema", "artest.schema.step-outcome.v1"},
+                                         {"indeterminate", step.result.indeterminate},
+                                         {"dataSchema", step.result.dataSchema}, {"data", step.result.data}}},
                             {"durationMs", step.duration.count()},
                             {"attempts", nlohmann::json::array()}};
         for (const auto &attempt : step.attempts)
             item["attempts"].push_back({{"attempt", attempt.attempt},
                                         {"status", StepStatusText(attempt.result.status)},
                                         {"message", attempt.result.message},
+                                        {"outcome", {{"schema", "artest.schema.step-outcome.v1"},
+                                                     {"indeterminate", attempt.result.indeterminate},
+                                                     {"dataSchema", attempt.result.dataSchema}, {"data", attempt.result.data}}},
                                         {"durationMs", attempt.duration.count()}});
+        if (schemaVersion == 1)
+        {
+            // Existing hosts keep the exact v1 shape, including strict JSON validators.
+            item.erase("outcome");
+            for (auto &attempt : item["attempts"]) attempt.erase("outcome");
+        }
         result["steps"].push_back(std::move(item));
     }
     return result;
 }
 
-[[nodiscard]] ARTestStatus WriteJson(const nlohmann::json &value, const ARTestResultSinkV0 *sink,
-                                     ARTestErrorBuffer *error)
+[[nodiscard]] ARTestStatus WriteJson(const nlohmann::json &value, const ARTestResultSinkV0 *sink, ARTestErrorBuffer *error)
 {
     if (sink == nullptr || sink->struct_size < sizeof(ARTestResultSinkV0) || sink->write == nullptr)
     {

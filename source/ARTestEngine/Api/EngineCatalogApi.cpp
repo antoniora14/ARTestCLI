@@ -1,6 +1,7 @@
 #include "EngineFunctions.h"
 #include "EngineHandles.h"
 #include "EngineMarshalling.h"
+
 namespace artest::engine
 {
 ARTestStatus ARTEST_ABI_CALL RefreshCatalog(ARTestEngineHandle engine,

@@ -1,6 +1,9 @@
 # ARTest C++ extension authoring SDK
 
-Experimental SDK 0.2.2 - generated metadata and safe build publication.
+Experimental SDK 0.3.0 - generated metadata, safe publication and explicit test verdicts.
+
+See [result contracts](../../docs/sdk/result-verdicts.md) and the separate
+[Python SDK](../ARTest.Python/README.md). Engine API 0.4 and native ABI 0.1 are unchanged.
 
 The SDK example, four reference packages and installed starter generate their
 manifests and schemas from C++.

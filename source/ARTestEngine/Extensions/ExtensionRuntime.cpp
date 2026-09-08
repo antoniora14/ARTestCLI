@@ -1,15 +1,29 @@
 #include "ComponentAdapters.h"
 #include "NativeModuleLoader.h"
-#include "NativeRuntimeState.h"
+#include "ExtensionRuntimeState.h"
 namespace artest::extensions
 {
-NativeExtensionRuntime::NativeExtensionRuntime(IEventSink &eventSink)
+ExtensionRuntime::ExtensionRuntime(IEventSink &eventSink)
     : m_implementation(std::make_unique<Implementation>(eventSink))
 {
+    m_implementation->broker.invoke = [this](const auto &component, auto operation, auto request,
+        auto invocation, auto sink, auto error) {
+        return InvokeAbi(component, operation, request, invocation, sink, error);
+    };
 }
-NativeExtensionRuntime::~NativeExtensionRuntime() = default;
+ExtensionRuntime::~ExtensionRuntime() = default;
+void ExtensionRuntime::Configure(const nlohmann::json &options)
+{
+    m_implementation->python.Configure(options.value("pythonEnvironments", nlohmann::json::object()));
+}
+OperationResult ExtensionRuntime::BeginSession()
+{
+    m_implementation->python.BeginSession();
+    return OperationResult::Success();
+}
+OperationResult ExtensionRuntime::EndSession() { return m_implementation->python.EndSession(); }
 
-nlohmann::json NativeExtensionRuntime::ValidateCatalog(
+nlohmann::json ExtensionRuntime::ValidateCatalog(
     const std::filesystem::path &approvedRoot) const
 {
     const auto scan = m_implementation->catalog.Discover(approvedRoot);
@@ -18,7 +32,7 @@ nlohmann::json NativeExtensionRuntime::ValidateCatalog(
                        m_implementation->catalogGeneration, nlohmann::json::array());
 }
 
-OperationResult NativeExtensionRuntime::Refresh(const std::filesystem::path &approvedRoot,
+OperationResult ExtensionRuntime::Refresh(const std::filesystem::path &approvedRoot,
                                                 CommandRegistry &commands,
                                                 InstrumentRegistry &instruments,
                                                 const std::string &expectedFingerprint)
@@ -75,6 +89,7 @@ OperationResult NativeExtensionRuntime::Refresh(const std::filesystem::path &app
         auto &types = candidate.types;
         if (!scan.IsValid())
             return reject();
+        m_implementation->python.Load(scan);
 
         const auto self = shared_from_this();
         std::vector<RegistryTransaction::Command> commandBatch;
@@ -89,10 +104,21 @@ OperationResult NativeExtensionRuntime::Refresh(const std::filesystem::path &app
                                                return MakeExtensionInstrument(self, typeId);
                                            }});
         }
+        for (const auto &package : scan.packages)
+            if (package.descriptor.runtime.kind == "python")
+                for (const auto &component : package.descriptor.components)
+                {
+                    const auto typeId = component.typeId;
+                    if (component.kind == ComponentKind::Command)
+                        commandBatch.push_back({typeId, [self, typeId] { return MakeExtensionCommand(self, typeId); }});
+                    else if (component.kind == ComponentKind::InstrumentDriver)
+                        instrumentBatch.push_back({typeId, [self, typeId](IEventSink &) {
+                            return MakeExtensionInstrument(self, typeId); }});
+                }
         std::string activeStatus = "active";
         const EngineEvent activatedEvent{
             EngineEventKind::Diagnostic, EngineEventSeverity::Information, "extension-catalog",
-            "Native extension catalog validated and activated atomically."};
+            "Extension catalog validated and activated atomically."};
         std::unique_lock publishLock{m_implementation->catalogMutex};
         auto committed =
             RegistryTransaction::Commit(commands, instruments, commandBatch, instrumentBatch);
@@ -122,7 +148,7 @@ OperationResult NativeExtensionRuntime::Refresh(const std::filesystem::path &app
     }
 }
 
-nlohmann::json NativeExtensionRuntime::CatalogSnapshot() const
+nlohmann::json ExtensionRuntime::CatalogSnapshot() const
 {
     std::scoped_lock lock{m_implementation->catalogMutex};
     nlohmann::json active = nlohmann::json::array();

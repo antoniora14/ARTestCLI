@@ -1,18 +1,20 @@
 #pragma once
 #include "../../ARTestEngine.Core/Catalog/RegistryTransaction.h"
 #include "ExtensionCatalog.h"
-#include "NativeExtensionRuntime.h"
+#include "ExtensionRuntime.h"
 #include "NativeServiceBroker.h"
+#include "PythonRuntime.h"
 namespace artest::extensions
 {
-class NativeExtensionRuntime::Implementation
+class ExtensionRuntime::Implementation
 {
   public:
-    explicit Implementation(IEventSink &sink) : eventSink(sink), broker(sink)
+    explicit Implementation(IEventSink &sink) : eventSink(sink), broker(sink), python(broker, sink)
     {
     }
     IEventSink &eventSink;
     NativeServiceBroker broker;
+    PythonRuntime python;
     std::vector<std::shared_ptr<NativeModule>> modules;
     NativeTypeMap types;
     ExtensionCatalog catalog;

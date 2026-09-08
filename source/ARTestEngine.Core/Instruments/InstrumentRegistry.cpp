@@ -24,12 +24,11 @@ namespace artest
         }
 
         m_creators.emplace(std::move(instrumentType), std::move(creator));
+        
         return OperationResult::Success();
     }
 
-    std::unique_ptr<IInstrument> InstrumentRegistry::Create(
-        const std::string& instrumentType,
-        IEventSink& eventSink) const
+    std::unique_ptr<IInstrument> InstrumentRegistry::Create(const std::string& instrumentType, IEventSink& eventSink) const
     {
         Creator creator;
         {
@@ -37,6 +36,7 @@ namespace artest
             const auto instrument = m_creators.find(instrumentType);
             if (instrument != m_creators.end()) creator = instrument->second;
         }
+        
         return creator ? creator(eventSink) : nullptr;
     }
 

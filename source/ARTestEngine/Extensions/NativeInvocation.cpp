@@ -1,10 +1,17 @@
-#include "NativeRuntimeState.h"
+#include "ExtensionRuntimeState.h"
 namespace artest::extensions
 {
-ValueResult<std::shared_ptr<ComponentLease>> NativeExtensionRuntime::CreateComponent(
+ValueResult<std::shared_ptr<ComponentLease>> ExtensionRuntime::CreateComponent(
     const std::string &typeId, const nlohmann::json &configuration)
 {
     ValueResult<std::shared_ptr<ComponentLease>> result;
+    if (m_implementation->python.Contains(typeId))
+    {
+        try { result.value = m_implementation->python.Create(typeId, configuration); }
+        catch (const std::exception &error)
+        { result.diagnostics.push_back({DiagnosticSeverity::Error, "PYTHON_COMPONENT_CREATE_FAILED", error.what(), typeId}); }
+        return result;
+    }
     std::pair<std::shared_ptr<NativeModule>, ComponentRecord> entry;
     {
         std::scoped_lock lock{m_implementation->catalogMutex};
@@ -52,12 +59,11 @@ ValueResult<std::shared_ptr<ComponentLease>> NativeExtensionRuntime::CreateCompo
     return result;
 }
 
-OperationResult NativeExtensionRuntime::Invoke(
+OperationResult ExtensionRuntime::Invoke(
     const std::shared_ptr<ComponentLease> &lease, const std::string &operationId,
-    const nlohmann::json &request, const CancellationToken *cancellation, nlohmann::json *response)
+    const nlohmann::json &request, const CancellationToken *cancellation, InvocationOutput *response)
 {
-    const auto component = std::dynamic_pointer_cast<NativeComponentInstance>(lease);
-    if (!component)
+    if (!lease)
         return OperationResult::Failure("EXTENSION_COMPONENT_INVALID",
                                         "A valid extension component is required.");
     const auto text = request.dump();
@@ -65,6 +71,8 @@ OperationResult NativeExtensionRuntime::Invoke(
     struct Capture
     {
         std::string text;
+        std::string schema;
+        bool written = false;
     } capture;
     const auto write = [](void *context, const ARTestPayloadView *value,
                           ARTestErrorBuffer *) noexcept -> ARTestStatus {
@@ -76,7 +84,12 @@ OperationResult NativeExtensionRuntime::Invoke(
             if (value->struct_size < sizeof(ARTestPayloadView) ||
                 (!value->bytes.data && value->bytes.size))
                 return ARTEST_STATUS_INVALID_ARGUMENT;
-            static_cast<Capture *>(context)->text.assign(
+            auto &capture = *static_cast<Capture *>(context);
+            if (capture.written || value->bytes.size > 1024 * 1024)
+                return ARTEST_STATUS_INVALID_ARGUMENT;
+            capture.written = true;
+            capture.schema = ToString(value->schema_id);
+            capture.text.assign(
                 reinterpret_cast<const char *>(value->bytes.data), value->bytes.size);
             return ARTEST_STATUS_OK;
         }
@@ -108,11 +121,11 @@ OperationResult NativeExtensionRuntime::Invoke(
     ErrorStorage error;
     ARTestStatus status;
     {
-        std::scoped_lock lock{component->module->invocationMutex};
-        status = component->module->api.invoke_component(
-            component->module->extension, component->handle, View(operationId), &payload,
-            &invocation, &sink, &error.buffer);
+        status = InvokeAbi(lease, View(operationId), &payload, &invocation, &sink, &error.buffer);
     }
+    if (m_implementation->python.Indeterminate())
+        return OperationResult::Failure("EXTENSION_OUTCOME_INDETERMINATE",
+            error.Message("A worker failed; hardware effects are unknown. No retry is permitted."), operationId);
     if (status != ARTEST_STATUS_OK)
         return OperationResult::Failure(
             status == ARTEST_STATUS_CANCELLED   ? "EXTENSION_CANCELLED"
@@ -123,7 +136,8 @@ OperationResult NativeExtensionRuntime::Invoke(
     {
         try
         {
-            *response = nlohmann::json::parse(capture.text);
+            response->data = nlohmann::json::parse(capture.text);
+            response->schemaId = capture.schema;
         }
         catch (const std::exception &exception)
         {
@@ -134,24 +148,40 @@ OperationResult NativeExtensionRuntime::Invoke(
     return OperationResult::Success();
 }
 
-OperationResult NativeExtensionRuntime::RegisterService(
+OperationResult ExtensionRuntime::RegisterService(
     std::string instanceId, const std::shared_ptr<ComponentLease> &lease)
 {
     const auto component = std::dynamic_pointer_cast<NativeComponentInstance>(lease);
-    if (instanceId.empty() || !component)
+    const auto python = std::dynamic_pointer_cast<PythonComponent>(lease);
+    if (instanceId.empty() || (!component && !python))
         return OperationResult::Failure("EXTENSION_SERVICE_INVALID",
                                         "Service instance ID and component are required.");
     std::scoped_lock lock{m_implementation->broker.serviceMutex};
     if (m_implementation->broker.services.contains(instanceId))
         return OperationResult::Failure("EXTENSION_SERVICE_DUPLICATE",
                                         "The service instance ID is already active.", instanceId);
-    m_implementation->broker.services.emplace(std::move(instanceId), component);
+    m_implementation->broker.services.emplace(std::move(instanceId),
+        NativeServiceBroker::Endpoint{lease, component ? component->record.contractId : python->contract});
     return OperationResult::Success();
 }
 
-void NativeExtensionRuntime::UnregisterService(const std::string &instanceId) noexcept
+void ExtensionRuntime::UnregisterService(const std::string &instanceId) noexcept
 {
     std::scoped_lock lock{m_implementation->broker.serviceMutex};
     m_implementation->broker.services.erase(instanceId);
+}
+ARTestStatus ExtensionRuntime::InvokeAbi(const std::shared_ptr<ComponentLease> &lease,
+    ARTestStringView operation, const ARTestPayloadView *request,
+    const ARTestInvocationContextV0 *invocation, const ARTestResultSinkV0 *sink, ARTestErrorBuffer *error)
+{
+    if (const auto native = std::dynamic_pointer_cast<NativeComponentInstance>(lease))
+    {
+        std::scoped_lock lock{native->module->invocationMutex};
+        return native->module->api.invoke_component(native->module->extension, native->handle,
+            operation, request, invocation, sink, error);
+    }
+    if (const auto python = std::dynamic_pointer_cast<PythonComponent>(lease))
+        return m_implementation->python.Invoke(python, operation, request, invocation, sink, error);
+    return ARTEST_STATUS_INVALID_ARGUMENT;
 }
 } // namespace artest::extensions

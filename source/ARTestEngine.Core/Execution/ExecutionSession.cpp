@@ -77,9 +77,10 @@ namespace artest
     ExecutionSession::ExecutionSession(std::vector<CompiledStep> steps,
         CommandRegistry& commands, InstrumentManager& instruments,
         IEventSink& eventSink, IExecutionControl& executionControl,
-        std::function<OperationResult()> prepareRuntime)
+        std::function<OperationResult()> prepareRuntime, std::function<OperationResult()> finishRuntime)
         : m_compiledSteps(std::move(steps)), m_commands(&commands),
           m_plannedSteps(m_compiledSteps.size()), m_prepareRuntime(std::move(prepareRuntime)),
+          m_finishRuntime(std::move(finishRuntime)),
           m_instruments(instruments),
           m_eventSink(eventSink), m_executionControl(executionControl)
     {
@@ -320,6 +321,21 @@ namespace artest
                 "INSTRUMENT_CLEANUP_EXCEPTION",
                 "Unknown exception while cleaning up instruments.");
         }
+        // Transport teardown belongs to the same worker, after commands and drivers.
+        // Always attempt it, even if a driver threw during shutdown.
+        try
+        {
+            if (m_finishRuntime)
+            {
+                auto finished = m_finishRuntime();
+                cleanup.diagnostics.insert(cleanup.diagnostics.end(),
+                    finished.diagnostics.begin(), finished.diagnostics.end());
+            }
+        }
+        catch (const std::exception &error)
+        { cleanup.diagnostics.push_back({DiagnosticSeverity::Error, "RUNTIME_CLEANUP_EXCEPTION", error.what(), {}}); }
+        catch (...)
+        { cleanup.diagnostics.push_back({DiagnosticSeverity::Error, "RUNTIME_CLEANUP_EXCEPTION", "Unknown runtime cleanup failure.", {}}); }
         if (!cleanup.Succeeded())
         {
             PublishDiagnostics(cleanup.diagnostics);

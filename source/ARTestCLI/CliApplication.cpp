@@ -28,6 +28,7 @@ namespace artest::cli
     {
         try
         {
+            m_pythonEnvironments.clear();
             if (arguments.empty())
             {
                 PrintHelp();
@@ -69,6 +70,12 @@ namespace artest::cli
                     if (!extensionRoot.empty() || ++index >= arguments.size())
                         throw std::invalid_argument("--extensions requires one catalog root.");
                     extensionRoot = arguments[index];
+                }
+                else if (arguments[index] == "--python-environments")
+                {
+                    if (!m_pythonEnvironments.empty() || ++index >= arguments.size())
+                        throw std::invalid_argument("--python-environments requires one JSON mapping file.");
+                    m_pythonEnvironments = arguments[index];
                 }
                 else if (command == "break")
                 {
@@ -187,10 +194,16 @@ namespace artest::cli
     int CliApplication::RunExtensionCommand(
         const std::vector<std::string>& arguments)
     {
-        if (arguments.size() != 3)
+        if (arguments.size() != 3 && arguments.size() != 5)
         {
             m_error << "Usage: ARTestCLI extension-run <script.json> <extensions-root>\n";
             return static_cast<int>(ExitCode::InvalidArguments);
+        }
+        if (arguments.size() == 5)
+        {
+            if (arguments[3] != "--python-environments")
+                throw std::invalid_argument("Expected --python-environments <mapping.json>.");
+            m_pythonEnvironments = arguments[4];
         }
         return RunPlan("run", arguments[1], {}, arguments[2], true);
     }
@@ -207,7 +220,14 @@ namespace artest::cli
             return static_cast<int>(ExitCode::InvalidScript);
 
         sdk::EngineClient engine;
-        auto status = engine.Create(extensionRoot.empty() ? "{}" : "{\"loadDefaultCatalog\":false}");
+        nlohmann::json options = {{"loadDefaultCatalog", extensionRoot.empty()}, {"resultSchemaVersion", 2}};
+        if (!m_pythonEnvironments.empty())
+        {
+            std::ifstream environments(m_pythonEnvironments);
+            if (!environments) throw std::invalid_argument("Cannot open Python environment mapping.");
+            options["pythonEnvironments"] = nlohmann::json::parse(environments);
+        }
+        auto status = engine.Create(options.dump());
         if (!status.Succeeded())
         {
             PrintEngineFailure("create", status.code, status.message);

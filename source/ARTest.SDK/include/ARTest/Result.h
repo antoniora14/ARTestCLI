@@ -68,6 +68,15 @@ class [[nodiscard]] Result final
             throw std::invalid_argument("A failure must have a recognized non-success status.");
         return Result{status, std::move(message)};
     }
+    // A failed measurement is a successful technical invocation, not a driver fault.
+    static Result TestVerdict(bool passed, Json data, std::string dataSchema,
+                              std::string message = {})
+    {
+        if (dataSchema.empty()) throw std::invalid_argument("Measurement data requires a schema ID.");
+        return WithData({{"verdict", passed ? "passed" : "failed"}, {"data", std::move(data)},
+                         {"dataSchema", std::move(dataSchema)}, {"message", std::move(message)}},
+                        "artest.schema.command-result.v1");
+    }
     [[nodiscard]] bool Succeeded() const noexcept
     {
         return m_status == Status::Ok;

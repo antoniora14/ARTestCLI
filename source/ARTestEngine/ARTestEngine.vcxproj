@@ -53,20 +53,24 @@
     <ClInclude Include="Extensions\FileIntegrity.h" />
     <ClCompile Include="Extensions\FileIntegrity.cpp" />
     <ClCompile Include="Extensions\CatalogSnapshot.cpp" />
-    <ClCompile Include="Extensions\NativeExtensionRuntime.cpp" />
+    <ClCompile Include="Extensions\ExtensionRuntime.cpp" />
     <ClInclude Include="Extensions\NativeAbiSupport.h" />
     <ClInclude Include="Extensions\NativeModule.h" />
     <ClInclude Include="Extensions\IExtensionRuntime.h" />
     <ClInclude Include="Extensions\ComponentAdapters.h" />
     <ClCompile Include="Extensions\ComponentAdapters.cpp" />
     <ClInclude Include="Extensions\NativeServiceBroker.h" />
-    <ClInclude Include="Extensions\NativeRuntimeState.h" />
+    <ClInclude Include="Extensions\ExtensionRuntimeState.h" />
     <ClInclude Include="Extensions\NativeModuleLoader.h" />
     <ClCompile Include="Extensions\NativeModuleLoader.cpp" />
     <ClCompile Include="Extensions\NativeInvocation.cpp" />
+    <ClCompile Include="Extensions\PythonRuntime.cpp" />
+    <ClInclude Include="Extensions\PythonRuntime.h" />
+    <ClCompile Include="Extensions\ManagedIntegrity.cpp" />
+    <ClInclude Include="Extensions\ManagedIntegrity.h" />
     <ClInclude Include="Extensions\ExtensionCatalog.h" />
     <ClInclude Include="Extensions\ExtensionDescriptor.h" />
-    <ClInclude Include="Extensions\NativeExtensionRuntime.h" />
+    <ClInclude Include="Extensions\ExtensionRuntime.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ARTestEngine.Core\ARTestEngine.Core.vcxproj">

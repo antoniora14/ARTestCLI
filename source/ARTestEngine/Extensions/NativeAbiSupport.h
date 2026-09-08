@@ -2,6 +2,7 @@
 #include "../../ARTest.SDK/include/ARTestExtensionAbi.h"
 #include <algorithm>
 #include <string>
+
 namespace artest::extensions
 {
 [[nodiscard]] inline std::string ToString(ARTestStringView value)

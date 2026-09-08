@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Diagnostics.h"
+#include "../../ThirdParty/json.hpp"
 
 #include <chrono>
 #include <cstdint>
@@ -24,6 +25,11 @@ namespace artest
     {
         StepStatus status = StepStatus::Passed;
         std::string message;
+        // Technical failure is independent of the measurement verdict. Payloads
+        // survive every attempt; an uncertain side effect must stop policy replay.
+        std::string dataSchema;
+        nlohmann::json data;
+        bool indeterminate = false;
 
         [[nodiscard]] bool Succeeded() const noexcept
         {

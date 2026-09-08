@@ -1,6 +1,7 @@
 #include "EngineFunctions.h"
 #include "EngineHandles.h"
 #include "EngineMarshalling.h"
+
 namespace artest::engine
 {
 ARTestStatus ARTEST_ABI_CALL SubscribeEvents(ARTestEngineHandle engine,
@@ -73,9 +74,10 @@ ARTestStatus StartSessionInternal(ARTestEngineHandle engine, ARTestCompiledPlanH
         session->execution = std::make_unique<artest::ExecutionSession>(
             plan->steps, engine->value->commands, *manager, engine->value->events,
             *session->control, [context, manager, definitions] {
-                auto activated = context->Activate();
+                auto activated = context->runtime->BeginSession();
+                if (activated.Succeeded()) activated = context->Activate();
                 return activated.Succeeded() ? manager->LoadDefinitions(definitions) : activated;
-            });
+            }, [context] { return context->runtime->EndSession(); });
         auto started = session->execution->Start();
         if (!started.Succeeded())
         {
@@ -220,6 +222,7 @@ ARTestStatus ARTEST_ABI_CALL GetSessionResult(ARTestSessionHandle session,
         }
         auto result = std::make_unique<ARTestResultOpaque>();
         result->value = *session->result;
+        result->schemaVersion = session->owner->resultSchemaVersion;
         *output = result.release();
         return ARTEST_STATUS_OK;
     }
@@ -251,7 +254,7 @@ ARTestStatus ARTEST_ABI_CALL SerializeRunResult(ARTestResultHandle result,
     }
     try
     {
-        return WriteJson(SerializeResult(result->value), sink, error);
+        return WriteJson(SerializeResult(result->value, result->schemaVersion), sink, error);
     }
     catch (const std::exception &exception)
     {

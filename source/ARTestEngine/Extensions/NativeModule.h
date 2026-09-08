@@ -61,7 +61,6 @@ class NativeComponentInstance final : public ComponentLease
     ARTestComponentHandle handle = nullptr;
 };
 
-using NativeTypeMap =
-    std::unordered_map<std::string, std::pair<std::shared_ptr<NativeModule>, ComponentRecord>>;
+using NativeTypeMap = std::unordered_map<std::string, std::pair<std::shared_ptr<NativeModule>, ComponentRecord>>;
 
 } // namespace artest::extensions
