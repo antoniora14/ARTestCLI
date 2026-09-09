@@ -79,7 +79,7 @@ struct Host
     }
     ARTestHostApiV0 Api()
     {
-        return {sizeof(ARTestHostApiV0), 0, 1, 0, this, &Log, &Clock, &Resolve, &Invoke, &Release};
+        return {sizeof(ARTestHostApiV0), 0, ARTEST_EXTENSION_ABI_MINOR, 0, this, &Log, &Clock, &Resolve, &Invoke, &Release};
     }
     ARTestInvocationContextV0 Invocation()
     {
@@ -101,7 +101,7 @@ template <Extension (*Define)()> struct Harness
     Harness()
     {
         api.struct_size = sizeof(api);
-        if (detail::NativeAdapter<Define>::Query(0, 1, &api, &error.value) != ARTEST_STATUS_OK)
+        if (detail::NativeAdapter<Define>::Query(0, ARTEST_EXTENSION_ABI_MINOR, &api, &error.value) != ARTEST_STATUS_OK)
             throw std::runtime_error("Query failed");
         auto hostApi = host.Api();
         if (api.create_extension(&hostApi, nullptr, &extension, &error.value) != ARTEST_STATUS_OK)

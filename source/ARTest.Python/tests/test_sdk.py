@@ -45,6 +45,16 @@ class MetadataTests(unittest.TestCase):
         self.assertEqual(result.data["verdict"], "failed")
         self.assertEqual(result.schema_id, "artest.schema.command-result.v1")
 
+    def test_uncertainty_is_not_success_or_measurement_failure(self):
+        for status in ("error", "timedOut", "cancelled"):
+            result = Result.indeterminate("Lost acknowledgement", status)
+            self.assertEqual(result.status, status)
+            self.assertTrue(result.effect_indeterminate)
+        self.assertFalse(Result.failure("Not sent").effect_indeterminate)
+        self.assertFalse(Result.verdict(False, {}, "measurement").effect_indeterminate)
+        with self.assertRaises(ValueError): Result.indeterminate("Wrong", "ok")
+        with self.assertRaises(TypeError): Result(effect_indeterminate=1)
+
     def test_unsupported_annotations_fail(self):
         @dataclass
         class Bad: value: dict
@@ -57,6 +67,15 @@ class MetadataTests(unittest.TestCase):
         with self.assertRaises(ValueError): schema_for(Bad)
 
 class CancellationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_blocking_uncertainty_survives_expired_checkpoint(self):
+        event = asyncio.Event()
+        event.set()
+        context = Context(None, 1, event, 0)
+        with self.assertRaises(OperationError) as error:
+            await context.blocking(lambda: Result.indeterminate("Lost acknowledgement", "timedOut"))
+        self.assertTrue(error.exception.result.effect_indeterminate)
+        self.assertEqual(error.exception.result.message, "Lost acknowledgement")
+
     async def test_sleep_observes_cancel(self):
         event = asyncio.Event()
         context = Context(None, 1, event, math.inf)

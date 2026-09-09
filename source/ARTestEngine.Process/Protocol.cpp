@@ -43,6 +43,8 @@ void Validate(const wire::Envelope &message)
         break;
     case wire::Envelope::kResponse:
         Check(wire::Status_IsValid(message.response().status()), "Unknown response status.");
+        Check(!message.response().effect_indeterminate() || message.response().status() != wire::OK,
+              "An indeterminate effect cannot report technical success.");
         Check(message.response().diagnostic().size() <= 4096, "Oversized diagnostic.");
         CheckPayload(message.response().payload());
         break;

@@ -21,7 +21,9 @@ Engine creation option resultSchemaVersion selects the serialized run contract:
 Both versions preserve accurate step/run status and summaries. Version 2 preserves
 structured data for reporting. The result handle copies its selected version and
 remains independent of later Engine destruction. Unsupported versions are rejected.
-The native ABI and Engine function table do not change.
+Selecting a run-result schema does not change the Engine function table.
+The original D4.2 verdict addition did not change native ABI 0.1; C-01 separately
+introduces ABI 0.2 for structured external-effect uncertainty.
 
 An indeterminate outcome means the Engine cannot confirm external side effects.
 It overrides retries and continue-on-failure policy. It is not a normal failed
@@ -30,3 +32,9 @@ individual measurement passed.
 
 The SDK ships both run-result schemas. Consumers should select the contract they
 understand; do not silently validate version 2 against the version 1 schema.
+
+SDK 0.4.0 / Python SDK 0.2.0 let live drivers explicitly signal an uncertain
+write through Result::Indeterminate / Result.indeterminate. This is independent
+of Error, TimedOut or Cancelled. The v2 outcome retains the indeterminate flag
+on the step and attempt. Legacy v1 retains its shape and failure diagnostic,
+and still suppresses replay. See [the authoring contract](external-effect-uncertainty.md).

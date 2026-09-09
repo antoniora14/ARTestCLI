@@ -27,8 +27,6 @@ class PythonRuntime
         const ARTestPayloadView *request, const ARTestInvocationContextV0 *invocation,
         const ARTestResultSinkV0 *sink, ARTestErrorBuffer *error) noexcept;
     OperationResult EndSession();
-    void BeginSession() { m_indeterminate = false; }
-    bool Indeterminate() const noexcept { return m_indeterminate; }
   private:
     std::shared_ptr<PythonWorker> Worker(const std::string &package);
     process::wire::Response Service(const process::wire::Request &request, PythonWorker &worker);
@@ -39,6 +37,5 @@ class PythonRuntime
     std::map<std::string, std::pair<std::string, std::string>> m_types;
     std::map<std::string, std::shared_ptr<PythonWorker>> m_workers;
     const ARTestInvocationContextV0 *m_invocation = nullptr; // owner-thread, dynamically scoped
-    bool m_indeterminate = false;
 };
 }

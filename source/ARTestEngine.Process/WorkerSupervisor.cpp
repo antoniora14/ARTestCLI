@@ -106,6 +106,7 @@ bool WorkerSupervisor::CancellationRequested() const
 wire::Response WorkerSupervisor::Pump(std::uint64_t correlation, Clock::time_point deadline)
 {
     bool cancelSent = false;
+    bool cancelAcknowledged = false;
     auto interruptedStatus = wire::OK;
     auto grace = deadline;
     std::size_t events = 0;
@@ -126,11 +127,19 @@ wire::Response WorkerSupervisor::Pump(std::uint64_t correlation, Clock::time_poi
         if (cancelSent && now >= grace)
             throw ProcessError("PROCESS_CANCEL_TIMEOUT", "Worker ignored cancellation/deadline.");
         const auto pending = m_pending.find(correlation);
-        if (pending != m_pending.end())
+        // Drain the matching ACK even when the terminal result wins the race.
+        // Otherwise it leaks into the next lifecycle call and faults cleanup.
+        if (pending != m_pending.end() && (!cancelSent || cancelAcknowledged))
         {
             auto response = std::move(pending->second);
             m_pending.erase(pending);
-            return cancelSent ? Response(interruptedStatus, "Invocation interrupted. " + response.diagnostic()) : response;
+            if (cancelSent)
+            {
+                // Classification changes, but payload, diagnostic and uncertainty survive.
+                response.set_status(interruptedStatus);
+                response.set_diagnostic("Invocation interrupted. " + response.diagnostic());
+            }
+            return response;
         }
         wire::Envelope message;
         try { message = m_channel->Read(now + std::chrono::milliseconds{10}); }
@@ -150,9 +159,10 @@ wire::Response WorkerSupervisor::Pump(std::uint64_t correlation, Clock::time_poi
         }
         else if (message.has_cancel())
         {
-            if (!active || !message.cancel().acknowledged() || !cancelSent ||
+            if (!active || !message.cancel().acknowledged() || !cancelSent || cancelAcknowledged ||
                 message.correlation() != correlation)
                 throw ProcessError("PROCESS_CANCEL_INVALID", "Unexpected cancellation acknowledgement.");
+            cancelAcknowledged = true;
         }
         else if (message.has_event())
         {

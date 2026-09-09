@@ -57,6 +57,7 @@
     <ClInclude Include="Extensions\NativeAbiSupport.h" />
     <ClInclude Include="Extensions\NativeModule.h" />
     <ClInclude Include="Extensions\IExtensionRuntime.h" />
+    <ClInclude Include="Extensions\InvocationEffects.h" />
     <ClInclude Include="Extensions\ComponentAdapters.h" />
     <ClCompile Include="Extensions\ComponentAdapters.cpp" />
     <ClInclude Include="Extensions\NativeServiceBroker.h" />

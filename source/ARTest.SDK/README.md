@@ -1,15 +1,15 @@
 # ARTest C++ extension authoring SDK
 
-Experimental SDK 0.3.0 - generated metadata, safe publication and explicit test verdicts.
+Experimental SDK 0.4.0 - generated metadata, safe publication, test verdicts and external-effect uncertainty.
 
 See [result contracts](../../docs/sdk/result-verdicts.md) and the separate
-[Python SDK](../ARTest.Python/README.md). Engine API 0.4 and native ABI 0.1 are unchanged.
+[Python SDK](../ARTest.Python/README.md). Engine API 0.4 is unchanged; native ABI 0.2 adds an uncertainty status flag without changing struct layouts.
 
 The SDK example, four reference packages and installed starter generate their
 manifests and schemas from C++.
 See [metadata generation](../../docs/sdk/metadata-generation.md) for the design,
 supported API and build procedure, including the D3.4.3 migration.
-C++20, native extension ABI 0.1.
+C++20, native extension ABI 0.2. New packages require a compatible Engine.
 The Engine host API remains 0.4. The SDK can be packaged for external
 compatibility evaluation; it is not a frozen binary contract or public release.
 

@@ -34,11 +34,24 @@ TEST(ProcessProtocolTests, GoldenMessageAndUnknownOptionalFieldRoundTrip)
 {
     auto message = Message(1, 2);
     message.mutable_request()->set_operation(wire::DESCRIBE);
-    const std::string golden("\x10\x01\x18\x01\x20\x02\x5a\x02\x08\x01", 10);
+    const std::string golden("\x10\x02\x18\x01\x20\x02\x5a\x02\x08\x01", 10);
     EXPECT_EQ(Encode(message), golden);
     EXPECT_EQ(Decode(golden).request().operation(), wire::DESCRIBE);
     // Field 100 (varint) may be ignored; an unknown mandatory body may not.
     EXPECT_EQ(Decode(golden + std::string("\xa0\x06\x01", 3)).correlation(), 2u);
+}
+TEST(ProcessProtocolTests, UncertaintyRequiresWire02AndUnsuccessfulStatus)
+{
+    const std::string oldGolden("\x10\x01\x18\x01\x20\x02\x5a\x02\x08\x01", 10);
+    EXPECT_THROW(Decode(oldGolden), ProcessError);
+    auto message = Message(1, 2);
+    message.mutable_response()->set_status(wire::TIMED_OUT);
+    message.mutable_response()->set_effect_indeterminate(true);
+    EXPECT_TRUE(Decode(Encode(message)).response().effect_indeterminate());
+    message.mutable_response()->set_status(wire::OK);
+    EXPECT_THROW(Encode(message), ProcessError);
+    auto manifest = nlohmann::json{{"not", "a managed manifest"}};
+    EXPECT_THROW(ParseManagedPackageRequirements(manifest), ProcessError);
 }
 TEST(ProcessProtocolTests, RejectsMalformedVersionsBodiesJsonAndSize)
 {
@@ -48,7 +61,7 @@ TEST(ProcessProtocolTests, RejectsMalformedVersionsBodiesJsonAndSize)
     message.mutable_request()->set_operation(wire::INVOKE);
     message.set_minor(99);
     EXPECT_THROW(Encode(message), ProcessError);
-    message.set_minor(1);
+    message.set_minor(ProtocolMinor);
     message.mutable_request()->mutable_payload()->set_schema_id("test");
     message.mutable_request()->mutable_payload()->set_json("{\"x\":NaN}");
     EXPECT_THROW(Encode(message), ProcessError);
@@ -60,7 +73,7 @@ nlohmann::json ManagedManifest()
 {
     return {{"schemaVersion", 3}, {"runtime", {
         {"kind", "python"}, {"entry", "python"}, {"entryPoint", "example.definition:create_extension"},
-        {"isolation", "outOfProcess"}, {"architecture", "x64"}, {"protocol", {{"major", 0}, {"minor", 1}}},
+        {"isolation", "outOfProcess"}, {"architecture", "x64"}, {"protocol", {{"major", 0}, {"minor", ProtocolMinor}}},
         {"runtimeVersion", "3.13"}, {"dependencyLock", "requirements.lock"}}},
         {"inventory", nlohmann::json::array({
             {{"path", "python/example/definition.py"}, {"sha256", std::string(64, 'a')}},
@@ -95,7 +108,9 @@ TEST(ManagedManifestTests, RejectsUnsafePathsDuplicateInventoryAndUnsupportedReq
     manifest["runtime"]["runtimeVersion"] = "3.7";
     EXPECT_THROW(ParseManagedPackageRequirements(manifest), ProcessError);
     manifest = ManagedManifest();
-    manifest["runtime"]["protocol"]["minor"] = 2;
+    manifest["runtime"]["protocol"]["minor"] = ProtocolMinor + 1;
+    EXPECT_THROW(ParseManagedPackageRequirements(manifest), ProcessError);
+    manifest["runtime"]["protocol"]["minor"] = 1;
     EXPECT_THROW(ParseManagedPackageRequirements(manifest), ProcessError);
     manifest = ManagedManifest();
     manifest["inventory"].erase(manifest["inventory"].begin() + 1);
@@ -177,6 +192,22 @@ TEST(ProcessWorkerTests, CancellationAndTimeoutAreDistinctFromAcknowledgement)
     EXPECT_EQ(worker.Call(Request("wait"), 1s, [start] { return Clock::now() - start > 30ms; }).status(),
               wire::CANCELLED);
     EXPECT_EQ(worker.Call(Request("wait"), 30ms).status(), wire::TIMED_OUT);
+    EXPECT_EQ(worker.Call(Request(), 1s).status(), wire::OK);
+}
+TEST(ProcessWorkerTests, InterruptedResponsePreservesUncertaintyPayloadAndDiagnostic)
+{
+    WorkerSupervisor worker(Options());
+    worker.Start();
+    for (const bool cancel : {false, true})
+    {
+        const auto start = Clock::now();
+        const auto result = worker.Call(Request("uncertain-wait"), cancel ? 1s : 30ms,
+            [start, cancel] { return cancel && Clock::now() - start > 30ms; });
+        EXPECT_EQ(result.status(), cancel ? wire::CANCELLED : wire::TIMED_OUT);
+        EXPECT_TRUE(result.effect_indeterminate());
+        EXPECT_NE(result.diagnostic().find("C01 lost acknowledgement"), std::string::npos);
+        EXPECT_EQ(result.payload().json(), R"({"effect":"unconfirmed"})");
+    }
     EXPECT_EQ(worker.Call(Request(), 1s).status(), wire::OK);
 }
 TEST(ProcessWorkerTests, PredispatchCancellationDoesNotCallWorker)

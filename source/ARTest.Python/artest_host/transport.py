@@ -1,4 +1,4 @@
-"""Private wire 0.1 transport. Only the reader thread touches blocking reads."""
+"""Private wire 0.2 transport. Only the reader thread touches blocking reads."""
 import ctypes
 import json
 import struct
@@ -30,7 +30,7 @@ class Transport:
         self.send_lock = threading.Lock()
 
     def envelope(self, correlation, parent=0):
-        return wire.Envelope(major=0, minor=1, generation=self.generation, correlation=correlation, parent=parent)
+        return wire.Envelope(major=0, minor=2, generation=self.generation, correlation=correlation, parent=parent)
 
     def send(self, message):
         data = message.SerializeToString()
@@ -59,7 +59,7 @@ class Transport:
         size, = struct.unpack("<I", self._read(4))
         if not 0 < size <= MAX_FRAME: raise ValueError("Invalid frame size")
         message = wire.Envelope.FromString(self._read(size))
-        if (message.major, message.minor, message.generation) != (0, 1, self.generation) or not message.correlation:
+        if (message.major, message.minor, message.generation) != (0, 2, self.generation) or not message.correlation:
             raise ValueError("Invalid wire identity/version")
         if message.WhichOneof("body") is None: raise ValueError("Missing message body")
         return message

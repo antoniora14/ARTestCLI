@@ -53,7 +53,7 @@ template <Extension (*Define)()> class NativeAdapter final
             if (!output || output->struct_size < sizeof(*output))
                 return Fail(error, Status::InvalidArgument,
                             "A complete extension API output table is required.");
-            if (major != ARTEST_EXTENSION_ABI_MAJOR || minor > ARTEST_EXTENSION_ABI_MINOR)
+            if (major != ARTEST_EXTENSION_ABI_MAJOR || minor != ARTEST_EXTENSION_ABI_MINOR)
                 return Fail(error, Status::IncompatibleAbi,
                             "The requested native ABI is not supported.");
             const auto &definition = Definition();

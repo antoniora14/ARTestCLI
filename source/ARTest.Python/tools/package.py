@@ -38,17 +38,17 @@ def sdk(args):
     runtime_check()
     source = Path(__file__).resolve().parents[1]
     args.output.mkdir(parents=True, exist_ok=True)
-    wheel = args.output / "artest_python-0.1.0-py3-none-any.whl"
+    wheel = args.output / "artest_python-0.2.0-py3-none-any.whl"
     with tempfile.TemporaryDirectory(prefix="artest-sdk-") as scratch:
         root = Path(scratch)
         for name in ("artest_sdk", "artest_host"):
             shutil.copytree(source / name, root / name, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
         checked([args.protoc, "--proto_path=" + str(args.protocol.parent),
                  "--python_out=" + str(root / "artest_host"), args.protocol])
-        info = root / "artest_python-0.1.0.dist-info"
+        info = root / "artest_python-0.2.0.dist-info"
         info.mkdir()
         (info / "METADATA").write_text(
-            "Metadata-Version: 2.1\nName: artest-python\nVersion: 0.1.0\n"
+            "Metadata-Version: 2.1\nName: artest-python\nVersion: 0.2.0\n"
             "Requires-Python: >=3.13,<3.14\nRequires-Dist: protobuf==6.33.4\n"
             "Requires-Dist: pywin32==311; sys_platform == 'win32'\n", encoding="utf-8")
         (info / "WHEEL").write_text("Wheel-Version: 1.0\nGenerator: ARTest\nRoot-Is-Purelib: true\nTag: py3-none-any\n", encoding="utf-8")
@@ -84,7 +84,7 @@ def package(args):
         manifest["schemaVersion"] = 3
         manifest["runtime"] = {"kind": "python", "entry": "code", "entryPoint": args.entry_point,
             "runtimeVersion": "3.13", "dependencyLock": "requirements.lock", "architecture": "x64",
-            "isolation": "outOfProcess", "protocol": {"major": 0, "minor": 1}}
+            "isolation": "outOfProcess", "protocol": {"major": 0, "minor": 2}}
         manifest["components"] = []
         for component in definition["components"]:
             component = dict(component)

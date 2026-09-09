@@ -44,11 +44,15 @@ namespace artest::extensions
 
         module->api.struct_size = sizeof(ARTestExtensionApiV0);
         ErrorStorage queryError;
-        auto status = query(ARTEST_EXTENSION_ABI_MAJOR, ARTEST_EXTENSION_ABI_MINOR, &module->api,
+        // Query the package's declared contract, not the newest host version:
+        // frozen ABI 0.1 extensions reject a request for 0.2.
+        const auto requiredMinor = package.manifest.at("runtime").at("abi").at("minor").get<std::uint32_t>();
+        auto status = query(ARTEST_EXTENSION_ABI_MAJOR, requiredMinor, &module->api,
                             &queryError.buffer);
         if (status != ARTEST_STATUS_OK || module->api.struct_size < sizeof(ARTestExtensionApiV0) ||
             module->api.abi_major != ARTEST_EXTENSION_ABI_MAJOR ||
             module->api.abi_minor > ARTEST_EXTENSION_ABI_MINOR ||
+            module->api.abi_minor != requiredMinor ||
             module->api.create_extension == nullptr || module->api.destroy_extension == nullptr ||
             module->api.get_component_type_count == nullptr ||
             module->api.get_component_descriptor == nullptr ||

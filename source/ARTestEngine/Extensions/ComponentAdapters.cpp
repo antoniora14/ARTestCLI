@@ -127,20 +127,23 @@ public:
             }
             return step;
         }
-        const auto message = result.diagnostics.empty() ? std::string{"Extension command failed."}
-                                                        : result.diagnostics.front().message;
+        std::string message;
+        auto status = StepStatus::Error;
         for (const auto &diagnostic : result.diagnostics)
-            if (diagnostic.code == "EXTENSION_OUTCOME_INDETERMINATE")
-            {
-                auto step = StepResult::Error(diagnostic.code + ": " + message);
-                step.indeterminate = true;
-                return step;
-            }
+        {
+            if (!message.empty()) message += "; ";
+            message += diagnostic.code + ": " + diagnostic.message;
+            if (diagnostic.code == "EXTENSION_TIMED_OUT") status = StepStatus::TimedOut;
+            if (diagnostic.code == "EXTENSION_CANCELLED") status = StepStatus::Cancelled;
+        }
         if (cancellation.IsTimedOut())
-            return StepResult::Timeout(message);
-        if (cancellation.IsCancellationRequested())
-            return StepResult::Cancel(message);
-        return StepResult::Error(message);
+            status = StepStatus::TimedOut;
+        else if (cancellation.IsCancellationRequested())
+            status = StepStatus::Cancelled;
+        auto step = StepResult::Error(message.empty() ? "Extension command failed." : message);
+        step.status = status;
+        step.indeterminate = response.indeterminate;
+        return step;
     }
   
 };

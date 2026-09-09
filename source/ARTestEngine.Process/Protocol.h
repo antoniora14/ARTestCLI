@@ -8,7 +8,7 @@
 namespace artest::process
 {
 namespace wire = v0;
-inline constexpr std::uint32_t ProtocolMajor = 0, ProtocolMinor = 1;
+inline constexpr std::uint32_t ProtocolMajor = 0, ProtocolMinor = 2;
 inline constexpr std::size_t MaxFrameBytes = 1024 * 1024;
 class ProcessError : public std::runtime_error
 {

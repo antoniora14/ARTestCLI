@@ -12,6 +12,18 @@ class Result:
     schema_id: str = "artest.schema.generic-json.v1"
     status: str = "ok"
     message: str = ""
+    effect_indeterminate: bool = False
+
+    def __post_init__(self):
+        if type(self.effect_indeterminate) is not bool:
+            raise TypeError("effect_indeterminate must be boolean")
+        if self.effect_indeterminate and self.status not in ("error", "cancelled", "timedOut", "invalidArgument"):
+            raise ValueError("An indeterminate effect requires a non-success status")
+
+    @staticmethod
+    def indeterminate(message: str, status: str = "error"):
+        """A write may have executed but its acknowledgement was lost."""
+        return Result(status=status, message=message, effect_indeterminate=True)
 
     @staticmethod
     def verdict(passed: bool, data: object, schema_id: str, message: str = ""):
@@ -67,6 +79,9 @@ class Context:
         # lock early. The Engine kills a worker that exceeds the bounded grace.
         task = asyncio.create_task(asyncio.to_thread(function, *args))
         result = await asyncio.shield(task)
+        if isinstance(result, Result) and result.effect_indeterminate:
+            # Do not replace a vendor's explicit lost-ack signal with a checkpoint.
+            raise OperationError(result)
         self.check_cancelled()
         return result
 

@@ -66,6 +66,16 @@ OperationResult ExtensionRuntime::Invoke(
     if (!lease)
         return OperationResult::Failure("EXTENSION_COMPONENT_INVALID",
                                         "A valid extension component is required.");
+    InvocationEffects effects;
+    auto *previous = m_implementation->effects;
+    m_implementation->effects = &effects;
+    struct Scope
+    {
+        InvocationEffects *&slot;
+        InvocationEffects *previous;
+        ~Scope() { slot = previous; }
+    } scope{m_implementation->effects, previous};
+    if (response) *response = {};
     const auto text = request.dump();
     const auto payload = JsonPayload(text);
     struct Capture
@@ -123,9 +133,20 @@ OperationResult ExtensionRuntime::Invoke(
     {
         status = InvokeAbi(lease, View(operationId), &payload, &invocation, &sink, &error.buffer);
     }
-    if (m_implementation->python.Indeterminate())
-        return OperationResult::Failure("EXTENSION_OUTCOME_INDETERMINATE",
-            error.Message("A worker failed; hardware effects are unknown. No retry is permitted."), operationId);
+    if (response) response->indeterminate = effects.indeterminate;
+    status &= ~ARTEST_STATUS_EFFECT_INDETERMINATE_FLAG;
+    if (effects.indeterminate)
+    {
+        auto result = OperationResult::Failure("EXTENSION_OUTCOME_INDETERMINATE",
+            effects.diagnostic, effects.operation);
+        // Retain the wrapping command's classification/diagnostic as well as
+        // the original driver signal. Cleanup is a separate invocation scope.
+        result.diagnostics.push_back({DiagnosticSeverity::Error,
+            status == ARTEST_STATUS_CANCELLED ? "EXTENSION_CANCELLED" :
+            status == ARTEST_STATUS_TIMED_OUT ? "EXTENSION_TIMED_OUT" : "EXTENSION_INVOCATION_FAILED",
+            error.Message("Invocation ended after an indeterminate external effect."), operationId});
+        return result;
+    }
     if (status != ARTEST_STATUS_OK)
         return OperationResult::Failure(
             status == ARTEST_STATUS_CANCELLED   ? "EXTENSION_CANCELLED"
@@ -174,14 +195,39 @@ ARTestStatus ExtensionRuntime::InvokeAbi(const std::shared_ptr<ComponentLease> &
     ARTestStringView operation, const ARTestPayloadView *request,
     const ARTestInvocationContextV0 *invocation, const ARTestResultSinkV0 *sink, ARTestErrorBuffer *error)
 {
+    auto &state = *m_implementation;
+    if (state.effects && state.effects->indeterminate)
+    {
+        SetError(error, "Further service work blocked after an indeterminate external effect.");
+        return ARTEST_STATUS_EXTENSION_FAILURE | ARTEST_STATUS_EFFECT_INDETERMINATE_FLAG;
+    }
+    const auto previousMinor = state.callerAbiMinor;
+    struct CallerScope
+    {
+        std::uint32_t &slot;
+        std::uint32_t previous;
+        ~CallerScope() { slot = previous; }
+    } callerScope{state.callerAbiMinor, previousMinor};
+    ARTestStatus status = ARTEST_STATUS_INVALID_ARGUMENT;
     if (const auto native = std::dynamic_pointer_cast<NativeComponentInstance>(lease))
     {
+        state.callerAbiMinor = native->module->api.abi_minor;
         std::scoped_lock lock{native->module->invocationMutex};
-        return native->module->api.invoke_component(native->module->extension, native->handle,
+        status = native->module->api.invoke_component(native->module->extension, native->handle,
             operation, request, invocation, sink, error);
     }
-    if (const auto python = std::dynamic_pointer_cast<PythonComponent>(lease))
-        return m_implementation->python.Invoke(python, operation, request, invocation, sink, error);
-    return ARTEST_STATUS_INVALID_ARGUMENT;
+    else if (const auto python = std::dynamic_pointer_cast<PythonComponent>(lease))
+    {
+        state.callerAbiMinor = ARTEST_EXTENSION_ABI_MINOR;
+        status = state.python.Invoke(python, operation, request, invocation, sink, error);
+    }
+    if ((status & ARTEST_STATUS_EFFECT_INDETERMINATE_FLAG) != 0 && state.effects)
+    {
+        std::string message = "External effect is unconfirmed; automatic replay is forbidden.";
+        if (error && error->data && error->capacity && error->data[0])
+            message.assign(error->data, std::find(error->data, error->data + error->capacity, '\0'));
+        state.effects->Record(std::move(message), ToString(operation));
+    }
+    return status;
 }
 } // namespace artest::extensions

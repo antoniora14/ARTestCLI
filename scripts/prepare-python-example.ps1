@@ -15,7 +15,7 @@ function Invoke-PythonTool([string[]]$ToolArguments) {
 Invoke-PythonTool @('sdk', '--protoc', "$repo\artifacts\vcpkg-process\artest-x64-windows-static-md\tools\protobuf\protoc.exe",
     '--protocol', "$repo\source\ARTestEngine.Process\protocol\artest_process.proto", '--output', "$OutputRoot\sdk")
 $lock = "$repo\source\ARTest.Python\requirements.lock"
-$wheel = "$OutputRoot\sdk\artest_python-0.1.0-py3-none-any.whl"
+$wheel = "$OutputRoot\sdk\artest_python-0.2.0-py3-none-any.whl"
 Invoke-PythonTool @('package', '--source', "$repo\source\ARTest.Python\examples\simulated",
     '--entry-point', 'extension:define_extension', '--lock', $lock, '--output', "$OutputRoot\extensions\ARTestPySimulated")
 Invoke-PythonTool @('prepare', '--package', "$OutputRoot\extensions\ARTestPySimulated",

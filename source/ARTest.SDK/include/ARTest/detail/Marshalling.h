@@ -139,7 +139,13 @@ inline ARTestStatus Return(const Result &result, const ARTestResultSinkV0 *sink,
                            ARTestErrorBuffer *error)
 {
     if (!result)
-        return Fail(error, result.Code(), result.Message());
+    {
+        const auto status = Fail(error, result.Code(), result.Message());
+        // Error text is optional. A small buffer cannot erase a safety signal.
+        return result.IsIndeterminate()
+            ? static_cast<ARTestStatus>(result.Code()) | ARTEST_STATUS_EFFECT_INDETERMINATE_FLAG
+            : status;
+    }
     if (!ValidSink(sink))
         return Fail(error, Status::InvalidArgument, "Invalid result sink.");
     if (!sink || !result.Data())
@@ -173,10 +179,13 @@ inline Result HostResult(ARTestStatus code, const ErrorStorage &error)
 {
     if (code == ARTEST_STATUS_OK)
         return Result::Success();
+    const bool indeterminate = (code & ARTEST_STATUS_EFFECT_INDETERMINATE_FLAG) != 0;
+    code &= ~ARTEST_STATUS_EFFECT_INDETERMINATE_FLAG;
     const auto status =
         code >= ARTEST_STATUS_INVALID_ARGUMENT && code <= ARTEST_STATUS_INTERNAL_FAILURE
             ? static_cast<Status>(code)
             : Status::HostFailure;
-    return Result::Failure(status, error.Message());
+    return indeterminate ? Result::Indeterminate(error.Message(), status)
+                         : Result::Failure(status, error.Message());
 }
 } // namespace artest::sdk::detail

@@ -47,6 +47,7 @@ int RunProcessWorker(int argc, char **argv)
         const auto acknowledgement = pipe.Read(Clock::now() + std::chrono::seconds{3});
         if (!acknowledgement.has_hello() || !acknowledgement.hello().acknowledged()) return 2;
         std::map<std::uint64_t, wire::Envelope> waiting, services;
+        std::map<std::uint64_t, bool> received;
         std::uint64_t nextService = 3;
         for (;;)
         {
@@ -57,17 +58,45 @@ int RunProcessWorker(int argc, char **argv)
             auto response = Message(bootstrap.generation, message.correlation());
             if (message.has_cancel())
             {
+                if (!received.contains(message.correlation()) || received.at(message.correlation()))
+                    return 4;
+                received.at(message.correlation()) = true;
                 if (waiting.contains(message.correlation()))
                 {
+                    const bool terminalFirst =
+                        waiting.at(message.correlation()).request().operation_id() == "uncertain-wait";
                     response.mutable_cancel()->set_acknowledged(true);
-                    pipe.Write(response, Clock::now() + std::chrono::seconds{1});
+                    if (!terminalFirst) pipe.Write(response, Clock::now() + std::chrono::seconds{1});
                     if (mode != "ignore-cancel")
                     {
                         response.clear_cancel();
                         *response.mutable_response() = Response(wire::CANCELLED, "Worker cancellation observed.");
+                        if (waiting.at(message.correlation()).request().operation_id() == "uncertain-wait")
+                        {
+                            auto *result = response.mutable_response();
+                            result->set_status(wire::EXTENSION_FAILURE);
+                            result->set_effect_indeterminate(true);
+                            result->set_diagnostic("C01 lost acknowledgement");
+                            result->mutable_payload()->set_schema_id("artest.schema.process-test.v1");
+                            result->mutable_payload()->set_json(R"({"effect":"unconfirmed"})");
+                        }
                         pipe.Write(response, Clock::now() + std::chrono::seconds{1});
+                        if (terminalFirst)
+                        {
+                            // Force a result-before-ACK race, including a scheduling gap.
+                            Sleep(20);
+                            response.clear_response();
+                            response.mutable_cancel()->set_acknowledged(true);
+                            pipe.Write(response, Clock::now() + std::chrono::seconds{1});
+                        }
                         waiting.erase(message.correlation());
                     }
+                }
+                else
+                {
+                    // A service/terminal response may cross cancellation in flight.
+                    response.mutable_cancel()->set_acknowledged(true);
+                    pipe.Write(response, Clock::now() + std::chrono::seconds{1});
                 }
                 continue;
             }
@@ -81,10 +110,12 @@ int RunProcessWorker(int argc, char **argv)
                 continue;
             }
             if (!message.has_request()) return 3;
+            received.emplace(message.correlation(), false);
+            if (received.size() > 64) received.erase(received.begin());
             const auto &request = message.request();
             if (request.operation_id() == "crash") ExitProcess(17);
             if (request.operation_id() == "stall") { Sleep(INFINITE); return 0; }
-            if (request.operation_id() == "wait")
+            if (request.operation_id() == "wait" || request.operation_id() == "uncertain-wait")
             { waiting.emplace(message.correlation(), message); continue; }
             if (request.operation_id() == "service" || request.operation_id() == "cancel-service")
             {

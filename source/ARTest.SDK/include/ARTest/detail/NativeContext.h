@@ -169,11 +169,14 @@ private:
             }
         }();
         if (!lease.Release())
-            return Result::Failure(Status::HostFailure,
-                                   outcome.Succeeded()
+        {
+            const auto message = outcome.Succeeded()
                                        ? "The host service release callback threw."
                                        : outcome.Message() +
-                                             "; the host service release callback also threw.");
+                                             "; the host service release callback also threw.";
+            return outcome.IsIndeterminate() ? Result::Indeterminate(message, outcome.Code())
+                                            : Result::Failure(Status::HostFailure, message);
+        }
         return outcome;
     }
 

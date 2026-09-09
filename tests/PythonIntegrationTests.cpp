@@ -4,6 +4,7 @@
 #include <ARTest/Result.h>
 #include <gtest/gtest.h>
 #include "TestSupport/ReferenceCatalog.h"
+#include "TestSupport/C01/Catalog.h"
 #include <fstream>
 #include <thread>
 #include <atomic>
@@ -25,6 +26,13 @@ std::filesystem::path Binaries()
     GetModuleFileNameW(nullptr, buffer, 32768);
     return std::filesystem::path{buffer}.parent_path();
 }
+std::filesystem::path PythonRoot()
+{
+    wchar_t configured[32768]{};
+    if (GetEnvironmentVariableW(L"ARTEST_PYTHON_ROOT", configured, 32768))
+        return configured;
+    return Repository() / "artifacts/python";
+}
 class PythonTest : public ::testing::Test
 {
   protected:
@@ -35,15 +43,16 @@ class PythonTest : public ::testing::Test
     void SetUp() override
     {
         const auto root = Repository();
-        const auto python = root / "artifacts/python/extensions/ARTestPySimulated";
+        const auto python = PythonRoot() / "extensions/ARTestPySimulated";
         ASSERT_TRUE(std::filesystem::is_regular_file(python / "artest-extension.json"))
             << "Run scripts/prepare-python-example.ps1 first.";
         packages = std::make_unique<artest::tests::ReferenceCatalog>(root / "artifacts/extensions/x64" / Binaries().filename());
+        artest::tests::effects::AddPackage(packages->Root(), Binaries());
         std::filesystem::copy(python, packages->Root() / "ARTestPySimulated", std::filesystem::copy_options::recursive);
-        const auto faults = root / "artifacts/python/test-extensions/ARTestPyFaults";
+        const auto faults = PythonRoot() / "test-extensions/ARTestPyFaults";
         ASSERT_TRUE(std::filesystem::is_regular_file(faults / "artest-extension.json"));
         std::filesystem::copy(faults, packages->Root() / "ARTestPyFaults", std::filesystem::copy_options::recursive);
-        std::ifstream mapping(root / "artifacts/python/environments/python-environments.json");
+        std::ifstream mapping(PythonRoot() / "environments/python-environments.json");
         ASSERT_TRUE(mapping.good()) << "Prepare the example environment mapping first.";
         const Json options = {{"loadDefaultCatalog", false}, {"resultSchemaVersion", 2},
                               {"pythonEnvironments", Json::parse(mapping)}};
@@ -95,6 +104,138 @@ class PythonTest : public ::testing::Test
     }
 };
 using DISABLED_PythonIntegrationTests = PythonTest;
+}
+
+namespace
+{
+Json EffectPlan(const std::filesystem::path &marker, bool pythonCommand, bool pythonDriver,
+                std::string mode = "lost", std::string action = "propagate")
+{
+    auto plan = artest::tests::effects::Plan(marker, mode, action);
+    if (pythonDriver) plan["instruments"][0]["type"] = "com.artest.python.driver.test-faults";
+    if (pythonCommand)
+        for (auto &step : plan["commands"]) step["name"] = "com.artest.python.command.test-effects";
+    return plan;
+}
+void AssertEffectStopped(const Json &result, const std::filesystem::path &marker, bool pythonDriver)
+{
+    ASSERT_EQ(result.at("steps").size(), 1u) << result.dump(2);
+    EXPECT_EQ(result["summary"]["totalAttempts"], 1);
+    EXPECT_EQ(result["summary"]["skippedSteps"], 1);
+    EXPECT_EQ(result["steps"][0]["outcome"]["indeterminate"], true);
+    EXPECT_EQ(result["steps"][0]["attempts"][0]["outcome"]["indeterminate"], true);
+    EXPECT_NE(result.dump().find(pythonDriver ? "C01 Python lost acknowledgement" :
+        "C01 native lost acknowledgement"), std::string::npos);
+    EXPECT_EQ(artest::tests::effects::Read(marker), "effect\n");
+    EXPECT_EQ(artest::tests::effects::Read(marker.string() + ".calls"), "call\n");
+    EXPECT_EQ(artest::tests::effects::Read(marker.string() + ".cleanup"), "cleanup\n");
+    // Shutdown completed in the same worker: explicit device uncertainty does
+    // not depend on a crash and must not contaminate the cleanup operation.
+    EXPECT_EQ(result.dump().find("PYTHON_CLEANUP_UNCONFIRMED"), std::string::npos);
+}
+}
+TEST_F(DISABLED_PythonIntegrationTests, C01PythonCommandWrapsNativeLostAcknowledgement)
+{
+    const auto marker = packages->Root() / "c01.txt";
+    const auto result = Run(EffectPlan(marker, true, false, "lost", "wrap"));
+    AssertEffectStopped(result, marker, false);
+    EXPECT_NE(result.dump().find("C01 wrapped Python command failure"), std::string::npos);
+}
+TEST_F(DISABLED_PythonIntegrationTests, C01NativeCommandWrapsLivePythonDriverUncertainty)
+{
+    const auto marker = packages->Root() / "c01.txt";
+    const auto result = Run(EffectPlan(marker, false, true, "lost", "wrap"));
+    AssertEffectStopped(result, marker, true);
+    EXPECT_NE(result.dump().find("C01 wrapped command failure"), std::string::npos);
+}
+TEST_F(DISABLED_PythonIntegrationTests, C01PythonCommandCannotReplayOrHideSuccess)
+{
+    const auto marker = packages->Root() / "c01.txt";
+    const auto result = Run(EffectPlan(marker, true, true, "lost", "retry"));
+    EXPECT_EQ(result["status"], "error");
+    AssertEffectStopped(result, marker, true);
+}
+TEST_F(DISABLED_PythonIntegrationTests, C01NativeCommandCannotReplayLivePythonDriver)
+{
+    const auto marker = packages->Root() / "c01.txt";
+    const auto result = Run(EffectPlan(marker, false, true, "lost", "retry"));
+    EXPECT_EQ(result["status"], "error");
+    AssertEffectStopped(result, marker, true);
+}
+TEST_F(DISABLED_PythonIntegrationTests, C01NestedServicesPreserveBothRuntimeDirections)
+{
+    for (const bool pythonOrigin : {false, true})
+    {
+        const auto marker = packages->Root() / (pythonOrigin ? "python-origin.txt" : "native-origin.txt");
+        const auto relay = packages->Root() / (pythonOrigin ? "native-relay.txt" : "python-relay.txt");
+        auto plan = EffectPlan(relay, pythonOrigin, !pythonOrigin, "relay", "wrap");
+        plan["instruments"][0]["config"]["relay"] = "PS2";
+        auto origin = EffectPlan(marker, false, pythonOrigin)["instruments"][0];
+        origin["id"] = "PS2";
+        plan["instruments"].push_back(origin);
+        const auto result = Run(plan);
+        AssertEffectStopped(result, marker, pythonOrigin);
+        EXPECT_EQ(artest::tests::effects::Read(relay.string() + ".calls"), "call\n");
+        EXPECT_EQ(artest::tests::effects::Read(relay.string() + ".cleanup"), "cleanup\n");
+        EXPECT_FALSE(std::filesystem::exists(relay));
+    }
+}
+TEST_F(DISABLED_PythonIntegrationTests, C01LateBlockingResultPreservesUncertaintyAfterDeadline)
+{
+    const auto marker = packages->Root() / "c01.txt";
+    auto plan = EffectPlan(marker, true, true, "blocking-lost");
+    plan["commands"][0]["policy"]["timeoutMs"] = 50;
+    const auto result = Run(plan);
+    EXPECT_EQ(result["status"], "timedOut");
+    AssertEffectStopped(result, marker, true);
+}
+TEST_F(DISABLED_PythonIntegrationTests, C01ExplicitCancellationAndTimeoutAreOrthogonalToUncertainty)
+{
+    for (const auto mode : {"cancelled", "timeout"})
+    {
+        const auto marker = packages->Root() / (std::string(mode) + ".txt");
+        const auto result = Run(EffectPlan(marker, false, true, mode));
+        EXPECT_EQ(result["status"], std::string(mode) == "timeout" ? "timedOut" : "cancelled");
+        AssertEffectStopped(result, marker, true);
+    }
+}
+TEST_F(DISABLED_PythonIntegrationTests, C01PreSendFailureRemainsRetryable)
+{
+    const auto marker = packages->Root() / "c01.txt";
+    const auto result = Run(EffectPlan(marker, true, true, "before"));
+    EXPECT_EQ(result["summary"]["totalAttempts"], 6);
+    EXPECT_EQ(result["summary"]["executedSteps"], 2);
+    EXPECT_FALSE(std::filesystem::exists(marker));
+    EXPECT_EQ(result["steps"][0]["outcome"]["indeterminate"], false);
+    EXPECT_EQ(artest::tests::effects::Read(marker.string() + ".calls"), "call\ncall\ncall\ncall\ncall\ncall\n");
+}
+TEST_F(DISABLED_PythonIntegrationTests, C01NewPythonSessionAndSeparateInstancesStayClean)
+{
+    const auto marker = packages->Root() / "c01.txt";
+    AssertEffectStopped(Run(EffectPlan(marker, true, true)), marker, true);
+    const auto first = packages->Root() / "fresh1.txt", second = packages->Root() / "fresh2.txt";
+    auto plan = EffectPlan(first, true, true, "ok");
+    auto other = plan["instruments"][0];
+    other["id"] = "PS2";
+    other["config"]["effectFile"] = second.string();
+    plan["instruments"].push_back(other);
+    plan["commands"][1]["instrument"] = "PS2";
+    const auto result = Run(plan);
+    EXPECT_EQ(result["status"], "passed") << result.dump(2);
+    for (const auto &step : result["steps"]) EXPECT_EQ(step["outcome"]["indeterminate"], false);
+    EXPECT_EQ(artest::tests::effects::Read(first), "effect\n");
+    EXPECT_EQ(artest::tests::effects::Read(second), "effect\n");
+    EXPECT_EQ(artest::tests::effects::Read(first.string() + ".cleanup"), "cleanup\n");
+    EXPECT_EQ(artest::tests::effects::Read(second.string() + ".cleanup"), "cleanup\n");
+}
+TEST_F(DISABLED_PythonIntegrationTests, C01CleanupFailureDoesNotEraseDeviceUncertainty)
+{
+    const auto marker = packages->Root() / "c01.txt";
+    auto plan = EffectPlan(marker, true, true);
+    plan["instruments"][0]["config"]["failShutdown"] = true;
+    const auto result = Run(plan);
+    AssertEffectStopped(result, marker, true);
+    EXPECT_NE(result.dump().find("C01 Python cleanup failed"), std::string::npos);
 }
 TEST_F(DISABLED_PythonIntegrationTests, PythonCommandInvokesPythonDriver)
 {
@@ -263,7 +404,7 @@ TEST_F(DISABLED_PythonIntegrationTests, MissingEnvironmentFailsWithoutImplicitIn
 }
 TEST_F(DISABLED_PythonIntegrationTests, EnvironmentCannotBeReboundToAnotherPackage)
 {
-    std::ifstream input(Repository() / "artifacts/python/environments/python-environments.json");
+    std::ifstream input(PythonRoot() / "environments/python-environments.json");
     auto mapping = Json::parse(input);
     mapping["com.artest.python.simulated"] = mapping["com.artest.python.test-faults"];
     const Json options = {{"loadDefaultCatalog", false}, {"pythonEnvironments", mapping}};

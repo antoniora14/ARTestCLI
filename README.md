@@ -177,7 +177,8 @@ Native extensions run in-process. Python uses one worker per package per session
 - **Performance:** Python interpretation, serialization, and IPC add overhead. Native C++ or batched driver operations are better fits for frequent small transactions. No hard-real-time guarantee or measured latency ratio is claimed.
 - **Safety:** native cancellation is cooperative. An unresponsive Python worker can be terminated, but process termination cannot prove physical equipment is safe or powered off.
 - **Trust:** package hashes and isolated environments detect changes and separate dependencies. They are not publisher signatures or a security sandbox.
-- **Stability:** native SDK **0.3.0**, Python SDK **0.1.0**, Engine API **0.4**, and native ABI **0.1** are experimental. Compatibility tests are not an ABI 1.0 freeze.
+- **Stability:** native SDK **0.4.0**, Python SDK **0.2.0**, Engine API **0.4**, and native ABI **0.2** are experimental. Compatibility tests are not an ABI 1.0 freeze.
+- **External effects:** drivers can explicitly report a missing acknowledgement after a possible device write. The Engine preserves this signal across C++/Python calls and forbids automatic replay. See [the driver contract](docs/sdk/external-effect-uncertainty.md).
 
 ## Validation and test evidence
 
@@ -293,4 +294,3 @@ Remote workers, hot reload, parallel sequence execution, and production hardware
 Feedback on SDK usability, reproducible bug reports, and small simulated examples are especially useful at this stage. When reporting a problem, include the commit, toolchain/runtime versions, reproduction steps, expected versus actual behavior, and relevant diagnostics. Remove credentials and sensitive device details from shared logs.
 
 Before proposing a new driver or contract, review the authoring guides and existing reference packages. Keep hardware-specific behavior in drivers, test intent in commands, and sequencing policy in the Engine.
-

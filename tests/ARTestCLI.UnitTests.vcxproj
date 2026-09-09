@@ -59,6 +59,7 @@
     <ClCompile Include="TestMain.cpp" />
     <ClCompile Include="ProcessRuntimeTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="PythonIntegrationTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
+    <ClCompile Include="EffectUncertaintyTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="TestSupport\ProcessWorker.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="..\source\ARTestEngine\Extensions\ComponentAdapters.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="TestSupport\Fakes\FakePowerSupply.cpp" />
@@ -114,6 +115,10 @@
     </ProjectReference>
     <ProjectReference Include="..\source\ARTestEngine\ARTestEngine.vcxproj">
       <Project>{D47C2447-5B74-4CC8-B915-D73FD7BE85CB}</Project>
+    </ProjectReference>
+    <ProjectReference Include="C01FaultExtension.vcxproj">
+      <Project>{0839C913-2175-4D4B-98CA-FE03F045E414}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
     <ProjectReference Include="..\source\ARTestDrvSimPower\ARTestDrvSimPower.vcxproj">
       <Project>{377B03F6-3D71-47A5-8A52-D3028BB8254B}</Project>

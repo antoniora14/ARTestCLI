@@ -11,6 +11,7 @@ struct InvocationOutput
 {
     std::string schemaId;
     nlohmann::json data;
+    bool indeterminate = false;
 };
 // Internal ownership boundary. No native ABI handle or worker token reaches Core.
 class ComponentLease

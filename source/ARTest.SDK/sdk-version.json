@@ -1,8 +1,8 @@
 {
   "schema": "artest.schema.sdk-version.v1",
-  "sdkVersion": "0.3.0",
+  "sdkVersion": "0.4.0",
   "engineApi": "0.4",
-  "nativeExtensionAbi": "0.1",
+  "nativeExtensionAbi": "0.2",
   "stability": "experimental",
   "platform": "windows-x64",
   "toolset": "v145",

@@ -55,12 +55,19 @@ the Engine or access physical equipment.
 
 ## Current scope
 
-Engine API 0.4 / extension ABI 0.1 remain experimental. D3.3-A authoring,
+Engine API 0.4 / extension ABI 0.2 remain experimental. D3.3-A authoring,
 D3.3-B reference migration and D3.3-C installed-SDK consumers are implemented.
 SDK package 0.1.1 adds schema-preserving Results without a C ABI change.
 D3.4.1 introduces Schema/ComponentMetadata and generates the source-tree example.
 Read metadata-generation.md; do not invent a raw-JSON schema escape hatch or
-duplicate generated manifests in source. SDK version is now 0.3.0.
+duplicate generated manifests in source. SDK version is now 0.4.0.
+
+C-01: read external-effect-uncertainty.md. Distinguish confirmed pre-send
+failure, failed measurement, and possible write without acknowledgement.
+Use Result::Indeterminate / Result.indeterminate for the last case. Propagate
+service failures intact; never replay uncertain writes, including in vendor
+retry loops. Engine-side latching protects nested calls and wrapper errors,
+but cannot detect hidden direct vendor I/O or certify physical cleanup.
 D3.4.2 adds ARTestMetadata.targets and owned, recoverable publication. Read the
 publication section before changing build hooks. Do not bypass a failed DLL
 inspection or remove an ownership marker to force replacement of unknown files.

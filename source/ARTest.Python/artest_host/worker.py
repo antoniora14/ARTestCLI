@@ -16,7 +16,8 @@ STATUS = {"ok": w.OK, "error": w.EXTENSION_FAILURE, "cancelled": w.CANCELLED,
 
 def response(result):
     if not isinstance(result, Result): raise TypeError("Operations must return Result")
-    value = w.Response(status=STATUS[result.status], diagnostic=result.message[:1000])
+    value = w.Response(status=STATUS[result.status], diagnostic=result.message[:1000],
+                       effect_indeterminate=result.effect_indeterminate)
     if result.data is not None:
         value.payload.schema_id = result.schema_id
         value.payload.json = json.dumps(result.data, allow_nan=False, separators=(",", ":"))
@@ -35,6 +36,9 @@ class Worker:
     def __init__(self, transport, extension):
         self.transport, self.extension = transport, extension
         self.instances, self.calls, self.pending = {}, {}, {}
+        # Bounded terminal-call tombstones handle cancellation crossing a result
+        # in flight. A late ACK confirms receipt, never reopens or replays work.
+        self.completed = {}
         self.next_handle, self.next_request, self.last_request = 1, 3, 0
         self.done = asyncio.Event()
         self.failure = None
@@ -68,9 +72,15 @@ class Worker:
                 self.calls[message.correlation] = cancelled
                 asyncio.create_task(self.dispatch(message, cancelled))
             elif kind == "cancel":
-                if message.correlation not in self.calls or message.cancel.acknowledged:
+                if message.cancel.acknowledged:
                     raise ValueError("Unknown cancellation")
-                self.calls[message.correlation].set()
+                active = self.calls.get(message.correlation)
+                if active is not None and not active.is_set():
+                    active.set()
+                elif message.correlation in self.completed and not self.completed[message.correlation]:
+                    self.completed[message.correlation] = True
+                else:
+                    raise ValueError("Unknown or duplicate cancellation")
                 reply = self.transport.envelope(message.correlation)
                 reply.cancel.acknowledged = True
                 self.transport.send(reply)
@@ -107,7 +117,8 @@ class Worker:
         result = await future
         if result.status != w.OK:
             state = {w.CANCELLED: "cancelled", w.TIMED_OUT: "timedOut"}.get(result.status, "error")
-            raise OperationError(Result(status=state, message=result.diagnostic))
+            raise OperationError(Result(status=state, message=result.diagnostic,
+                                        effect_indeterminate=result.effect_indeterminate))
         if kind == "resolve": return result.handle
         return Result(json_load(result.payload.json), result.payload.schema_id or "artest.schema.generic-json.v1")
 
@@ -180,4 +191,8 @@ class Worker:
             self.transport.send(reply)
             if stop and result.status == w.OK: self.done.set()
         except BaseException as error: self.fail(error)
-        finally: self.calls.pop(envelope.correlation, None)
+        finally:
+            self.calls.pop(envelope.correlation, None)
+            self.completed[envelope.correlation] = cancelled.is_set()
+            if len(self.completed) > 64:
+                del self.completed[next(iter(self.completed))]

@@ -175,7 +175,12 @@ ARTestStatus PythonRuntime::Invoke(const std::shared_ptr<PythonComponent> &compo
             return invocation && invocation->is_cancellation_requested &&
                 invocation->is_cancellation_requested(invocation->cancellation_context);
         });
-        if (response.status() != wire::OK) { SetError(error, response.diagnostic()); return NativeStatus(response.status()); }
+        if (response.status() != wire::OK)
+        {
+            SetError(error, response.diagnostic());
+            return NativeStatus(response.status()) |
+                (response.effect_indeterminate() ? ARTEST_STATUS_EFFECT_INDETERMINATE_FLAG : 0);
+        }
         if (sink && !response.payload().json().empty())
         {
             auto output = JsonPayload(response.payload().json());
@@ -186,9 +191,8 @@ ARTestStatus PythonRuntime::Invoke(const std::shared_ptr<PythonComponent> &compo
     }
     catch (const process::ProcessError &exception)
     {
-        m_indeterminate = true;
         SetError(error, std::string{"EXTENSION_OUTCOME_INDETERMINATE: "} + exception.what());
-        return ARTEST_STATUS_EXTENSION_FAILURE;
+        return ARTEST_STATUS_EXTENSION_FAILURE | ARTEST_STATUS_EFFECT_INDETERMINATE_FLAG;
     }
     catch (const std::exception &exception) { SetError(error, exception.what()); return ARTEST_STATUS_EXTENSION_FAILURE; }
 }
@@ -238,7 +242,8 @@ wire::Response PythonRuntime::Service(const wire::Request &request, PythonWorker
     payload.schema_id = View(request.payload().schema_id());
     const auto status = NativeServiceBroker::InvokeService(&m_broker, found->second,
         View(request.operation_id()), &payload, m_invocation, &sink, &error.buffer);
-    response.set_status(WireStatus(status));
+    response.set_status(WireStatus(status & ~ARTEST_STATUS_EFFECT_INDETERMINATE_FLAG));
+    response.set_effect_indeterminate((status & ARTEST_STATUS_EFFECT_INDETERMINATE_FLAG) != 0);
     response.set_diagnostic(error.Message(""));
     return response;
 }

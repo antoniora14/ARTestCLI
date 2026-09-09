@@ -1,15 +1,17 @@
 # Develop Python commands and Instrument Drivers
 
 D4.2 supports standard GIL-enabled CPython 3.13 x64 on Windows. Python 3.7 and
-free-threaded builds are unsupported. The Python SDK is experimental 0.1.0;
-native SDK 0.3.0, native ABI 0.1 and Engine API 0.4 remain experimental.
+free-threaded builds are unsupported. The Python SDK is experimental 0.2.0;
+native SDK 0.4.0, native ABI 0.2 and Engine API 0.4 remain experimental.
+Python SDK/host/Engine require private protocol 0.2. Old 0.1 packages must be
+regenerated and prepared in new environments; do not rewrite their receipts.
 
 ## Prepare the working example
 
 From the ARTestCLI repository root in PowerShell:
 
     .\scripts\build.ps1 -Configuration Release -Platform x64
-    .\scripts\prepare-python-example.ps1 -Python 'C:\Users\anton\AppData\Local\Programs\Python\Python313\python.exe' -IncludeFaultTests
+    .\scripts\prepare-python-example.ps1 -Python 'C:\Users\anton\AppData\Local\Programs\Python\Python313\python.exe' -IncludeFaultTests -OutputRoot .\artifacts\python-c01-final
 
 Use the actual absolute interpreter path on another machine. Preparation pins
 protobuf 6.33.4 and pywin32 311 with wheel hashes and installs ARTest's generated
@@ -25,8 +27,8 @@ the new environment has passed its checks.
 Run the simulated measurement:
 
     $cli = '.\artifacts\bin\x64\Release\ARTestCLI.exe'
-    $catalog = '.\artifacts\python\extensions'
-    $mapping = '.\artifacts\python\environments\python-environments.json'
+    $catalog = '.\artifacts\python-c01-final\extensions'
+    $mapping = '.\artifacts\python-c01-final\environments\python-environments.json'
     $plan = '.\source\ARTest.Python\examples\PythonMeasurement.json'
     & $cli compile $plan --extensions $catalog
     & $cli extension-run $plan $catalog --python-environments $mapping
@@ -52,6 +54,7 @@ produces JSON files; developers do not handwrite command/driver manifests.
 - await context.blocking(vendor_function, *arguments) wraps bounded synchronous I/O.
 - Result.verdict(passed, data, schema_id, message) reports a test verdict.
 - Result.failure(message), or a raised exception, reports a technical error.
+- Result.indeterminate(message, status="error") reports an unconfirmed device effect.
 
 Keep constructors and define_extension free of hardware acquisition and expensive
 imports. Metadata generation executes trusted Python code; it is not a sandbox.
@@ -74,7 +77,7 @@ and implicit downloads during execution are not supported.
 The private build tool accepts:
 
     python.exe -I -B source/ARTest.Python/tools/package.py package --source D:\MyDriver --entry-point extension:define_extension --lock D:\MyDriver\requirements.lock --output D:\MyPackages\MyDriver
-    python.exe -I -B source/ARTest.Python/tools/package.py prepare --package D:\MyPackages\MyDriver --sdk artifacts/python/sdk/artest_python-0.1.0-py3-none-any.whl --output D:\MyEnvironments\MyDriver
+    python.exe -I -B source/ARTest.Python/tools/package.py prepare --package D:\MyPackages\MyDriver --sdk artifacts/python-c01-final/sdk/artest_python-0.2.0-py3-none-any.whl --output D:\MyEnvironments\MyDriver
 
 Use an explicit supported interpreter. The mapping from extensionId to absolute
 artest-environment.json path is deployment configuration, not portable extension
@@ -106,6 +109,10 @@ Engine will not retry or continue that run, even if the plan requests it. A kill
 process cannot confirm that a physical supply is off. Use device interlocks,
 vendor timeouts and explicit operator recovery appropriate to the equipment.
 
+A worker can remain alive while a device acknowledgement is missing. Explicitly
+return Result.indeterminate in that case; a generic exception cannot tell the
+Engine whether bytes were sent. See [external-effect uncertainty](external-effect-uncertainty.md).
+
 ## Performance and support limits
 
 Python's interpretation, serialization and process IPC add overhead compared
@@ -121,9 +128,10 @@ automatic environment repair, hot reload or hardware certification is included.
 
 ## Regression
 
-    .\scripts\test-python-runtime.ps1 -Configuration Release
+    .\scripts\test-python-runtime.ps1 -Configuration Release -PythonRoot .\artifacts\python-c01-final
     & 'C:\Users\anton\AppData\Local\Programs\Python\Python313\python.exe' -I -B .\source\ARTest.Python\tests\test_sdk.py -v
 
-The first command explicitly enables the optional Python Google Test suite.
+The first command checks the installed worker's cancellation contract, then
+explicitly enables the optional Python Google Test suite.
 Missing environments are failures, never evidence of support. XML/HTML results
 are under artifacts/test-results/x64/Release with the ARTestPython.Integration name.

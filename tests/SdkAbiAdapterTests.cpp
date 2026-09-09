@@ -125,17 +125,58 @@ TEST(SdkAbiMetadataTests, QueryDoesNotConstructCommandsOrDrivers)
     const auto before = counters.created;
     ARTestExtensionApiV0 api{};
     api.struct_size = sizeof(api);
-    EXPECT_EQ(detail::NativeAdapter<Define>::Query(0, 1, &api, nullptr), ARTEST_STATUS_OK);
+    EXPECT_EQ(detail::NativeAdapter<Define>::Query(0, 2, &api, nullptr), ARTEST_STATUS_OK);
     EXPECT_EQ(counters.created, before);
     EXPECT_EQ(detail::Text(api.extension_id), "com.artest.test.sdk");
+}
+TEST(SdkAbiMetadataTests, UncertaintyContractRejectsOlderHostVersions)
+{
+    ARTestExtensionApiV0 api{};
+    api.struct_size = sizeof(api);
+    EXPECT_EQ(detail::NativeAdapter<Define>::Query(0, 1, &api, nullptr), ARTEST_STATUS_INCOMPATIBLE_ABI);
+    EXPECT_EQ(detail::NativeAdapter<Define>::Query(0, 2, &api, nullptr), ARTEST_STATUS_OK);
+    sdk_tests::Host hostOwner;
+    auto host = hostOwner.Api();
+    host.abi_minor = 1;
+    ARTestExtensionHandle extension = nullptr;
+    EXPECT_NE(api.create_extension(&host, nullptr, &extension, nullptr), ARTEST_STATUS_OK);
+    EXPECT_EQ(extension, nullptr);
+}
+TEST(SdkAbiBoundaryTests, UncertaintySurvivesMissingAndSmallDiagnosticBuffers)
+{
+    const auto result = Result::Indeterminate("Write acknowledgement missing", Status::TimedOut);
+    EXPECT_FALSE(result.Succeeded());
+    EXPECT_TRUE(result.IsIndeterminate());
+    EXPECT_EQ(result.Code(), Status::TimedOut);
+    const auto expected = ARTEST_STATUS_TIMED_OUT | ARTEST_STATUS_EFFECT_INDETERMINATE_FLAG;
+    EXPECT_EQ(detail::Return(result, nullptr, nullptr), expected);
+    char text[1]{'x'};
+    ARTestErrorBuffer small{sizeof(ARTestErrorBuffer), 0, text, 1, 0};
+    EXPECT_EQ(detail::Return(result, nullptr, &small), expected);
+    EXPECT_GT(small.required_size, 1u);
+    EXPECT_EQ(text[0], '\0');
+    EXPECT_THROW((void)Result::Indeterminate("Invalid success", Status::Ok), std::invalid_argument);
+    EXPECT_FALSE(Result::Failure(Status::ResourceUnavailable, "Not sent").IsIndeterminate());
+}
+TEST(SdkAbiContextTests, ServiceUncertaintySurvivesReleaseFailure)
+{
+    Runtime runtime;
+    runtime.host.invokeStatus = ARTEST_STATUS_TIMED_OUT | ARTEST_STATUS_EFFECT_INDETERMINATE_FLAG;
+    runtime.host.throwRelease = true;
+    const auto command = runtime.Create("test.command");
+    EXPECT_EQ(runtime.Invoke(command, "artest.command.execute.v1", Request("service")),
+              ARTEST_STATUS_TIMED_OUT | ARTEST_STATUS_EFFECT_INDETERMINATE_FLAG);
+    EXPECT_EQ(runtime.host.invoked, 1u);
+    EXPECT_EQ(runtime.host.released, 1u);
+    EXPECT_NE(runtime.error.Message().find("release callback"), std::string::npos);
 }
 TEST(SdkAbiMetadataTests, DuplicateAndEmptyDefinitionsAreRejected)
 {
     ARTestExtensionApiV0 api{};
     api.struct_size = sizeof(api);
-    EXPECT_EQ(detail::NativeAdapter<DuplicateDefinition>::Query(0, 1, &api, nullptr),
+    EXPECT_EQ(detail::NativeAdapter<DuplicateDefinition>::Query(0, 2, &api, nullptr),
               ARTEST_STATUS_INVALID_ARGUMENT);
-    EXPECT_EQ(detail::NativeAdapter<EmptyDefinition>::Query(0, 1, &api, nullptr),
+    EXPECT_EQ(detail::NativeAdapter<EmptyDefinition>::Query(0, 2, &api, nullptr),
               ARTEST_STATUS_INVALID_ARGUMENT);
 }
 TEST(SdkAbiMetadataTests, QueryPreservesBytesBeyondTheCurrentTable)
@@ -146,15 +187,15 @@ TEST(SdkAbiMetadataTests, QueryPreservesBytesBeyondTheCurrentTable)
         std::uint64_t sentinel = 0x123456789abcdef0;
     } storage;
     storage.api.struct_size = sizeof(storage);
-    EXPECT_EQ(detail::NativeAdapter<Define>::Query(0, 1, &storage.api, nullptr), ARTEST_STATUS_OK);
+    EXPECT_EQ(detail::NativeAdapter<Define>::Query(0, 2, &storage.api, nullptr), ARTEST_STATUS_OK);
     EXPECT_EQ(storage.sentinel, UINT64_C(0x123456789abcdef0));
     storage.api.struct_size = sizeof(storage.api) - 1;
-    EXPECT_EQ(detail::NativeAdapter<Define>::Query(0, 1, &storage.api, nullptr),
+    EXPECT_EQ(detail::NativeAdapter<Define>::Query(0, 2, &storage.api, nullptr),
               ARTEST_STATUS_INVALID_ARGUMENT);
     storage.api.struct_size = sizeof(storage.api);
     EXPECT_EQ(detail::NativeAdapter<Define>::Query(1, 0, &storage.api, nullptr),
               ARTEST_STATUS_INCOMPATIBLE_ABI);
-    EXPECT_EQ(detail::NativeAdapter<Define>::Query(0, 2, &storage.api, nullptr),
+    EXPECT_EQ(detail::NativeAdapter<Define>::Query(0, 3, &storage.api, nullptr),
               ARTEST_STATUS_INCOMPATIBLE_ABI);
 }
 TEST(SdkAbiMetadataTests, DescriptorsHaveStableIdentityKindAndFlags)
@@ -351,7 +392,7 @@ TEST(SdkAbiBoundaryTests, InvalidErrorBufferIsNotWritten)
         std::uint64_t sentinel = 0xfeed;
     } storage;
     storage.error.struct_size = 4;
-    EXPECT_EQ(detail::NativeAdapter<Define>::Query(0, 1, &runtime.api, &storage.error),
+    EXPECT_EQ(detail::NativeAdapter<Define>::Query(0, 2, &runtime.api, &storage.error),
               ARTEST_STATUS_INVALID_ARGUMENT);
     EXPECT_EQ(storage.sentinel, UINT64_C(0xfeed));
     EXPECT_EQ(storage.error.required_size, 0U);

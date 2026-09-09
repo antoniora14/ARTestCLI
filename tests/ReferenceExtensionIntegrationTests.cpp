@@ -147,7 +147,8 @@ TEST(ReferenceMetadataTests, GeneratedPackagesPreserveThePreMigrationContracts)
     ASSERT_TRUE(baselineFile.is_open());
     const auto baseline = Json::parse(baselineFile);
     const auto normalize = [](Json manifest) {
-        // Only packaging representation and editorial text may change.
+        // C-01 explicitly advances the required ABI; component contracts stay unchanged.
+        manifest["runtime"]["abi"]["minor"] = ARTEST_EXTENSION_ABI_MINOR;
         // Compare components by identity, not their registration/serialization order.
         manifest.erase("schemaVersion");
         manifest.erase("integrity");
@@ -173,6 +174,7 @@ TEST(ReferenceMetadataTests, GeneratedPackagesPreserveThePreMigrationContracts)
         ASSERT_TRUE(manifestFile.is_open());
         const auto actual = Json::parse(manifestFile);
         EXPECT_EQ(actual["schemaVersion"], 2);
+        EXPECT_EQ(actual["runtime"]["abi"]["minor"], ARTEST_EXTENSION_ABI_MINOR);
         EXPECT_EQ(normalize(actual), normalize(baseline.at(name).at("manifest")));
         for (const auto &component : actual["components"])
             for (const auto &reference : component["schemas"])

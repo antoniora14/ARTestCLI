@@ -3,7 +3,12 @@
 ## Supported baseline and scope
 
 D3.3-A provides an experimental C++20 authoring API over the unchanged native
-ABI 0.1. Use Visual Studio 18 Insiders / v145, x64, and Debug or Release.
+ABI 0.2. Use Visual Studio 18 Insiders / v145, x64, and Debug or Release.
+
+SDK 0.4.0 adds Result::Indeterminate for unconfirmed external effects. Read
+[the uncertainty contract](external-effect-uncertainty.md) before implementing
+device writes, retry behavior or exception translation. New packages require
+an ABI 0.2 host; ABI 0.1 extensions remain a separately tested compatibility path.
 The examples are simulated and never access physical equipment.
 
 The SDK is header-only. Its only non-standard C++ dependency is

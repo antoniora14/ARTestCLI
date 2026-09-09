@@ -1,8 +1,10 @@
-# ARTest SDK 0.3.0
+# ARTest SDK 0.4.0
 
 This is the experimental C++20 SDK for trusted native ARTest extensions.
 It targets Windows x64 and Visual Studio 18 Insiders with the v145 toolset.
-Engine API 0.4 and native extension ABI 0.1 remain experimental.
+Engine API 0.4 and native extension ABI 0.2 remain experimental.
+This SDK requires a host that supports ABI 0.2; it cannot silently downgrade
+external-effect uncertainty to an ordinary retryable failure.
 
 ## Start
 
@@ -17,7 +19,7 @@ Machine-local SDK location, loaded before the SDK imports:
 ```xml
 <Project>
   <PropertyGroup>
-    <ARTestSDKRoot>D:\SDKs\ARTestSDK-0.3.0-windows-x64</ARTestSDKRoot>
+    <ARTestSDKRoot>D:\SDKs\ARTestSDK-0.4.0-windows-x64</ARTestSDKRoot>
   </PropertyGroup>
 </Project>
 ```
@@ -29,7 +31,7 @@ and MSVC runtime; the SDK itself does not require the repository.
 
 From Developer PowerShell:
 
-    $sdk = 'D:\SDKs\ARTestSDK-0.3.0-windows-x64'
+    $sdk = 'D:\SDKs\ARTestSDK-0.4.0-windows-x64'
     $project = '.\ARTestExtensionStarter\ARTestExtensionStarter.vcxproj'
     msbuild $project /p:Configuration=Release /p:Platform=x64 "/p:ARTestSDKRoot=$sdk"
 
@@ -41,7 +43,7 @@ same definition, validates the staged DLL through the Engine and safely publishe
 out/extensions/x64/Configuration/ARTestExtensionStarter. Do not hand-edit output JSON.
 TestPlan.json and MultipleInstruments.json are input sequences, not package metadata.
 
-Read docs/extension-authoring.md, docs/ai-extension-authoring.md and
+Read docs/extension-authoring.md, docs/external-effect-uncertainty.md, docs/ai-extension-authoring.md and
 docs/metadata-generation.md. examples/ARTestSdkExample offers a power-supply
 walkthrough; templates/ARTestExtension is the neutral project starter.
 Both use the same generated-metadata flow. The bundled validator host and matching

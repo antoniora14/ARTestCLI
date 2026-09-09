@@ -26,7 +26,12 @@
 #endif
 
 #define ARTEST_EXTENSION_ABI_MAJOR UINT32_C                 (0)
-#define ARTEST_EXTENSION_ABI_MINOR UINT32_C                 (1)
+#define ARTEST_EXTENSION_ABI_MINOR UINT32_C                 (2)
+
+/* ABI 0.2: orthogonal to a non-OK base status. Never set on OK.
+ * No layout changes. Hosts/SDKs must negotiate 0.2 before emitting this bit.
+ * Even an insufficient diagnostic buffer must preserve this bit and base cause. */
+#define ARTEST_STATUS_EFFECT_INDETERMINATE_FLAG INT32_C     (65536)
 
 typedef int32_t ARTestStatus;
 typedef uint32_t ARTestBool32;

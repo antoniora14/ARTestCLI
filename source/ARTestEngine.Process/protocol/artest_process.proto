@@ -2,7 +2,7 @@ syntax = "proto3";
 package artest.process.v0;
 option optimize_for = LITE_RUNTIME;
 
-// Experimental wire 0.1. Field numbers are independent of native ABI layouts.
+// Experimental wire 0.2. Field numbers are independent of native ABI layouts.
 message Envelope {
   uint32 major = 1;
   uint32 minor = 2;
@@ -64,6 +64,8 @@ message Response {
   string diagnostic = 2;
   Payload payload = 3;
   uint64 handle = 4;
+  // May coexist with cancellation/timeout/error, never OK. Requires wire 0.2.
+  bool effect_indeterminate = 5;
 }
 message Cancel { bool acknowledged = 1; }
 message Event {

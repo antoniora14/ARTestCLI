@@ -2,6 +2,14 @@
 
 ## Status and compatibility
 
+C-01 evolves the current experimental contract to ABI 0.2 without changing
+structure layouts. ARTEST_STATUS_EFFECT_INDETERMINATE_FLAG (65536) accompanies
+a non-OK base status. It must survive missing/short diagnostic buffers.
+New packages require a 0.2 host; current Engine also negotiates declared 0.1
+packages and retains uncertainty internally when calling older commands.
+See [C-01](checkpoint-c01-effect-uncertainty.md) for the negotiation, ownership
+and version matrix. The D1 description below records the original design.
+
 This is the experimental binary contract for the D1 vertical slice. ABI major
 `0` is intentionally not stable. ABI `1.0` is frozen only after a command DLL,
 an Instrument Driver DLL, ARTestEngine, and the standalone SDK have passed

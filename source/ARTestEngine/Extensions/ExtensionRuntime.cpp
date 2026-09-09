@@ -8,7 +8,11 @@ ExtensionRuntime::ExtensionRuntime(IEventSink &eventSink)
 {
     m_implementation->broker.invoke = [this](const auto &component, auto operation, auto request,
         auto invocation, auto sink, auto error) {
-        return InvokeAbi(component, operation, request, invocation, sink, error);
+        const auto callerMinor = m_implementation->callerAbiMinor;
+        const auto status = InvokeAbi(component, operation, request, invocation, sink, error);
+        // ABI 0.1 callers receive only old base statuses. The Engine's root
+        // scope still retains uncertainty even if that caller wraps the error.
+        return callerMinor < 2 ? status & ~ARTEST_STATUS_EFFECT_INDETERMINATE_FLAG : status;
     };
 }
 ExtensionRuntime::~ExtensionRuntime() = default;
@@ -18,7 +22,6 @@ void ExtensionRuntime::Configure(const nlohmann::json &options)
 }
 OperationResult ExtensionRuntime::BeginSession()
 {
-    m_implementation->python.BeginSession();
     return OperationResult::Success();
 }
 OperationResult ExtensionRuntime::EndSession() { return m_implementation->python.EndSession(); }

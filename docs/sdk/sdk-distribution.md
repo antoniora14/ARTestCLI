@@ -6,8 +6,8 @@ Run from the repository root:
 
 Outputs:
 
-    artifacts\sdk-packages\x64\Release\ARTestSDK-0.3.0-windows-x64\
-    artifacts\sdk-packages\x64\Release\ARTestSDK-0.3.0-windows-x64.zip
+    artifacts\sdk-packages\x64\Release\ARTestSDK-0.4.0-windows-x64\
+    artifacts\sdk-packages\x64\Release\ARTestSDK-0.4.0-windows-x64.zip
 
 For the complete compatibility gate:
 
@@ -28,5 +28,7 @@ source. A package is not accepted when its checksum inventory, external build,
 catalog activation, offline compilation, execution or cleanup validation fails.
 
 The SDK currently supports Windows x64, Visual Studio 18 Insiders/v145 and
-C++20. ABI 0.1 remains experimental. Before public community distribution, the
+C++20. ABI 0.2 remains experimental. New packages require an updated Engine;
+the frozen ABI 0.1 consumer gate is separate from current-SDK acceptance.
+Before public community distribution, the
 repository owner must choose explicit licensing terms for ARTest itself.

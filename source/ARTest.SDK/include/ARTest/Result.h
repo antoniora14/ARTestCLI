@@ -11,7 +11,7 @@ namespace artest::sdk
 {
 using Json = nlohmann::json;
 
-// Operation status, not a measurement verdict. These values project native ABI 0.1.
+// Base operation status, not a measurement verdict or external-effect certainty.
 enum class Status : std::int32_t
 {
     Ok = 0,
@@ -68,6 +68,15 @@ class [[nodiscard]] Result final
             throw std::invalid_argument("A failure must have a recognized non-success status.");
         return Result{status, std::move(message)};
     }
+    // The write may have executed, but its acknowledgement was not received.
+    // Never use this for a failed measurement or a confirmed pre-send failure.
+    static Result Indeterminate(std::string message, Status cause = Status::ExtensionFailure)
+    {
+        auto result = Failure(cause, std::move(message));
+        result.m_indeterminate = true;
+        return result;
+    }
+    [[nodiscard]] bool IsIndeterminate() const noexcept { return m_indeterminate; }
     // A failed measurement is a successful technical invocation, not a driver fault.
     static Result TestVerdict(bool passed, Json data, std::string dataSchema,
                               std::string message = {})
@@ -107,6 +116,7 @@ class [[nodiscard]] Result final
     {
     }
     Status m_status;
+    bool m_indeterminate = false;
     std::string m_message;
     std::optional<Json> m_data;
     std::string m_schemaId = "artest.schema.generic-json.v1";

@@ -18,7 +18,12 @@ stage-specific architecture documents before changing a public contract.
 ## Contract status
 
 - Engine host API: experimental `0.4`. API additions are append-only.
-- Native extension ABI: experimental `0.1`.
+- Native extension ABI: experimental `0.2`; native SDK `0.4.0`.
+- C-01: read docs/architecture/checkpoint-c01-effect-uncertainty.md and
+  docs/sdk/external-effect-uncertainty.md before changing result propagation.
+  Python SDK `0.2.0` requires private wire `0.2`; reject old wire versions.
+  Uncertainty is invocation-scoped across nested native/Python services, not
+  a global Python flag. Preserve it when wrapping errors or observing cancellation.
 - Script document: `ARTest.Script` version `1`.
 - Extension manifest: native versions `1`/`2`; Python uses managed version `3`.
   .NET activation is not implemented yet.
@@ -88,8 +93,9 @@ unless the user explicitly requests them.
 - Read docs/sdk/native-compatibility.md before modifying the independent kit.
   Baseline creation and validation are separate. Never rebuild an old consumer
   during validation or replace its baseline to hide an incompatibility.
-  SDK 0.2.1 -> current Engine checks do not prove multiple ABI-version support:
-  Engine API 0.4 and native ABI 0.1 remain experimental.
+  SDK 0.2.1 -> current Engine checks exercise frozen native ABI 0.1 consumers.
+  They do not prove general version compatibility; Engine API 0.4 and native
+  ABI 0.2 remain experimental. New ABI 0.2 packages require an updated Engine.
   Run test-native-compatibility.ps1 for each explicitly supported matrix cell
   and test-native-compatibility-guards.ps1 when changing the harness.
   Preserve frozen baselines, old SDK packages and manual evidence during cleanup.
@@ -125,7 +131,7 @@ before adding a command or Instrument Driver.
   Result::TestVerdict / Result.verdict share a measurement envelope. Engine defaults
   to legacy result v1; opt in to resultSchemaVersion 2 for structured outcomes.
   Never retry or continue after an indeterminate external effect.
-  `scripts/test-sdk-authoring.ps1` runs 64 focused tests without replacing reports.
+  `scripts/test-sdk-authoring.ps1` runs focused SDK tests without replacing reports.
 - Distribution/templates and external consumer verification belong to D3.3-C.
   Do not claim a published SDK or frozen ABI 1.0.
 

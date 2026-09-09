@@ -11,7 +11,7 @@ struct ManagedRuntimeSpec
 {
     ManagedRuntimeKind kind;
     std::string entry, entryPoint, runtimeVersion, dependencyLock;
-    std::uint32_t protocolMajor = 0, protocolMinor = 1;
+    std::uint32_t protocolMajor = 0, protocolMinor = 2;
 };
 struct InventoryEntry { std::string path, sha256; };
 struct ManagedPackageRequirements
