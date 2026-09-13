@@ -75,6 +75,14 @@ unless the user explicitly requests them.
 
 ## Maintenance guidance
 
+- C-02 is an independent TCP example under examples/ARTestTcpHello, not a public
+  transport API. Read docs/architecture/checkpoint-c02-tcp-hello.md before edits.
+  Keep fault modes under tests and preserve the simulator-side effect oracle.
+  Do not add hardware I/O to metadata/discovery or expose WinSock through the ABI.
+  Run scripts/test-tcp-hello.ps1 -IncludePython only with its prepared environment;
+  the native-only suite must remain Python-independent. Verify a copied external
+  kit against the installed SDK with scripts/test-tcp-hello-external.ps1.
+
 - D4.2 implements Python hosting on the D4.1 shared foundation. Read
   docs/architecture/stage-d4-2-python-runtime.md and docs/sdk/python-extension-authoring.md,
   then

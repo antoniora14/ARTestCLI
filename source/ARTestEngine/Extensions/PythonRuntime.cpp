@@ -1,6 +1,7 @@
 #include "PythonRuntime.h"
 #include "ManagedIntegrity.h"
 #include "FileIntegrity.h"
+#include <chrono>
 #include <fstream>
 namespace artest::extensions
 {
@@ -103,9 +104,21 @@ std::shared_ptr<PythonWorker> PythonRuntime::Worker(const std::string &id)
     const auto found = m_workers.find(id);
     if (found != m_workers.end()) return found->second;
     const auto &package = m_packages.at(id);
+    const auto started = std::chrono::steady_clock::now();
+    const auto phase = [this, &id, started](const char *name) {
+        const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - started).count();
+        m_events.Publish({EngineEventKind::Diagnostic, EngineEventSeverity::Information, id,
+            std::string{"PYTHON_ACTIVATION phase="} + name +
+                " elapsedMs=" + std::to_string(elapsed)});
+    };
+    phase("package-validation-begin");
     (void)ValidateManagedPackage(package);
+    phase("package-validation-end");
     if (!m_environments.contains(id)) throw std::runtime_error("PYTHON_ENVIRONMENT_REQUIRED: " + id);
+    phase("environment-validation-begin");
     const auto environment = ValidatePythonEnvironment(package, m_environments.at(id).get<std::string>());
+    phase("environment-validation-end");
     process::WorkerOptions options;
     options.executable = environment.interpreter;
     options.arguments = {L"-I", L"-B", L"-S", environment.launcher.wstring(), L"--package", package.packageRoot.wstring()};
@@ -121,8 +134,12 @@ std::shared_ptr<PythonWorker> PythonRuntime::Worker(const std::string &id)
             event.severity() == 1 ? EngineEventSeverity::Warning : EngineEventSeverity::Information,
             event.category(), event.message()});
     });
+    phase("worker-start-begin");
     worker->supervisor->Start();
+    phase("worker-start-end");
+    phase("descriptor-request-begin");
     const auto description = worker->supervisor->Call(Request(wire::DESCRIBE, 0, {}), std::chrono::seconds{5});
+    phase("descriptor-request-end");
     RequireOk(description);
     if (nlohmann::json::parse(description.payload().json()) != ExpectedDescriptor(package))
         throw std::runtime_error("PYTHON_DESCRIPTOR_MISMATCH: regenerate the package.");

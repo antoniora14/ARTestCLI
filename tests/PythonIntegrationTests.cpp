@@ -6,8 +6,11 @@
 #include "TestSupport/ReferenceCatalog.h"
 #include "TestSupport/C01/Catalog.h"
 #include <fstream>
-#include <thread>
 #include <atomic>
+#include <mutex>
+#include <sstream>
+#include <thread>
+#include <vector>
 using artest::sdk::EngineClient;
 using artest::sdk::Json;
 namespace
@@ -37,11 +40,37 @@ class PythonTest : public ::testing::Test
 {
   protected:
     std::unique_ptr<artest::tests::ReferenceCatalog> packages;
-    EngineClient client;
+    mutable std::mutex observationsMutex;
+    const std::chrono::steady_clock::time_point observationStart = std::chrono::steady_clock::now();
     std::string events;
+    std::vector<std::string> timeline;
     std::atomic_bool stepStarted{false};
+    // Keep the client last: its destructor unsubscribes and joins the session
+    // before the callback state above is destroyed.
+    EngineClient client;
+
+    void Observe(std::string text)
+    {
+        const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - observationStart).count();
+        std::scoped_lock lock{observationsMutex};
+        timeline.push_back(std::to_string(elapsed) + " ms | " + std::move(text));
+    }
+    [[nodiscard]] std::string Observations() const
+    {
+        std::scoped_lock lock{observationsMutex};
+        std::ostringstream output;
+        for (const auto &entry : timeline) output << entry << '\n';
+        return output.str();
+    }
+    [[nodiscard]] std::string EventText() const
+    {
+        std::scoped_lock lock{observationsMutex};
+        return events;
+    }
     void SetUp() override
     {
+        Observe("setup.begin");
         const auto root = Repository();
         const auto python = PythonRoot() / "extensions/ARTestPySimulated";
         ASSERT_TRUE(std::filesystem::is_regular_file(python / "artest-extension.json"))
@@ -52,18 +81,28 @@ class PythonTest : public ::testing::Test
         const auto faults = PythonRoot() / "test-extensions/ARTestPyFaults";
         ASSERT_TRUE(std::filesystem::is_regular_file(faults / "artest-extension.json"));
         std::filesystem::copy(faults, packages->Root() / "ARTestPyFaults", std::filesystem::copy_options::recursive);
+        Observe("setup.packages-copied");
         std::ifstream mapping(PythonRoot() / "environments/python-environments.json");
         ASSERT_TRUE(mapping.good()) << "Prepare the example environment mapping first.";
         const Json options = {{"loadDefaultCatalog", false}, {"resultSchemaVersion", 2},
                               {"pythonEnvironments", Json::parse(mapping)}};
+        Observe("engine.create.begin");
         auto status = client.Create(options.dump());
+        Observe("engine.create.end status=" + std::to_string(status.code) + " message=" + status.message);
         ASSERT_TRUE(status.Succeeded()) << status.message;
+        Observe("catalog.prepare.begin");
         status = client.PrepareCatalog(packages->Root().string());
+        Observe("catalog.prepare.end status=" + std::to_string(status.code) + " message=" + status.message);
         ASSERT_TRUE(status.Succeeded()) << status.message;
         ASSERT_TRUE(client.SubscribeEvents([this](std::string_view text) {
+            const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - observationStart).count();
+            std::scoped_lock lock{observationsMutex};
             events += text;
+            timeline.push_back(std::to_string(elapsed) + " ms | event " + std::string{text});
             if (text.find("Starting step attempt.") != std::string_view::npos) stepStarted = true;
         }).Succeeded());
+        Observe("events.subscribed");
     }
     Json Plan(std::string command = "com.artest.python.command.measure-voltage",
               std::string driver = "com.artest.python.driver.power")
@@ -78,11 +117,15 @@ class PythonTest : public ::testing::Test
     }
     Json Run(const Json &plan, bool cancel = false)
     {
+        Observe("plan.compile.begin");
         auto status = client.Compile(plan.dump());
-        EXPECT_TRUE(status.Succeeded()) << status.message;
+        Observe("plan.compile.end status=" + std::to_string(status.code) + " message=" + status.message);
+        EXPECT_TRUE(status.Succeeded()) << status.message << '\n' << Observations();
         if (!status.Succeeded()) return Json::object();
+        Observe("session.start.begin");
         status = client.Start();
-        EXPECT_TRUE(status.Succeeded()) << status.message;
+        Observe("session.start.end status=" + std::to_string(status.code) + " message=" + status.message);
+        EXPECT_TRUE(status.Succeeded()) << status.message << '\n' << Observations();
         if (!status.Succeeded()) return Json::object();
         if (cancel)
         {
@@ -91,15 +134,33 @@ class PythonTest : public ::testing::Test
                 std::this_thread::sleep_for(std::chrono::milliseconds{10});
             EXPECT_TRUE(stepStarted);
             client.RequestCancel();
+            Observe("session.cancel.requested-by-test");
         }
         bool completed = false;
+        Observe("session.wait.begin budgetMs=30000");
         status = client.Wait(30000, completed);
-        EXPECT_TRUE(status.Succeeded()) << status.message;
-        EXPECT_TRUE(completed);
-        if (!completed) { client.RequestCancel(); return Json::object(); }
+        Observe("session.wait.end status=" + std::to_string(status.code) +
+                " completed=" + (completed ? "true" : "false") + " message=" + status.message);
+        EXPECT_TRUE(status.Succeeded()) << status.message << '\n' << Observations();
+        if (!status.Succeeded()) return Json::object();
+        if (!completed)
+        {
+            client.RequestCancel();
+            Observe("session.cancel.requested-after-host-timeout");
+            bool cleanupCompleted = false;
+            const auto cleanupStatus = client.Wait(5000, cleanupCompleted);
+            Observe("session.cleanup-wait.end status=" + std::to_string(cleanupStatus.code) +
+                    " completed=" + (cleanupCompleted ? "true" : "false") +
+                    " message=" + cleanupStatus.message);
+            throw std::runtime_error(
+                "Session exceeded the 30000 ms host wait budget.\n" + Observations());
+        }
         std::string output;
+        Observe("result.serialize.begin");
         status = client.SerializeResult(output);
-        EXPECT_TRUE(status.Succeeded()) << status.message;
+        Observe("result.serialize.end status=" + std::to_string(status.code) + " message=" + status.message);
+        EXPECT_TRUE(status.Succeeded()) << status.message << '\n' << Observations();
+        if (!status.Succeeded()) return Json::object();
         return Json::parse(output);
     }
 };
@@ -119,6 +180,7 @@ Json EffectPlan(const std::filesystem::path &marker, bool pythonCommand, bool py
 }
 void AssertEffectStopped(const Json &result, const std::filesystem::path &marker, bool pythonDriver)
 {
+    ASSERT_TRUE(result.contains("steps")) << "The execution result was unavailable.";
     ASSERT_EQ(result.at("steps").size(), 1u) << result.dump(2);
     EXPECT_EQ(result["summary"]["totalAttempts"], 1);
     EXPECT_EQ(result["summary"]["skippedSteps"], 1);
@@ -242,7 +304,7 @@ TEST_F(DISABLED_PythonIntegrationTests, PythonCommandInvokesPythonDriver)
     const auto result = Run(Plan());
     EXPECT_EQ(result["status"], "passed") << result.dump(2);
     EXPECT_EQ(result["steps"][0]["outcome"]["data"]["value"], 5.0);
-    EXPECT_NE(events.find("PY_DRIVER_SHUTDOWN"), std::string::npos);
+    EXPECT_NE(EventText().find("PY_DRIVER_SHUTDOWN"), std::string::npos);
 }
 TEST_F(DISABLED_PythonIntegrationTests, PythonCommandInvokesNativeDriverAndPreservesMeasurement)
 {
@@ -256,7 +318,7 @@ TEST_F(DISABLED_PythonIntegrationTests, NativeCommandInvokesPythonDriver)
     plan["commands"][0]["params"] = {{"channel", 1}, {"voltage", 12.0}, {"holdMs", 10}};
     const auto result = Run(plan);
     EXPECT_EQ(result["status"], "passed") << result.dump(2);
-    EXPECT_NE(events.find("PY_DRIVER_SHUTDOWN"), std::string::npos);
+    EXPECT_NE(EventText().find("PY_DRIVER_SHUTDOWN"), std::string::npos);
 }
 TEST_F(DISABLED_PythonIntegrationTests, FailedLimitIsNotATransportError)
 {
@@ -277,7 +339,7 @@ TEST_F(DISABLED_PythonIntegrationTests, ExceptionIsErrorAndCleanupRuns)
     EXPECT_EQ(result["status"], "error") << result.dump(2);
     EXPECT_EQ(result["summary"]["errorSteps"], 1);
     EXPECT_NE(result.dump().find("Simulated command error"), std::string::npos);
-    EXPECT_NE(events.find("PY_DRIVER_SHUTDOWN"), std::string::npos);
+    EXPECT_NE(EventText().find("PY_DRIVER_SHUTDOWN"), std::string::npos);
 }
 TEST_F(DISABLED_PythonIntegrationTests, TimeoutIsCooperativeAndCleanupRuns)
 {
@@ -286,7 +348,7 @@ TEST_F(DISABLED_PythonIntegrationTests, TimeoutIsCooperativeAndCleanupRuns)
     plan["commands"][0]["policy"]["timeoutMs"] = 100;
     const auto result = Run(plan);
     EXPECT_EQ(result["status"], "timedOut") << result.dump(2);
-    EXPECT_NE(events.find("PY_DRIVER_SHUTDOWN"), std::string::npos);
+    EXPECT_NE(EventText().find("PY_DRIVER_SHUTDOWN"), std::string::npos);
 }
 TEST_F(DISABLED_PythonIntegrationTests, CancellationIsCooperativeAndCleanupRuns)
 {
@@ -294,7 +356,7 @@ TEST_F(DISABLED_PythonIntegrationTests, CancellationIsCooperativeAndCleanupRuns)
     plan["commands"][0]["params"]["holdMs"] = 5000;
     const auto result = Run(plan, true);
     EXPECT_EQ(result["status"], "cancelled") << result.dump(2);
-    EXPECT_NE(events.find("PY_DRIVER_SHUTDOWN"), std::string::npos);
+    EXPECT_NE(EventText().find("PY_DRIVER_SHUTDOWN"), std::string::npos);
 }
 TEST_F(DISABLED_PythonIntegrationTests, PartialInitializationStillShutsDown)
 {
@@ -303,7 +365,7 @@ TEST_F(DISABLED_PythonIntegrationTests, PartialInitializationStillShutsDown)
     const auto result = Run(plan);
     EXPECT_EQ(result["status"], "error") << result.dump(2);
     EXPECT_EQ(result["summary"]["executedSteps"], 0);
-    EXPECT_NE(events.find("PY_DRIVER_SHUTDOWN"), std::string::npos);
+    EXPECT_NE(EventText().find("PY_DRIVER_SHUTDOWN"), std::string::npos);
 }
 TEST_F(DISABLED_PythonIntegrationTests, CleanupFailureCannotBecomePassed)
 {

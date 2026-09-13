@@ -2,8 +2,13 @@
 #include "FileIntegrity.h"
 #include "CatalogValidation.h"
 #include <Windows.h>
+#include <algorithm>
+#include <atomic>
+#include <exception>
 #include <fstream>
 #include <set>
+#include <thread>
+#include <vector>
 namespace artest::extensions
 {
 namespace
@@ -12,11 +17,59 @@ void Require(bool valid, const char *message)
 {
     if (!valid) throw std::runtime_error(message);
 }
+struct InventoryFile
+{
+    std::filesystem::path path;
+    std::string expectedHash;
+};
+void CheckHashes(const std::vector<InventoryFile> &files)
+{
+    std::vector<std::string> hashes(files.size());
+    std::vector<std::exception_ptr> failures(files.size());
+    const auto hashOne = [&files, &hashes, &failures](std::size_t index) {
+        try { hashes[index] = Sha256(files[index].path); }
+        catch (...) { failures[index] = std::current_exception(); }
+    };
+
+    constexpr std::size_t parallelThreshold = 64U;
+    constexpr unsigned int maximumWorkers = 8U;
+    if (files.size() < parallelThreshold)
+    {
+        for (std::size_t index = 0; index < files.size(); ++index) hashOne(index);
+    }
+    else
+    {
+        const auto available = (std::max)(1U, std::thread::hardware_concurrency());
+        const auto workerCount = (std::min)(
+            files.size(), static_cast<std::size_t>((std::min)(available, maximumWorkers)));
+        std::atomic<std::size_t> next{0U};
+        const auto worker = [&] {
+            for (;;)
+            {
+                const auto index = next.fetch_add(1U, std::memory_order_relaxed);
+                if (index >= files.size()) return;
+                hashOne(index);
+            }
+        };
+        std::vector<std::jthread> workers;
+        workers.reserve(workerCount);
+        for (std::size_t index = 0; index < workerCount; ++index) workers.emplace_back(worker);
+    }
+
+    // Retain deterministic diagnostics even though independent files are hashed concurrently.
+    for (std::size_t index = 0; index < files.size(); ++index)
+    {
+        if (failures[index]) std::rethrow_exception(failures[index]);
+        Require(hashes[index] == files[index].expectedHash, "File inventory hash mismatch.");
+    }
+}
 void CheckTree(const std::filesystem::path &root, const nlohmann::json &inventory,
                const std::string &excluded)
 {
     Require(inventory.is_array() && inventory.size() <= 20000, "Invalid file inventory.");
     std::set<std::filesystem::path> expected;
+    std::vector<InventoryFile> files;
+    files.reserve(inventory.size());
     for (const auto &item : inventory)
     {
         const auto relative = std::filesystem::path{item.at("path").get<std::string>()};
@@ -24,8 +77,9 @@ void CheckTree(const std::filesystem::path &root, const nlohmann::json &inventor
         Require(!relative.is_absolute() && IsContained(root, path) && std::filesystem::is_regular_file(path),
                 "Inventory path escaped its root or is missing.");
         Require(expected.insert(path).second, "Duplicate inventory path.");
-        Require(Sha256(path) == item.at("sha256").get<std::string>(), "File inventory hash mismatch.");
+        files.push_back({path, item.at("sha256").get<std::string>()});
     }
+    CheckHashes(files);
     for (const auto &entry : std::filesystem::recursive_directory_iterator(root))
     {
         const auto attributes = GetFileAttributesW(entry.path().c_str());

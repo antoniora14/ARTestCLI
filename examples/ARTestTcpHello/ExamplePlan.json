@@ -1,0 +1,14 @@
+{
+  "format": "ARTest.Script",
+  "version": 1,
+  "instruments": [
+    {"id": "V1", "type": "com.artest.example.driver.tcp-voltage", "config": {"port": 50250}},
+    {"id": "V2", "type": "com.artest.example.driver.tcp-voltage", "config": {"port": 50250}}
+  ],
+  "commands": [
+    {"stepId": 1, "name": "com.artest.example.command.tcp-set-and-measure", "instrument": "V1",
+     "params": {"voltage": 12, "minimum": 11.9, "maximum": 12.1}},
+    {"stepId": 2, "name": "com.artest.example.command.tcp-set-and-measure", "instrument": "V2",
+     "params": {"voltage": 5, "minimum": 4.9, "maximum": 5.1}}
+  ]
+}

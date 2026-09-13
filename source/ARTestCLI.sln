@@ -50,6 +50,18 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ARTestEngine.Process", "ART
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "C01FaultExtension", "..\tests\C01FaultExtension.vcxproj", "{0839C913-2175-4D4B-98CA-FE03F045E414}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ARTestTcpHello", "..\examples\ARTestTcpHello\ARTestTcpHello.vcxproj", "{77B368A4-3038-4A1C-AD28-7B6373552961}"
+    ProjectSection(ProjectDependencies) = postProject
+        {782139A0-B28D-46AC-8107-920A64C8D701} = {782139A0-B28D-46AC-8107-920A64C8D701}
+    EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ARTestTcpSimulator", "..\examples\ARTestTcpHello\simulator\ARTestTcpSimulator.vcxproj", "{DF5CCB3C-6453-4751-8258-AD59EC894DA8}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "C02FaultCommands", "..\tests\C02FaultCommands.vcxproj", "{76CB0E6F-3833-49C3-A95D-9E5C48E5A4EE}"
+    ProjectSection(ProjectDependencies) = postProject
+        {782139A0-B28D-46AC-8107-920A64C8D701} = {782139A0-B28D-46AC-8107-920A64C8D701}
+    EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -58,6 +70,18 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{76CB0E6F-3833-49C3-A95D-9E5C48E5A4EE}.Debug|x64.ActiveCfg = Debug|x64
+		{76CB0E6F-3833-49C3-A95D-9E5C48E5A4EE}.Debug|x64.Build.0 = Debug|x64
+		{76CB0E6F-3833-49C3-A95D-9E5C48E5A4EE}.Release|x64.ActiveCfg = Release|x64
+		{76CB0E6F-3833-49C3-A95D-9E5C48E5A4EE}.Release|x64.Build.0 = Release|x64
+		{77B368A4-3038-4A1C-AD28-7B6373552961}.Debug|x64.ActiveCfg = Debug|x64
+		{77B368A4-3038-4A1C-AD28-7B6373552961}.Debug|x64.Build.0 = Debug|x64
+		{77B368A4-3038-4A1C-AD28-7B6373552961}.Release|x64.ActiveCfg = Release|x64
+		{77B368A4-3038-4A1C-AD28-7B6373552961}.Release|x64.Build.0 = Release|x64
+		{DF5CCB3C-6453-4751-8258-AD59EC894DA8}.Debug|x64.ActiveCfg = Debug|x64
+		{DF5CCB3C-6453-4751-8258-AD59EC894DA8}.Debug|x64.Build.0 = Debug|x64
+		{DF5CCB3C-6453-4751-8258-AD59EC894DA8}.Release|x64.ActiveCfg = Release|x64
+		{DF5CCB3C-6453-4751-8258-AD59EC894DA8}.Release|x64.Build.0 = Release|x64
 		{0839C913-2175-4D4B-98CA-FE03F045E414}.Debug|x64.ActiveCfg = Debug|x64
 		{0839C913-2175-4D4B-98CA-FE03F045E414}.Debug|x64.Build.0 = Debug|x64
 		{0839C913-2175-4D4B-98CA-FE03F045E414}.Release|x64.ActiveCfg = Release|x64

@@ -47,7 +47,7 @@
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>gtest.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gtest.lib;Ws2_32.lib;Shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -57,6 +57,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="TestMain.cpp" />
+    <ClCompile Include="TcpHelloTests.cpp"><TreatWarningAsError>true</TreatWarningAsError><PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile>
+    <ClCompile Include="TestSupport\Fakes\TcpHelloServer.cpp"><TreatWarningAsError>true</TreatWarningAsError><PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile>
     <ClCompile Include="ProcessRuntimeTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="PythonIntegrationTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="EffectUncertaintyTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
@@ -99,6 +101,10 @@
       <Project>{71D6AD2B-EA35-48FC-946A-FB64CD3412D3}</Project>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
+    <ProjectReference Include="..\examples\ARTestTcpHello\ARTestTcpHello.vcxproj">
+      <Project>{77B368A4-3038-4A1C-AD28-7B6373552961}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
     <ProjectReference Include="..\source\ARTestEngine.Process\ARTestEngine.Process.vcxproj">
       <Project>{203DC804-6976-4B60-A9E8-8C93E3D437CA}</Project>
     </ProjectReference>
@@ -118,6 +124,10 @@
     </ProjectReference>
     <ProjectReference Include="C01FaultExtension.vcxproj">
       <Project>{0839C913-2175-4D4B-98CA-FE03F045E414}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+    <ProjectReference Include="C02FaultCommands.vcxproj">
+      <Project>{76CB0E6F-3833-49C3-A95D-9E5C48E5A4EE}</Project>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
     <ProjectReference Include="..\source\ARTestDrvSimPower\ARTestDrvSimPower.vcxproj">

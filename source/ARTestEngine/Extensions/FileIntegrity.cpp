@@ -9,36 +9,62 @@
 #include <vector>
 namespace artest::extensions
 {
+namespace
+{
+class Sha256Provider final
+{
+  public:
+    Sha256Provider()
+    {
+        DWORD bytesWritten = 0U;
+        if (BCryptOpenAlgorithmProvider(&handle, BCRYPT_SHA256_ALGORITHM, nullptr, 0U) < 0 ||
+            BCryptGetProperty(handle, BCRYPT_OBJECT_LENGTH,
+                reinterpret_cast<PUCHAR>(&objectSize), sizeof(objectSize), &bytesWritten, 0U) < 0)
+        {
+            if (handle) BCryptCloseAlgorithmProvider(handle, 0U);
+            handle = nullptr;
+            throw std::runtime_error("Windows could not initialize SHA-256.");
+        }
+    }
+    ~Sha256Provider()
+    {
+        if (handle) BCryptCloseAlgorithmProvider(handle, 0U);
+    }
+    Sha256Provider(const Sha256Provider &) = delete;
+    Sha256Provider &operator=(const Sha256Provider &) = delete;
+
+    BCRYPT_ALG_HANDLE handle = nullptr;
+    DWORD objectSize = 0U;
+};
+
+Sha256Provider &Provider()
+{
+    // Reuse the immutable provider on each validation thread while retaining an
+    // independent hash object per file and avoiding cross-thread handle sharing.
+    thread_local Sha256Provider provider;
+    return provider;
+}
+}
+
 [[nodiscard]] std::string Sha256(const std::filesystem::path &path)
 {
-    BCRYPT_ALG_HANDLE algorithm = nullptr;
     BCRYPT_HASH_HANDLE hash = nullptr;
-    DWORD objectSize = 0U;
-    DWORD bytesWritten = 0U;
+    auto &provider = Provider();
     std::vector<unsigned char> object;
     std::array<unsigned char, 32U> digest{};
 
     struct HashGuard
     {
-        BCRYPT_ALG_HANDLE &algorithm;
         BCRYPT_HASH_HANDLE &hash;
         ~HashGuard()
         {
             if (hash)
                 BCryptDestroyHash(hash);
-            if (algorithm)
-                BCryptCloseAlgorithmProvider(algorithm, 0U);
         }
-    } guard{algorithm, hash};
+    } guard{hash};
 
-    if (BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0U) < 0 ||
-        BCryptGetProperty(algorithm, BCRYPT_OBJECT_LENGTH, reinterpret_cast<PUCHAR>(&objectSize),
-                          sizeof(objectSize), &bytesWritten, 0U) < 0)
-    {
-        throw std::runtime_error("Windows could not initialize SHA-256.");
-    }
-    object.resize(objectSize);
-    if (BCryptCreateHash(algorithm, &hash, object.data(), objectSize, nullptr, 0U, 0U) < 0)
+    object.resize(provider.objectSize);
+    if (BCryptCreateHash(provider.handle, &hash, object.data(), provider.objectSize, nullptr, 0U, 0U) < 0)
     {
         throw std::runtime_error("Windows could not create a SHA-256 hash.");
     }
