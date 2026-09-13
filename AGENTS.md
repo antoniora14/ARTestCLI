@@ -75,6 +75,12 @@ unless the user explicitly requests them.
 
 ## Maintenance guidance
 
+- Current sequencing is recorded in docs/architecture/roadmap-pre-dotnet.md.
+  C-02 is accepted and closed. The approved next work is PY-DX-01, Python
+  Developer Experience: create, prepare and run, before mandatory C-03 and C-04.
+  Read docs/planning/py-dx-01-execution-plan.md before implementing that tooling.
+  This priority does not authorize .NET or reopen the accepted timeout closure.
+
 - C-02 is an independent TCP example under examples/ARTestTcpHello, not a public
   transport API. Read docs/architecture/checkpoint-c02-tcp-hello.md before edits.
   Keep fault modes under tests and preserve the simulator-side effect oracle.

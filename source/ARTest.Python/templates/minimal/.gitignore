@@ -1,0 +1,4 @@
+artest-project.local.json
+.artest/
+__pycache__/
+*.pyc

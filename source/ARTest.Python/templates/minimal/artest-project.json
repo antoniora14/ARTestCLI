@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "sourceDirectory": "src",
+  "entryPoint": "extension:define_extension",
+  "dependencyLock": "requirements.lock",
+  "plan": "plan/measurement.json"
+}

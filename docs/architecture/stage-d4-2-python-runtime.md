@@ -114,7 +114,10 @@ Source: ARTestStudio/docs/planning/pre-integration-architecture-review.md.
 | INT-07 long-lived host/resource stability | Fresh sequential Python sessions covered | D4.4 deployed-bundle soak and resource accounting |
 
 These dispositions do not close all pre-integration findings. D4.3 is the next
-language implementation; D4.4 remains the compatibility/deployment/performance
+language implementation, not the next implementation priority. The
+[current ARTestCLI roadmap](roadmap-pre-dotnet.md) places approved PY-DX-01 after
+closed C-02 and before mandatory C-03 and C-04, all preceding D4.3.
+D4.4 remains the compatibility/deployment/performance
 acceptance step before ARTestStudio work.
 
 ## Verification

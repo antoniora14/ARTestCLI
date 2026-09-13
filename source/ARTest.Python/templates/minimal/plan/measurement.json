@@ -1,0 +1,20 @@
+{
+  "format": "ARTest.Script",
+  "version": 1,
+  "instruments": [
+    {
+      "type": "__ARTEST_DRIVER_ID__",
+      "id": "SimulatedSource1",
+      "config": {"value": 5.0}
+    }
+  ],
+  "commands": [
+    {
+      "stepId": 1,
+      "name": "__ARTEST_COMMAND_ID__",
+      "instrument": "SimulatedSource1",
+      "params": {"channel": 1, "minimum": 4.8},
+      "policy": {"maxAttempts": 1, "timeoutMs": 2000, "onFailure": "stop"}
+    }
+  ]
+}

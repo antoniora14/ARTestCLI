@@ -1,6 +1,20 @@
 # C-02: a bounded TCP SDK example
 
-Status: implementation candidate, acceptance pending. Base: d6590c8 (C-01).
+Status: **ACCEPTED and closed**. Architect decision: `C-02 ACCEPTED — PHASE MAY CLOSE`.
+Closure recorded on 2026-09-13; implementation commit:
+`3ca474ee0f10fc2a3d238a244b4a1c71fc0a24c6` (owner confirms committed and pushed).
+Original base: `d6590c8` (C-01).
+
+The dedicated evidence is indexed by
+`artifacts/acceptance/c02/dedicated-acceptance-20d3bb6b-20260913T005756Z/acceptance-record.md`,
+`provenance.json` and `SHA256SUMS.txt`, for source candidate
+`20d3bb6b160ab7f6921fefc45219b7db6c670a3dc5381586d75b7cdb7708aa1c`.
+The timeout closure was accepted separately. Neither gate is reopened by the
+documentation update. The historical publication incident remains separate.
+
+Next approved work is PY-DX-01, before C-03 and C-04, as recorded in the
+[current ARTestCLI roadmap](roadmap-pre-dotnet.md). C-02 acceptance does not
+authorize .NET or accept those later gates.
 
 The independent example kit lives in examples/ARTestTcpHello (version 0.1.0).
 It consumes native SDK 0.4.0, native ABI 0.2 and Engine API 0.4 without adding
