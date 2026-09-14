@@ -26,7 +26,9 @@ Native catalog/module activation remains immutable for an Engine instance.
 
 ## Package and environment contracts
 
-Managed manifest v3 activates Python 3.13 x64 / outOfProcess / private wire 0.1.
+Managed manifest v3 activates Python 3.13 x64 / outOfProcess / private wire 0.2.
+C-01 superseded the earlier wire 0.1 requirement; workers and packages require
+an exact 0.2 match and deliberately reject older protocol versions.
 Native v1/v2 packages retain their prior behavior. .NET v3 activation is rejected.
 
 The build imports an explicit metadata-only definition function. It never calls

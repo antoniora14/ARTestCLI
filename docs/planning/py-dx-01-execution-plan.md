@@ -1,8 +1,8 @@
 # PY-DX-01 execution plan
 
 Official name: **PY-DX-01 — Python Developer Experience: create, prepare and run**.
-Status: initial scope approved by the owner on 2026-09-13; Stage 1 accepted after
-Architect review of the corrected candidate. Stages 2-5 remain pending.
+Status: initial scope approved by the owner on 2026-09-13; Stages 1 and 2 accepted
+after Architect review. Stages 3-5 remain pending.
 Position: after accepted C-02, before mandatory C-03 and C-04; no .NET work.
 Authority: [current roadmap](../architecture/roadmap-pre-dotnet.md) and
 [AGENTS.md](../../AGENTS.md). This is a Python-specific authoring tool, not a
@@ -72,7 +72,7 @@ that is not offline Engine compilation and must not open hardware.
 
 ## Small, verifiable implementation stages
 
-Stage 1 is accepted; Stages 2-5 remain pending. Accept each unit before expanding
+Stages 1 and 2 are accepted; Stages 3-5 remain pending. Accept each unit before expanding
 into the next.
 
 Stage 1 closure: `PY-DX-01 STAGE 1 ACCEPTED`. The Architect reproduced 22 tests
@@ -131,6 +131,16 @@ vendor DLL, Engine binary or prepared environment required for this unit.
 **Do not touch:** `package.py`, existing runtime/SDK code, Engine/Core/CLI,
 build/publication graph, prior examples or receipts. Do not implement prepare,
 run, caching or prerequisite probes in this unit.
+
+Stage 2 closure: `PY-DX-01 STAGE 2 ACCEPTED`. The Architect reproduced 46 tests
+on CPython 3.12.14 (43 passed, 3 skipped) and 3.13.15 (44 passed, 2 skipped),
+with no failures. Common skips are real symlink creation blocked by WinError
+1314; the deterministic guard passed. The additional 3.12 skip is the supported
+3.13 interpreter smoke, which passed on 3.13.15. The timeout cleanup now bounds
+its termination wait to 1 second after the initial 5-second wait and joins each
+reader for at most 1 second. Unconfirmed process termination produces an explicit
+failure diagnostic. The whitespace check passed. No Stage 3 preparation, cache,
+receipt changes, Engine execution or native build changes are part of this closure.
 
 ### 2. Local prerequisites and concrete diagnostics
 
@@ -307,7 +317,7 @@ stop and report the smallest contradiction; do not implement a new architecture.
 **Original first handoff (completed):** stage 1 only, on model Sol (`gpt-5.6-sol`) with High reasoning,
 as requested by the owner. Provide AGENTS.md, this plan's scope/ownership and stage 1,
 and the referenced minimal example/authoring guide; no full roadmap history needed.
-Stage 1 is accepted. The next handoff is Stage 2 only, using its existing scope
-above. No new general architecture plan is required. The owner's separate closure
-instruction authorizes the Stage 1 commit/push; it does not initiate Stage 2 or
-accept the overall PY-DX-01 iteration.
+Stages 1 and 2 are accepted. The next handoff is Stage 3 only, using its existing
+scope above. No new general architecture plan is required. The owner's separate
+closure instruction authorizes the Stage 2 commit/push and preparation of that
+handoff; it does not implement Stage 3 or accept the overall PY-DX-01 iteration.

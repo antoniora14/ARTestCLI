@@ -3,5 +3,7 @@
   "python": "C:/Path/To/Python313/python.exe",
   "sdkWheel": "C:/Path/To/artest_python-0.2.0-py3-none-any.whl",
   "cliExecutable": "C:/Path/To/ARTestCLI.exe",
-  "vendorPaths": {}
+  "vendorPaths": {},
+  "vendorDlls": [],
+  "planBindings": []
 }
