@@ -1,9 +1,14 @@
 import ast
+import base64
 from contextlib import redirect_stdout
+import csv
+import hashlib
 import io
 import json
 import os
 from pathlib import Path
+import re
+import shutil
 import struct
 import sys
 import tempfile
@@ -105,6 +110,81 @@ class ProjectTests(unittest.TestCase):
             archive.writestr(prefix + "RECORD", "")
         return path
 
+    def write_installable_wheel(
+        self, path, *, name, version, files, requirements=(), requires_python=None
+    ):
+        normalized = re.sub(r"[-_.]+", "_", name)
+        info = f"{normalized}-{version}.dist-info"
+        metadata = (
+            "Metadata-Version: 2.1\n"
+            f"Name: {name}\n"
+            f"Version: {version}\n"
+            + (f"Requires-Python: {requires_python}\n" if requires_python else "")
+            + "".join(f"Requires-Dist: {item}\n" for item in requirements)
+        ).encode("utf-8")
+        members = {
+            **{key: value.encode("utf-8") for key, value in files.items()},
+            f"{info}/METADATA": metadata,
+            f"{info}/WHEEL": (
+                "Wheel-Version: 1.0\n"
+                "Generator: ARTest integration test\n"
+                "Root-Is-Purelib: true\n"
+                "Tag: py3-none-any\n"
+            ).encode("utf-8"),
+        }
+        record = io.StringIO()
+        writer = csv.writer(record, lineterminator="\n")
+        for member_name, content in sorted(members.items()):
+            digest = base64.urlsafe_b64encode(hashlib.sha256(content).digest()).rstrip(b"=")
+            writer.writerow([member_name, "sha256=" + digest.decode("ascii"), len(content)])
+        writer.writerow([f"{info}/RECORD", "", ""])
+        members[f"{info}/RECORD"] = record.getvalue().encode("utf-8")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
+            for member_name, content in sorted(members.items()):
+                archive.writestr(member_name, content)
+        return path
+
+    def assert_published_launcher(self, result):
+        environment = result.receipt.parent.resolve(strict=True)
+        launcher = environment / "artest-launch.py"
+        tree = ast.parse(launcher.read_text(encoding="utf-8"), filename=str(launcher))
+        prefix = None
+        search_paths = None
+        dll_directory = None
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign) and len(node.targets) == 1:
+                target = node.targets[0]
+                if (
+                    isinstance(target, ast.Attribute)
+                    and isinstance(target.value, ast.Name)
+                    and target.value.id == "sys"
+                    and target.attr == "prefix"
+                ):
+                    prefix = ast.literal_eval(node.value)
+                elif isinstance(target, ast.Subscript):
+                    search_paths = ast.literal_eval(node.value)
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "os"
+                and node.func.attr == "add_dll_directory"
+            ):
+                dll_directory = ast.literal_eval(node.args[0])
+        expected_site = environment / "Lib" / "site-packages"
+        expected_paths = [
+            str(expected_site),
+            str(expected_site / "win32"),
+            str(expected_site / "win32" / "lib"),
+        ]
+        self.assertEqual(prefix, str(environment))
+        self.assertEqual(search_paths, expected_paths)
+        self.assertEqual(dll_directory, str(expected_site / "pywin32_system32"))
+        for value in (prefix, *search_paths, dll_directory):
+            path = Path(value).resolve(strict=True)
+            path.relative_to(environment)
+
     def supported_probe(self, **overrides):
         value = {
             "implementation": "cpython",
@@ -144,6 +224,137 @@ class ProjectTests(unittest.TestCase):
 
     def diagnostic_codes(self, report):
         return {item.code for item in report.diagnostics}
+
+    def stage3_identity(self, loaded, probe):
+        configuration = loaded.configuration
+        local = loaded.local
+        source = []
+        for item in sorted(configuration.source_directory.rglob("*")):
+            if item.is_file() and item.suffix != ".pyc":
+                source.append(
+                    {
+                        "path": item.relative_to(configuration.source_directory).as_posix(),
+                        "sha256": project._sha256(item),
+                    }
+                )
+        return {
+            "schemaVersion": project.PREPARATION_SCHEMA_VERSION,
+            "source": source,
+            "entryPoint": configuration.entry_point,
+            "dependencyLockSha256": project._sha256(configuration.dependency_lock),
+            "sdkWheelSha256": project._sha256(local.sdk_wheel),
+            "interpreter": {
+                "path": str(local.python),
+                "sha256": project._sha256(local.python),
+                "probe": probe,
+            },
+            "tools": {"testDouble": "stage3-v1"},
+        }
+
+    class Stage3PackageRunner:
+        def __init__(self, owner):
+            self.owner = owner
+            self.calls = []
+            self.install_count = 0
+            self.fail_next_prepare = None
+            self.after_prepare = None
+
+        @staticmethod
+        def value(arguments, option):
+            return Path(arguments[arguments.index(option) + 1])
+
+        def __call__(self, python, arguments):
+            self.calls.append((Path(python), tuple(arguments)))
+            command = arguments[0]
+            if command == "package":
+                source = self.value(arguments, "--source")
+                lock = self.value(arguments, "--lock")
+                output = self.value(arguments, "--output")
+                if output.exists():
+                    manifest = json.loads(
+                        (output / "artest-extension.json").read_text(encoding="utf-8")
+                    )
+                    project._package_module().verify_inventory(
+                        output, manifest["inventory"], "artest-extension.json"
+                    )
+                    return
+                (output / "code").mkdir(parents=True)
+                for item in source.rglob("*"):
+                    if item.is_file() and item.suffix != ".pyc":
+                        destination = output / "code" / item.relative_to(source)
+                        destination.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(item, destination)
+                shutil.copy2(lock, output / "requirements.lock")
+                text = (source / "extension.py").read_text(encoding="utf-8")
+                extension_id = re.search(r'^EXTENSION_ID = "([^"]+)"$', text, re.MULTILINE).group(1)
+                manifest = {
+                    "schemaVersion": 3,
+                    "extensionId": extension_id,
+                    "runtime": {"dependencyLock": "requirements.lock"},
+                    "inventory": project._package_module().inventory(output),
+                }
+                (output / "artest-extension.json").write_text(
+                    json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+                )
+                return
+            if command != "prepare":
+                raise AssertionError(command)
+            if self.fail_next_prepare is not None:
+                failure = self.fail_next_prepare
+                self.fail_next_prepare = None
+                raise failure
+            package_root = self.value(arguments, "--package")
+            sdk = self.value(arguments, "--sdk")
+            output = self.value(arguments, "--output")
+            manifest = json.loads(
+                (package_root / "artest-extension.json").read_text(encoding="utf-8")
+            )
+            if output.exists():
+                receipt = json.loads(
+                    (output / "artest-environment.json").read_text(encoding="utf-8")
+                )
+                project._package_module().verify_inventory(
+                    output, receipt["files"], "artest-environment.json"
+                )
+                if receipt["sdkSha256"] != project._sha256(sdk):
+                    raise ValueError("SDK mismatch")
+                return
+            self.install_count += 1
+            (output / "Scripts").mkdir(parents=True)
+            (output / "Scripts" / "python.exe").write_bytes(b"venv redirector")
+            (output / "artest-launch.py").write_text("# controlled launcher\n", encoding="utf-8")
+            receipt = {
+                "schemaVersion": 1,
+                "extensionId": manifest["extensionId"],
+                "packageSha256": project._sha256(package_root / "artest-extension.json"),
+                "interpreter": str(Path(python).resolve(strict=True)),
+                "interpreterSha256": project._sha256(Path(python)),
+                "pythonVersion": "3.13.15",
+                "sdkSha256": project._sha256(sdk),
+                "launcher": "artest-launch.py",
+                "runtimeFiles": [
+                    {"path": str(Path(python).resolve(strict=True)), "sha256": project._sha256(Path(python))}
+                ],
+                "files": project._package_module().inventory(output),
+            }
+            (output / "artest-environment.json").write_text(
+                json.dumps(receipt, indent=2) + "\n", encoding="utf-8"
+            )
+            if self.after_prepare is not None:
+                callback = self.after_prepare
+                self.after_prepare = None
+                callback()
+
+    def prepare_with_double(self, root, runner=None):
+        loaded = project.load_project(root)
+        runner = runner or self.Stage3PackageRunner(self)
+        result = project.prepare_project(
+            loaded,
+            package_runner=runner,
+            probe_runner=lambda path: self.supported_probe(),
+            identity_builder=self.stage3_identity,
+        )
+        return result, runner
 
     def exercise_probe_timeout_cleanup(self, *, kill_fails, termination_confirmed):
         class ControlledProcess:
@@ -209,6 +420,259 @@ class ProjectTests(unittest.TestCase):
                 reader.join_timeouts, [project.PYTHON_PROBE_READER_TIMEOUT_SECONDS]
             )
         return raised.exception
+
+    def test_prepare_creates_verified_revision_and_reuses_without_installing(self):
+        root = self.create()
+        self.configure_local(root)
+        first, runner = self.prepare_with_double(root)
+        second, _ = self.prepare_with_double(root, runner)
+
+        self.assertFalse(first.reused)
+        self.assertTrue(second.reused)
+        self.assertEqual(first.preparation_id, second.preparation_id)
+        self.assertEqual(runner.install_count, 1)
+        self.assertTrue(first.package.is_dir())
+        self.assertTrue(first.receipt.is_file())
+        self.assertTrue(first.association.is_file())
+        association = json.loads(first.association.read_text(encoding="utf-8"))
+        self.assertEqual(association, {self.EXTENSION_ID: str(first.receipt)})
+        ready = json.loads(
+            (root / project.PREPARATION_ROOT / "ready.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(ready["preparationId"], first.preparation_id)
+        commands = [arguments[0] for _, arguments in runner.calls]
+        self.assertEqual(commands, ["package", "prepare", "package", "prepare", "package", "prepare"])
+        for python, arguments in runner.calls:
+            self.assertEqual(python, project.load_project(root).local.python)
+            self.assertIn("--output", arguments)
+
+    @unittest.skipUnless(
+        sys.platform == "win32"
+        and sys.version_info[:2] == (3, 13)
+        and sys.maxsize == 2**63 - 1
+        and getattr(sys, "_is_gil_enabled", lambda: False)(),
+        "real preparation requires supported standard CPython 3.13 Windows x64",
+    )
+    def test_real_prepare_launcher_uses_published_environment_and_reuses(self):
+        root = self.create("real preparation")
+        wheelhouse = root / "local wheels"
+        protobuf = self.write_installable_wheel(
+            wheelhouse / "protobuf-6.33.4-py3-none-any.whl",
+            name="protobuf",
+            version="6.33.4",
+            files={"google/protobuf/__init__.py": "# integration fixture\n"},
+        )
+        pywin32 = self.write_installable_wheel(
+            wheelhouse / "pywin32-311-py3-none-any.whl",
+            name="pywin32",
+            version="311",
+            files={
+                "win32/__init__.py": "# integration fixture\n",
+                "win32/lib/__init__.py": "# integration fixture\n",
+                "pywin32_system32/fixture.txt": "integration fixture\n",
+            },
+        )
+        sdk = self.write_installable_wheel(
+            wheelhouse / "artest_python-0.2.0-py3-none-any.whl",
+            name="artest-python",
+            version="0.2.0",
+            requires_python=">=3.13,<3.14",
+            requirements=(
+                "protobuf==6.33.4",
+                "pywin32==311; sys_platform == 'win32'",
+            ),
+            files={
+                "artest_sdk/__init__.py": "# integration fixture\n",
+                "artest_host/__init__.py": "# integration fixture\n",
+            },
+        )
+        (root / "requirements.lock").write_text(
+            f"protobuf @ {protobuf.as_uri()} --hash=sha256:{project._sha256(protobuf)}\n"
+            f"pywin32 @ {pywin32.as_uri()} --hash=sha256:{project._sha256(pywin32)}\n",
+            encoding="utf-8",
+        )
+        self.write_local(
+            root,
+            {
+                "schemaVersion": 1,
+                "python": str(Path(sys.executable).resolve()),
+                "sdkWheel": str(sdk.resolve()),
+                "cliExecutable": str(self.write_pe(root / "local tools" / "ARTestCLI.exe")),
+                "vendorPaths": {},
+                "vendorDlls": [],
+                "planBindings": [],
+            },
+        )
+
+        first = project.prepare_project(project.load_project(root))
+        self.assertFalse(first.reused)
+        self.assert_published_launcher(first)
+        self.assertFalse(any((root / project.PREPARATION_ROOT / "work").iterdir()))
+
+        second = project.prepare_project(project.load_project(root))
+        self.assertTrue(second.reused)
+        self.assertEqual(second.preparation_id, first.preparation_id)
+        self.assert_published_launcher(second)
+
+    def test_prepare_same_size_source_edit_creates_new_immutable_revision(self):
+        root = self.create()
+        self.configure_local(root)
+        first, runner = self.prepare_with_double(root)
+        source = root / "src" / "extension.py"
+        original = source.read_text(encoding="utf-8")
+        changed = original.replace("self.value = 0.0", "self.value = 1.0", 1)
+        self.assertEqual(len(original), len(changed))
+        source.write_text(changed, encoding="utf-8")
+
+        second, _ = self.prepare_with_double(root, runner)
+
+        self.assertNotEqual(first.preparation_id, second.preparation_id)
+        self.assertEqual(runner.install_count, 2)
+        self.assertTrue(first.revision.is_dir())
+        self.assertTrue(second.revision.is_dir())
+
+    def test_prepare_lock_sdk_and_interpreter_changes_each_invalidate(self):
+        root = self.create()
+        local_value = self.configure_local(root)
+        result, runner = self.prepare_with_double(root)
+        identities = [result.preparation_id]
+
+        lock = root / "requirements.lock"
+        lock.write_text(lock.read_text(encoding="utf-8") + "# lock identity\n", encoding="utf-8")
+        result, _ = self.prepare_with_double(root, runner)
+        identities.append(result.preparation_id)
+
+        wheel = Path(local_value["sdkWheel"])
+        self.write_wheel(wheel, requirements=(
+            "protobuf==6.33.4", "pywin32==311; sys_platform == 'win32'",
+        ))
+        with zipfile.ZipFile(wheel, "a") as archive:
+            archive.writestr("identity-marker.txt", "changed SDK content")
+        result, _ = self.prepare_with_double(root, runner)
+        identities.append(result.preparation_id)
+
+        second_python = root / "local tools" / "alternate-python.exe"
+        second_python.write_bytes(b"alternate test interpreter")
+        local_value["python"] = str(second_python)
+        self.write_local(root, local_value)
+        result, _ = self.prepare_with_double(root, runner)
+        identities.append(result.preparation_id)
+
+        self.assertEqual(len(set(identities)), 4)
+        self.assertEqual(runner.install_count, 4)
+
+    def test_prepare_plan_only_change_reuses_environment(self):
+        root = self.create()
+        self.configure_local(root)
+        first, runner = self.prepare_with_double(root)
+        plan = root / "plan" / "measurement.json"
+        value = json.loads(plan.read_text(encoding="utf-8"))
+        value["name"] = "Plan-only edit"
+        plan.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+
+        second, _ = self.prepare_with_double(root, runner)
+
+        self.assertTrue(second.reused)
+        self.assertEqual(first.preparation_id, second.preparation_id)
+        self.assertEqual(runner.install_count, 1)
+
+    def test_prepare_rejects_package_receipt_and_environment_corruption(self):
+        corruptions = (
+            ("package", lambda result: (result.package / "code" / "extension.py").write_text("corrupt\n", encoding="utf-8")),
+            ("receipt", lambda result: result.receipt.write_text("{}\n", encoding="utf-8")),
+            ("environment", lambda result: (result.receipt.parent / "unknown.bin").write_bytes(b"unknown")),
+        )
+        for index, (label, corrupt) in enumerate(corruptions):
+            with self.subTest(label=label):
+                root = self.create(f"project-{index}")
+                self.configure_local(root)
+                first, runner = self.prepare_with_double(root)
+                ready = root / project.PREPARATION_ROOT / "ready.json"
+                selected = ready.read_bytes()
+                corrupt(first)
+                with self.assertRaises(project.ProjectError):
+                    self.prepare_with_double(root, runner)
+                self.assertEqual(ready.read_bytes(), selected)
+                self.assertEqual(runner.install_count, 1)
+
+    def test_prepare_failure_and_interruption_preserve_previous_selection(self):
+        for index, failure in enumerate((
+            project.ProjectError("controlled install failure"),
+            KeyboardInterrupt("controlled interruption"),
+        )):
+            with self.subTest(failure=type(failure).__name__):
+                root = self.create(f"project-{index}")
+                self.configure_local(root)
+                _, runner = self.prepare_with_double(root)
+                ready = root / project.PREPARATION_ROOT / "ready.json"
+                selected = ready.read_bytes()
+                source = root / "src" / "extension.py"
+                source.write_text(source.read_text(encoding="utf-8") + "\n# changed\n", encoding="utf-8")
+                runner.fail_next_prepare = failure
+                with self.assertRaises(type(failure)):
+                    self.prepare_with_double(root, runner)
+                self.assertEqual(ready.read_bytes(), selected)
+                self.assertFalse((root / project.PREPARATION_ROOT / "preparation.lock").exists())
+                incomplete = list((root / project.PREPARATION_ROOT / "incomplete").iterdir())
+                self.assertEqual(len(incomplete), 1)
+                disposition = json.loads((incomplete[0] / "failure.json").read_text(encoding="utf-8"))
+                self.assertIn("never selected", disposition["disposition"])
+
+    def test_prepare_detects_input_mutation_before_publication(self):
+        root = self.create()
+        self.configure_local(root)
+        first, runner = self.prepare_with_double(root)
+        ready = root / project.PREPARATION_ROOT / "ready.json"
+        selected = ready.read_bytes()
+        source = root / "src" / "extension.py"
+        source.write_text(source.read_text(encoding="utf-8") + "\n# revision two\n", encoding="utf-8")
+        runner.after_prepare = lambda: source.write_text(
+            source.read_text(encoding="utf-8") + "# mutated during prepare\n", encoding="utf-8"
+        )
+
+        with self.assertRaisesRegex(project.ProjectError, "inputs changed"):
+            self.prepare_with_double(root, runner)
+
+        self.assertEqual(ready.read_bytes(), selected)
+        current_ready = json.loads(ready.read_text(encoding="utf-8"))
+        self.assertEqual(current_ready["preparationId"], first.preparation_id)
+
+    def test_prepare_rejects_concurrent_or_stale_lock(self):
+        root = self.create()
+        self.configure_local(root)
+        stage3 = root / project.PREPARATION_ROOT
+        (stage3 / "work").mkdir(parents=True)
+        (stage3 / "incomplete").mkdir()
+        (stage3 / "revisions").mkdir()
+        lock = stage3 / "preparation.lock"
+        lock.write_text('{"owner":"other"}\n', encoding="utf-8")
+
+        with self.assertRaisesRegex(project.ProjectError, "Another preparation"):
+            self.prepare_with_double(root)
+
+        self.assertTrue(lock.exists())
+
+    def test_prepare_rejects_unknown_stage3_file_without_repair(self):
+        root = self.create()
+        self.configure_local(root)
+        stage3 = root / project.PREPARATION_ROOT
+        stage3.mkdir(parents=True)
+        unknown = stage3 / "foreign.txt"
+        unknown.write_text("preserve me\n", encoding="utf-8")
+
+        with self.assertRaisesRegex(project.ProjectError, "Unknown files"):
+            self.prepare_with_double(root)
+
+        self.assertEqual(unknown.read_text(encoding="utf-8"), "preserve me\n")
+
+    def test_prepare_main_exposes_only_prepare_not_run(self):
+        parser_output = io.StringIO()
+        with self.assertRaises(SystemExit), redirect_stdout(parser_output):
+            project.main(["--help"])
+        help_text = parser_output.getvalue()
+        self.assertIn("prepare", help_text)
+        command_set = help_text.splitlines()[1].strip()
+        self.assertNotIn(",run", command_set)
 
     def test_create_and_load_valid_project(self):
         root = self.create()

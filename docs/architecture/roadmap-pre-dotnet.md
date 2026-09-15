@@ -1,7 +1,7 @@
 # ARTestCLI pre-.NET roadmap
 
-Status: approved planning decision, 2026-09-13. PY-DX-01 Stages 1 and 2 are accepted;
-Stages 3-5 remain pending. This closure does not implement Stage 3.
+Status: approved planning decision, 2026-09-13. PY-DX-01 Stages 1-3 are accepted;
+Stages 4-5 remain pending. This closure does not implement Stage 4.
 This file is the canonical ARTestCLI sequencing record after C-02. Earlier
 cross-project planning in ARTestStudio is historical for this sequencing decision;
 it does not override this record. Historical D-stage identifiers are unchanged.
@@ -28,7 +28,7 @@ scope, staged acceptance and first implementable unit.
 | --- | --- | --- |
 | 1 | C-01: external-effect uncertainty | Completed prerequisite; preserve its result semantics |
 | 2 | C-02: bounded TCP SDK example | ACCEPTED and closed; see the [checkpoint](checkpoint-c02-tcp-hello.md) |
-| 3 | PY-DX-01: Python Developer Experience: create, prepare and run | Stages 1 and 2 accepted; Stage 3 is next within the approved plan; overall iteration not yet accepted |
+| 3 | PY-DX-01: Python Developer Experience: create, prepare and run | Stages 1-3 accepted; Stage 4 is next within the approved plan; overall iteration not yet accepted |
 | 4 | C-03: cleanup, recovery and unconfirmed physical state | Pending; mandatory before .NET |
 | 5 | C-04: minimal modular instrument scenario | Pending; depends on C-03 and remains mandatory before .NET |
 | 6 | D4.3: .NET runtime parity | Not authorized by this decision; requires the preceding gates and a separate start decision |

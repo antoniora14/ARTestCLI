@@ -1,18 +1,23 @@
-"""Create, validate, and inspect local prerequisites for an ARTest Python project."""
+"""Create, validate, check, and prepare an ARTest Python extension project."""
 
 import argparse
 import copy
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from email.parser import BytesParser
 from email.policy import default as email_policy
+import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path, PureWindowsPath
 import re
+import secrets
 import shutil
 import stat
 import struct
 import subprocess
+import sys
 import tempfile
 import threading
 import zipfile
@@ -35,6 +40,9 @@ PE32_PLUS_MAGIC = 0x20B
 PE_EXECUTABLE_IMAGE = 0x0002
 PE_DLL = 0x2000
 GENERATED_PLAN = Path(".artest/stage2/local-plan.json")
+PREPARATION_ROOT = Path(".artest/stage3")
+PREPARATION_SCHEMA_VERSION = 1
+PREPARATION_ID_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
 ENTRY_POINT_PATTERN = re.compile(
     r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*:[A-Za-z_][A-Za-z0-9_]*\Z"
 )
@@ -149,6 +157,29 @@ class PrerequisiteReport:
                 "CLI PE inspection does not prove product identity or execute a version check.",
                 "No Engine, extension, SDK, vendor code, installer, or instrument was run.",
             ],
+        }
+
+
+@dataclass(frozen=True)
+class PreparationResult:
+    preparation_id: str
+    revision: Path
+    package: Path
+    receipt: Path
+    association: Path
+    reused: bool
+
+    def as_dict(self) -> dict:
+        return {
+            "operation": "prepare",
+            "stage": "PY-DX-01 Stage 3 preparation",
+            "success": True,
+            "reused": self.reused,
+            "preparationId": self.preparation_id,
+            "revision": str(self.revision),
+            "package": str(self.package),
+            "receipt": str(self.receipt),
+            "association": str(self.association),
         }
 
 
@@ -1054,6 +1085,618 @@ def materialize_local_plan(project: Project) -> Path:
     return output
 
 
+def _sha256(path: Path) -> str:
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError as error:
+        raise ProjectError(f"Cannot hash preparation input {path}: {error}") from error
+
+
+def _canonical_digest(value: object) -> str:
+    encoded = json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _content_inventory(
+    root: Path, *, ignored_directories: frozenset[str] = frozenset(),
+    ignored_suffixes: frozenset[str] = frozenset()
+) -> list[dict]:
+    if _is_reparse_point(root):
+        raise ProjectError(f"Preparation input cannot be a reparse point: {root}")
+    records = []
+    for current, directories, files in os.walk(root, topdown=True, followlinks=False):
+        current_path = Path(current)
+        kept_directories = []
+        for name in sorted(directories):
+            candidate = current_path / name
+            if _is_reparse_point(candidate):
+                raise ProjectError(f"Preparation input cannot contain reparse points: {candidate}")
+            if name.lower() not in ignored_directories:
+                kept_directories.append(name)
+        directories[:] = kept_directories
+        for name in sorted(files):
+            candidate = current_path / name
+            if _is_reparse_point(candidate):
+                raise ProjectError(f"Preparation input cannot contain reparse points: {candidate}")
+            if candidate.suffix.lower() in ignored_suffixes:
+                continue
+            records.append(
+                {
+                    "path": candidate.relative_to(root).as_posix(),
+                    "sha256": _sha256(candidate),
+                }
+            )
+    return records
+
+
+def _interpreter_runtime_identity(python: Path, probe: dict) -> dict:
+    installation = python.parent
+    runtime_files = []
+    for name in ("python313.dll", "python3.dll"):
+        path = installation / name
+        if not path.is_file():
+            raise ProjectError(
+                f"Preparation interpreter runtime file is missing: {path}; "
+                "select a complete supported CPython 3.13 installation"
+            )
+        runtime_files.append({"name": name, "sha256": _sha256(path)})
+    tooling = {}
+    for name, path in (
+        ("venv", installation / "Lib" / "venv"),
+        ("ensurepip", installation / "Lib" / "ensurepip"),
+    ):
+        if not path.is_dir():
+            raise ProjectError(
+                f"Preparation interpreter tooling is missing: {path}; "
+                "install the standard CPython venv/pip components"
+            )
+        tooling[name] = _content_inventory(
+            path,
+            ignored_directories=frozenset({"__pycache__"}),
+            ignored_suffixes=frozenset({".pyc"}),
+        )
+    return {
+        "path": str(python.resolve(strict=True)),
+        "executableSha256": _sha256(python),
+        "probe": probe,
+        "runtimeFiles": runtime_files,
+        "tooling": tooling,
+    }
+
+
+def _preparation_inputs(project: Project, python_probe: dict) -> dict:
+    if project.local is None:
+        raise ProjectError(f"Preparation requires {LOCAL_CONFIG_NAME}")
+    configuration = project.configuration
+    tool_root = Path(__file__).resolve().parent
+    python_root = tool_root.parent
+    package_tool = tool_root / "package.py"
+    metadata_sdk = python_root / "artest_sdk"
+    if not package_tool.is_file() or not metadata_sdk.is_dir():
+        raise ProjectError("ARTest Python preparation tooling is incomplete")
+    return {
+        "schemaVersion": PREPARATION_SCHEMA_VERSION,
+        "source": _content_inventory(
+            configuration.source_directory,
+            ignored_directories=frozenset({"__pycache__", ".venv", ".git"}),
+            ignored_suffixes=frozenset({".pyc"}),
+        ),
+        "entryPoint": configuration.entry_point,
+        "dependencyLockSha256": _sha256(configuration.dependency_lock),
+        "sdkWheelSha256": _sha256(project.local.sdk_wheel),
+        "interpreter": _interpreter_runtime_identity(project.local.python, python_probe),
+        "tools": {
+            "projectPySha256": _sha256(Path(__file__).resolve()),
+            "packagePySha256": _sha256(package_tool),
+            "metadataSdk": _content_inventory(
+                metadata_sdk,
+                ignored_directories=frozenset({"__pycache__"}),
+                ignored_suffixes=frozenset({".pyc"}),
+            ),
+        },
+    }
+
+
+def _preparation_prerequisites(project: Project, probe_runner=None) -> dict:
+    if project.local is None:
+        raise ProjectError(
+            f"Preparation requires {LOCAL_CONFIG_NAME}; copy the local example and set "
+            "python and sdkWheel"
+        )
+    python_diagnostics, probe = _python_diagnostics(project.local, probe_runner)
+    sdk_diagnostics, _ = _sdk_diagnostics(project.local)
+    diagnostics = python_diagnostics + sdk_diagnostics
+    if diagnostics:
+        first = diagnostics[0]
+        raise ProjectError(
+            f"prepare {first.stage} {first.field} failed [{first.code}]: expected "
+            f"{first.expected}; cause: {first.cause}; correction: {first.correction}"
+        )
+    return probe
+
+
+def _package_tool_arguments(project: Project, command: str, output: Path) -> list[str]:
+    if project.local is None:
+        raise ProjectError(f"Preparation requires {LOCAL_CONFIG_NAME}")
+    if command == "package":
+        return [
+            "package", "--source", str(project.configuration.source_directory),
+            "--entry-point", project.configuration.entry_point,
+            "--lock", str(project.configuration.dependency_lock),
+            "--output", str(output),
+        ]
+    if command == "prepare":
+        return [
+            "prepare", "--package", str(output.parent / "package"),
+            "--sdk", str(project.local.sdk_wheel),
+            "--output", str(output),
+        ]
+    raise AssertionError(f"Unknown package tool command: {command}")
+
+
+def _run_package_tool(python: Path, arguments: list[str]) -> None:
+    tool = Path(__file__).resolve().with_name("package.py")
+    command = [str(python), "-I", "-B", str(tool), *arguments]
+    try:
+        result = subprocess.run(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=False,
+            check=False,
+        )
+    except OSError as error:
+        raise ProjectError(
+            f"Cannot start package.py {arguments[0]} using {python}: {error}"
+        ) from error
+    if result.returncode:
+        output = (result.stdout + result.stderr)[-PYTHON_PROBE_OUTPUT_LIMIT:].decode(
+            "utf-8", errors="replace"
+        ).strip()
+        detail = f": {output}" if output else ""
+        raise ProjectError(
+            f"package.py {arguments[0]} failed with exit code {result.returncode}{detail}"
+        )
+
+
+def _package_module():
+    path = Path(__file__).resolve().with_name("package.py")
+    spec = importlib.util.spec_from_file_location("_artest_project_package_tool", path)
+    if spec is None or spec.loader is None:
+        raise ProjectError(f"Cannot load package integrity helpers from {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _strict_object(path: Path, required: set[str]) -> dict:
+    value = _read_json_object(path)
+    _validate_keys(value, required, set(), path)
+    return value
+
+
+def _validate_runtime_files(receipt: dict, configured_python: Path) -> None:
+    if receipt.get("interpreter") != str(configured_python.resolve(strict=True)):
+        raise ProjectError(
+            "Prepared environment interpreter path does not match the configured interpreter"
+        )
+    if receipt.get("interpreterSha256") != _sha256(configured_python):
+        raise ProjectError("Prepared environment interpreter hash mismatch")
+    runtime_files = receipt.get("runtimeFiles")
+    if not isinstance(runtime_files, list) or not runtime_files:
+        raise ProjectError("Prepared environment receipt has no runtimeFiles inventory")
+    seen = set()
+    for index, record in enumerate(runtime_files):
+        if not isinstance(record, dict) or set(record) != {"path", "sha256"}:
+            raise ProjectError(f"Prepared environment runtimeFiles[{index}] is invalid")
+        path_text = record.get("path")
+        digest_text = record.get("sha256")
+        if not isinstance(path_text, str) or not isinstance(digest_text, str):
+            raise ProjectError(f"Prepared environment runtimeFiles[{index}] is invalid")
+        path = Path(path_text)
+        if path_text in seen or not path.is_absolute() or not path.is_file():
+            raise ProjectError(f"Prepared runtime file is missing or ambiguous: {path_text}")
+        seen.add(path_text)
+        if _sha256(path) != digest_text:
+            raise ProjectError(f"Prepared runtime file hash mismatch: {path}")
+
+
+def _validate_revision(
+    project: Project,
+    revision: Path,
+    *,
+    expected_inputs: dict | None,
+    verify_current_inputs: bool,
+    package_runner,
+) -> tuple[str, Path]:
+    if _is_reparse_point(revision) or not revision.is_dir():
+        raise ProjectError(f"Prepared revision is missing or is a reparse point: {revision}")
+    allowed = {"package", "environment", "preparation.json", "python-environments.json"}
+    actual = {item.name for item in revision.iterdir()}
+    if actual != allowed:
+        raise ProjectError(
+            f"Prepared revision contains missing or unknown entries: {revision}; "
+            f"expected {sorted(allowed)!r}, found {sorted(actual)!r}"
+        )
+    package_root = revision / "package"
+    environment = revision / "environment"
+    for owned in (package_root, environment):
+        if _is_reparse_point(owned) or not owned.is_dir():
+            raise ProjectError(f"Prepared output is missing or is a reparse point: {owned}")
+    metadata = _strict_object(
+        revision / "preparation.json",
+        {"schemaVersion", "preparationId", "createdAtUtc", "inputs"},
+    )
+    if metadata["schemaVersion"] != PREPARATION_SCHEMA_VERSION:
+        raise ProjectError(f"Unsupported preparation metadata version in {revision}")
+    preparation_id = metadata.get("preparationId")
+    if not isinstance(preparation_id, str) or not PREPARATION_ID_PATTERN.fullmatch(
+        preparation_id
+    ):
+        raise ProjectError(f"Invalid preparation identity in {revision}")
+    if revision.name != preparation_id or _canonical_digest(metadata.get("inputs")) != preparation_id:
+        raise ProjectError(f"Preparation identity does not match its recorded inputs: {revision}")
+    if expected_inputs is not None and metadata.get("inputs") != expected_inputs:
+        raise ProjectError(f"Prepared revision inputs do not match current project inputs: {revision}")
+
+    package_tool = _package_module()
+    manifest = _read_json_object(package_root / "artest-extension.json")
+    inventory = manifest.get("inventory")
+    if not isinstance(inventory, list):
+        raise ProjectError(f"Package manifest inventory is invalid: {package_root}")
+    try:
+        package_tool.verify_inventory(
+            package_root, inventory, "artest-extension.json"
+        )
+    except (OSError, KeyError, TypeError, ValueError) as error:
+        raise ProjectError(f"Prepared package integrity failed at {package_root}: {error}") from error
+    extension_id = manifest.get("extensionId")
+    if not isinstance(extension_id, str) or not extension_id:
+        raise ProjectError(f"Prepared package has no valid extensionId: {package_root}")
+
+    receipt_path = environment / "artest-environment.json"
+    try:
+        if receipt_path.stat().st_size > 8 * 1024 * 1024:
+            raise ProjectError(f"Environment receipt exceeds 8 MiB: {receipt_path}")
+    except OSError as error:
+        raise ProjectError(f"Cannot inspect environment receipt {receipt_path}: {error}") from error
+    receipt = _read_json_object(receipt_path)
+    if receipt.get("schemaVersion") != 1:
+        raise ProjectError(f"Unsupported environment receipt version: {receipt_path}")
+    files = receipt.get("files")
+    if not isinstance(files, list):
+        raise ProjectError(f"Environment receipt file inventory is invalid: {receipt_path}")
+    try:
+        package_tool.verify_inventory(environment, files, "artest-environment.json")
+    except (OSError, KeyError, TypeError, ValueError) as error:
+        raise ProjectError(f"Prepared environment integrity failed at {environment}: {error}") from error
+    if receipt.get("extensionId") != extension_id:
+        raise ProjectError("Prepared environment extensionId does not match its package")
+    if receipt.get("packageSha256") != _sha256(package_root / "artest-extension.json"):
+        raise ProjectError("Prepared environment package binding hash mismatch")
+    launcher_value = receipt.get("launcher")
+    if not isinstance(launcher_value, str) or not launcher_value:
+        raise ProjectError(f"Prepared environment launcher is invalid: {receipt_path}")
+    launcher = (environment / launcher_value).resolve(strict=False)
+    try:
+        launcher.relative_to(environment.resolve(strict=True))
+    except ValueError as error:
+        raise ProjectError(f"Prepared environment launcher escapes its root: {launcher}") from error
+    if not launcher.is_file() or _is_reparse_point(launcher):
+        raise ProjectError(f"Prepared environment launcher is missing or unsafe: {launcher}")
+
+    association_path = revision / "python-environments.json"
+    association = _read_json_object(association_path)
+    expected_association = {extension_id: str(receipt_path.resolve(strict=True))}
+    if association != expected_association:
+        raise ProjectError(
+            f"Prepared environment association does not match the verified package and receipt: "
+            f"{association_path}"
+        )
+
+    if verify_current_inputs:
+        if project.local is None:
+            raise ProjectError(f"Preparation requires {LOCAL_CONFIG_NAME}")
+        if receipt.get("sdkSha256") != _sha256(project.local.sdk_wheel):
+            raise ProjectError("Prepared environment SDK wheel hash mismatch")
+        _validate_runtime_files(receipt, project.local.python)
+        package_runner(
+            project.local.python,
+            _package_tool_arguments(project, "package", package_root),
+        )
+        package_runner(
+            project.local.python,
+            _package_tool_arguments(project, "prepare", environment),
+        )
+    return extension_id, receipt_path
+
+
+def _prepare_directories(project: Project) -> tuple[Path, Path, Path, Path]:
+    root = project.configuration.root / PREPARATION_ROOT
+    artest_root = root.parent
+    _reject_reparse_ancestors(project.configuration.root)
+    for directory in (artest_root, root, root / "work", root / "incomplete", root / "revisions"):
+        if directory.exists():
+            if _is_reparse_point(directory) or not directory.is_dir():
+                raise ProjectError(f"Owned preparation path is not a regular directory: {directory}")
+        else:
+            directory.mkdir()
+    allowed = {"work", "incomplete", "revisions", "ready.json", "preparation.lock"}
+    unknown = sorted(item.name for item in root.iterdir() if item.name not in allowed)
+    if unknown:
+        raise ProjectError(
+            f"Unknown files exist in the Stage 3 output root {root}: {', '.join(unknown)}"
+        )
+    return root, root / "work", root / "incomplete", root / "revisions"
+
+
+def _reject_ambiguous_work(work: Path) -> None:
+    if list(work.iterdir()):
+        raise ProjectError(
+            f"Ambiguous incomplete preparation remains in {work}; "
+            "inspect and preserve it before retrying"
+        )
+
+
+def _acquire_preparation_lock(root: Path) -> tuple[Path, str]:
+    lock = root / "preparation.lock"
+    token = secrets.token_hex(16)
+    value = {
+        "schemaVersion": PREPARATION_SCHEMA_VERSION,
+        "token": token,
+        "pid": os.getpid(),
+        "projectRoot": str(root.parent.parent),
+        "startedAtUtc": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError as error:
+        raise ProjectError(
+            f"Another preparation is active or an interrupted lock requires inspection: {lock}"
+        ) from error
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
+            json.dump(value, stream, indent=2, ensure_ascii=True)
+            stream.write("\n")
+    except BaseException:
+        try:
+            lock.unlink()
+        except OSError:
+            pass
+        raise
+    return lock, token
+
+
+def _release_preparation_lock(lock: Path, token: str) -> None:
+    try:
+        value = _read_json_object(lock)
+        if value.get("token") != token:
+            raise ProjectError(f"Preparation lock ownership changed unexpectedly: {lock}")
+        lock.unlink()
+    except FileNotFoundError as error:
+        raise ProjectError(f"Preparation lock disappeared unexpectedly: {lock}") from error
+    except OSError as error:
+        raise ProjectError(f"Cannot release preparation lock {lock}: {error}") from error
+
+
+def _validate_ready_selection(project: Project, root: Path, package_runner) -> None:
+    ready_path = root / "ready.json"
+    if not ready_path.exists():
+        return
+    if _is_reparse_point(ready_path) or not ready_path.is_file():
+        raise ProjectError(f"Ready preparation selection is not a regular file: {ready_path}")
+    ready = _strict_object(
+        ready_path, {"schemaVersion", "preparationId", "revision", "association"}
+    )
+    if ready["schemaVersion"] != PREPARATION_SCHEMA_VERSION:
+        raise ProjectError(f"Unsupported ready preparation version: {ready_path}")
+    preparation_id = ready.get("preparationId")
+    expected_revision = Path("revisions") / str(preparation_id)
+    expected_association = expected_revision / "python-environments.json"
+    if (
+        not isinstance(preparation_id, str)
+        or not PREPARATION_ID_PATTERN.fullmatch(preparation_id)
+        or ready.get("revision") != expected_revision.as_posix()
+        or ready.get("association") != expected_association.as_posix()
+    ):
+        raise ProjectError(f"Ready preparation selection is inconsistent: {ready_path}")
+    _validate_revision(
+        project,
+        root / expected_revision,
+        expected_inputs=None,
+        verify_current_inputs=False,
+        package_runner=package_runner,
+    )
+
+
+def _write_json_exclusive(path: Path, value: object) -> None:
+    try:
+        with path.open("x", encoding="utf-8", newline="\n") as stream:
+            json.dump(value, stream, indent=2, ensure_ascii=True)
+            stream.write("\n")
+    except OSError as error:
+        raise ProjectError(f"Cannot write owned preparation output {path}: {error}") from error
+
+
+def _publish_ready(root: Path, preparation_id: str) -> None:
+    relative_revision = Path("revisions") / preparation_id
+    value = {
+        "schemaVersion": PREPARATION_SCHEMA_VERSION,
+        "preparationId": preparation_id,
+        "revision": relative_revision.as_posix(),
+        "association": (relative_revision / "python-environments.json").as_posix(),
+    }
+    candidate = root / "work" / f".ready-{secrets.token_hex(16)}.json"
+    _write_json_exclusive(candidate, value)
+    try:
+        os.replace(candidate, root / "ready.json")
+    except OSError as error:
+        raise ProjectError(f"Cannot publish ready preparation selection: {error}") from error
+
+
+def _preserve_failed_attempt(attempt: Path, incomplete: Path, error: BaseException) -> bool:
+    if not attempt.exists():
+        return False
+    destination = incomplete / f"{attempt.name}-{secrets.token_hex(8)}"
+    try:
+        attempt.rename(destination)
+        _write_json_exclusive(
+            destination / "failure.json",
+            {
+                "schemaVersion": PREPARATION_SCHEMA_VERSION,
+                "failedAtUtc": datetime.now(timezone.utc).isoformat(),
+                "errorType": type(error).__name__,
+                "cause": str(error),
+                "disposition": "preserved incomplete; never selected or reused",
+            },
+        )
+        return True
+    except (OSError, ProjectError):
+        # The attempt marker remains so the next invocation fails closed.
+        return False
+
+
+def _remove_attempt_marker(marker: Path) -> None:
+    try:
+        marker.unlink()
+    except OSError as error:
+        raise ProjectError(f"Cannot remove owned preparation marker {marker}: {error}") from error
+
+
+def prepare_project(
+    project: Project,
+    *,
+    package_runner=None,
+    probe_runner=None,
+    identity_builder=None,
+) -> PreparationResult:
+    """Prepare or exactly reuse one immutable project-local Python revision."""
+    runner = package_runner or _run_package_tool
+    probe = _preparation_prerequisites(project, probe_runner)
+    root, work, incomplete, revisions = _prepare_directories(project)
+    lock, token = _acquire_preparation_lock(root)
+    attempt = None
+    work_marker = None
+    pending_error = None
+    try:
+        _reject_ambiguous_work(work)
+        _validate_ready_selection(project, root, runner)
+        build_identity = identity_builder or _preparation_inputs
+        inputs = build_identity(project, probe)
+        preparation_id = _canonical_digest(inputs)
+        revision = revisions / preparation_id
+        if revision.exists():
+            _, receipt = _validate_revision(
+                project,
+                revision,
+                expected_inputs=inputs,
+                verify_current_inputs=True,
+                package_runner=runner,
+            )
+            if build_identity(project, probe) != inputs:
+                raise ProjectError("Preparation inputs changed while verifying reuse; nothing was published")
+            _publish_ready(root, preparation_id)
+            return PreparationResult(
+                preparation_id, revision, revision / "package", receipt,
+                revision / "python-environments.json", True,
+            )
+
+        work_marker = work / f"{preparation_id}-{token}.json"
+        _write_json_exclusive(
+            work_marker,
+            {
+                "schemaVersion": PREPARATION_SCHEMA_VERSION,
+                "preparationId": preparation_id,
+                "revision": (Path("revisions") / preparation_id).as_posix(),
+                "disposition": "preparation in progress; not selected",
+            },
+        )
+        try:
+            revision.mkdir()
+        except OSError as error:
+            raise ProjectError(f"Cannot create preparation revision {revision}: {error}") from error
+        attempt = revision
+        incomplete_marker = attempt / "preparation.incomplete.json"
+        _write_json_exclusive(
+            incomplete_marker,
+            {
+                "schemaVersion": PREPARATION_SCHEMA_VERSION,
+                "preparationId": preparation_id,
+                "disposition": "preparation in progress; not selected or reusable",
+            },
+        )
+        package_root = attempt / "package"
+        environment = attempt / "environment"
+        runner(
+            project.local.python,
+            _package_tool_arguments(project, "package", package_root),
+        )
+        runner(
+            project.local.python,
+            _package_tool_arguments(project, "prepare", environment),
+        )
+
+        manifest = _read_json_object(package_root / "artest-extension.json")
+        extension_id = manifest.get("extensionId")
+        if not isinstance(extension_id, str) or not extension_id:
+            raise ProjectError("Generated package has no valid extensionId")
+        final_revision = revision
+        final_receipt = environment / "artest-environment.json"
+        _write_json_exclusive(
+            attempt / "python-environments.json", {extension_id: str(final_receipt.resolve())}
+        )
+        _write_json_exclusive(
+            attempt / "preparation.json",
+            {
+                "schemaVersion": PREPARATION_SCHEMA_VERSION,
+                "preparationId": preparation_id,
+                "createdAtUtc": datetime.now(timezone.utc).isoformat(),
+                "inputs": inputs,
+            },
+        )
+        if build_identity(project, probe) != inputs:
+            raise ProjectError("Preparation inputs changed during package/environment creation")
+
+        _remove_attempt_marker(incomplete_marker)
+        _, receipt = _validate_revision(
+            project,
+            final_revision,
+            expected_inputs=inputs,
+            verify_current_inputs=True,
+            package_runner=runner,
+        )
+        if build_identity(project, probe) != inputs:
+            raise ProjectError("Preparation inputs changed during final validation; nothing was published")
+        _remove_attempt_marker(work_marker)
+        work_marker = None
+        attempt = None
+        _publish_ready(root, preparation_id)
+        return PreparationResult(
+            preparation_id, final_revision, final_revision / "package", receipt,
+            final_revision / "python-environments.json", False,
+        )
+    except BaseException as error:
+        pending_error = error
+        if attempt is not None:
+            preserved = _preserve_failed_attempt(attempt, incomplete, error)
+            if preserved and work_marker is not None:
+                try:
+                    _remove_attempt_marker(work_marker)
+                    work_marker = None
+                except ProjectError:
+                    pass
+        raise
+    finally:
+        try:
+            _release_preparation_lock(lock, token)
+        except ProjectError:
+            if pending_error is None:
+                raise
+
+
 def _destination_is_available(destination: Path) -> bool:
     if _is_reparse_point(destination):
         raise ProjectError(f"Destination cannot be a reparse point: {destination}")
@@ -1205,6 +1848,11 @@ def main(argv=None) -> int:
         "materialize-plan", help="write a generated plan copy with configured local path bindings"
     )
     local_plan.add_argument("project", type=Path, nargs="?", default=Path.cwd())
+    prepare = commands.add_parser(
+        "prepare",
+        help="create or exactly reuse a verified immutable package/environment revision",
+    )
+    prepare.add_argument("project", type=Path, nargs="?", default=Path.cwd())
     args = parser.parse_args(argv)
     try:
         if args.command == "create":
@@ -1223,8 +1871,11 @@ def main(argv=None) -> int:
             report = check_prerequisites(load_project(args.project))
             print(json.dumps(report.as_dict(), indent=2, ensure_ascii=True))
             return 0 if report.success else 1
-        else:
+        elif args.command == "materialize-plan":
             print(materialize_local_plan(load_project(args.project)))
+        else:
+            result = prepare_project(load_project(args.project))
+            print(json.dumps(result.as_dict(), indent=2, ensure_ascii=True))
     except ProjectError as error:
         parser.error(str(error))
     return 0

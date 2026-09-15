@@ -1,8 +1,8 @@
 # PY-DX-01 execution plan
 
 Official name: **PY-DX-01 — Python Developer Experience: create, prepare and run**.
-Status: initial scope approved by the owner on 2026-09-13; Stages 1 and 2 accepted
-after Architect review. Stages 3-5 remain pending.
+Status: initial scope approved by the owner on 2026-09-13; Stages 1-3 accepted
+after Architect review. Stages 4-5 remain pending.
 Position: after accepted C-02, before mandatory C-03 and C-04; no .NET work.
 Authority: [current roadmap](../architecture/roadmap-pre-dotnet.md) and
 [AGENTS.md](../../AGENTS.md). This is a Python-specific authoring tool, not a
@@ -72,7 +72,7 @@ that is not offline Engine compilation and must not open hardware.
 
 ## Small, verifiable implementation stages
 
-Stages 1 and 2 are accepted; Stages 3-5 remain pending. Accept each unit before expanding
+Stages 1-3 are accepted; Stages 4-5 remain pending. Accept each unit before expanding
 into the next.
 
 Stage 1 closure: `PY-DX-01 STAGE 1 ACCEPTED`. The Architect reproduced 22 tests
@@ -223,6 +223,18 @@ failures and real existing validators for the successful/reuse/integrity paths.
 **Do not touch:** hashing algorithms, `ManagedIntegrity.cpp`, `PythonRuntime::Load`,
 timeouts, receipt schema, dependency conflict resolution or native build graph.
 
+Stage 3 closure: `PY-DX-01 STAGE 3 ACCEPTED` (2026-09-14). The corrected
+candidate prepares environments at their definitive revision paths before selecting
+ready.json. Published launcher paths and exact reuse were verified without
+executing a plan. Source and retained artifact hashes, full inventories and the
+package/receipt/association binding match the evidence in
+`artifacts/acceptance/py-dx-01/stage3-fix-candidate/acceptance-record.md`.
+The Architect reproduced 57 tests: 55 passed and 2 admissible WinError 1314
+symlink skips. Matching Debug/Release XML reports show 242 enabled tests per
+configuration, no failures/errors and 31 disabled tests. The previous defective
+candidate evidence was preserved; it is not acceptance evidence for this closure.
+Stage 4 and overall PY-DX-01 acceptance remain pending.
+
 ### 4. Prepare, offline validate and execute from the project
 
 **Objective:** one explicit project run coordinates preparation and execution
@@ -317,7 +329,7 @@ stop and report the smallest contradiction; do not implement a new architecture.
 **Original first handoff (completed):** stage 1 only, on model Sol (`gpt-5.6-sol`) with High reasoning,
 as requested by the owner. Provide AGENTS.md, this plan's scope/ownership and stage 1,
 and the referenced minimal example/authoring guide; no full roadmap history needed.
-Stages 1 and 2 are accepted. The next handoff is Stage 3 only, using its existing
+Stages 1-3 are accepted. The next handoff is Stage 4 only, using its existing
 scope above. No new general architecture plan is required. The owner's separate
-closure instruction authorizes the Stage 2 commit/push and preparation of that
-handoff; it does not implement Stage 3 or accept the overall PY-DX-01 iteration.
+closure instruction authorizes the Stage 3 commit/push and preparation of that
+handoff; it does not implement Stage 4 or accept the overall PY-DX-01 iteration.

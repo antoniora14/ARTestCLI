@@ -1,9 +1,10 @@
 # Create a minimal Python extension project
 
-PY-DX-01 Stages 1 and 2 provide a hardware-free project scaffold, static
-configuration validation, explicit local-prerequisite checks and an optional
-generated plan copy with machine-local vendor paths. They do not prepare an
-environment, install packages, compile a plan or run ARTest.
+PY-DX-01 Stages 1 through 3 provide a hardware-free project scaffold, static
+configuration validation, explicit local-prerequisite checks, an optional
+generated plan copy with machine-local vendor paths, and explicit verified
+preparation. Stage 3 creates or exactly reuses an immutable package/environment
+revision. It does not compile a plan or run ARTest.
 
 ## Create and inspect a project
 
@@ -191,15 +192,124 @@ It never changes the portable plan. It rejects reparse-point traversal and refus
 to overwrite an existing output, including an unrelated file. Stage 2 does not
 connect this copy to preparation, compilation or execution.
 
+## Prepare a package and isolated environment
+
+Configure `python` and `sdkWheel` in `artest-project.local.json`, then run:
+
+    & 'C:\Path\To\Python313\python.exe' -I -B source/ARTest.Python/tools/project.py prepare D:\Work\MyPythonExtension
+    $LASTEXITCODE
+
+Preparation requires standard GIL-enabled CPython 3.13 Windows x64, including
+its `venv` and `ensurepip` components, and an unmodified compatible
+`artest-python` 0.2.0 wheel/private wire 0.2. The operation checks those two
+local prerequisites before writing an attempt. `cliExecutable` and vendor paths
+remain inputs to `check` and later execution, but are not preparation inputs.
+Dependency installation occurs only inside the new project-owned environment.
+It uses the existing exact-version/hash lock and `package.py` commands; nothing
+is installed globally. Metadata generation imports the trusted author definition
+through the existing tool, so `define_extension` and constructors must remain
+deterministic, hardware-free, and independent of machine state.
+
+The result is a JSON object containing `preparationId`, `reused`, `revision`,
+`package`, `receipt`, and `association`. `association` is the existing mapping
+format from the verified package's extension ID to the absolute verified
+`artest-environment.json` path. Stage 3 produces that file but does not pass it
+to the Engine.
+
+### Owned output and publication
+
+All generated state is ignored and remains under the project's `.artest/`:
+
+    .artest/
+      stage2/
+        local-plan.json
+      stage3/
+        ready.json
+        work/
+        incomplete/
+        revisions/
+          <preparation-id>/
+            package/
+            environment/
+              artest-environment.json
+            preparation.json
+            python-environments.json
+
+`work/` contains only unpublished attempt/publication markers. The package and
+environment payload is created directly at its final `revisions/<preparation-id>`
+path because the generated launcher intentionally pins absolute environment and
+site-package paths. While creation or validation is in progress, that revision
+contains `preparation.incomplete.json` and cannot validate as ready or reusable;
+the tool never relocates a successfully prepared environment. A caught failed or
+interrupted attempt is moved to `incomplete/` with a disposition record and is
+never reused. An abrupt stop can leave a lock, work marker, or incomplete revision;
+the next invocation fails closed so an operator can preserve and inspect it.
+`revisions/` otherwise contains immutable, fully described candidates, including
+older preparations that may still be in use. The tool does not edit or delete
+them. `ready.json` is the sole current selection and is atomically replaced only
+after package, environment, receipt, launcher location, association, and current
+inputs pass validation. Therefore a failed preparation leaves the prior selection
+unchanged.
+
+Preparations for one project use an exclusive `.artest/stage3/preparation.lock`.
+A concurrent invocation, or a stale lock after an unconfirmed interruption, is
+rejected with the exact lock path. The tool never guesses that such a lock is
+safe to remove. Unknown entries in the owned Stage 3 root, reparse-point output
+paths, mixed input snapshots, corrupt inventories, broken receipt bindings, and
+inconsistent associations are errors; Stage 3 does not repair receipts, prune
+evidence, or overwrite foreign files.
+
+### Identity and exact reuse
+
+The preparation ID is a canonical SHA-256 identity, not a timestamp. It covers:
+
+- every packaged source path and file digest, using the same exclusions as the
+  low-level packager;
+- the entry point and exact dependency-lock digest;
+- the SDK wheel digest;
+- the configured interpreter's absolute path, executable and runtime-DLL
+  digests, reported implementation/version/platform/architecture/GIL identity,
+  plus the standard `venv` and bundled `ensurepip` inputs;
+- the project/package preparation tools and the source SDK metadata-authoring
+  surface used by `package.py`.
+
+Before reuse, Stage 3 recomputes that identity, validates the recorded identity,
+package and environment full-file inventories, package-to-receipt binding,
+extension-ID association, current SDK/interpreter/runtime hashes, and invokes
+the existing low-level `package` and `prepare` validations against the immutable
+outputs. Exact intact inputs therefore return `reused: true` without running pip
+installation. A source edit—even one preserving file size—or a lock, SDK,
+interpreter, or relevant tool/runtime change selects a new preparation ID and
+creates a new revision. A plan-only edit is deliberately absent from preparation
+identity, so it reuses the environment; compiling that changed plan belongs to
+Stage 4.
+
+The tool snapshots identity before creation, after package/environment creation,
+and again after final validation. A mismatch means inputs changed during the
+attempt: no ready selection is published and the mixed attempt is preserved as
+incomplete. Exact hash and inventory errors are reported rather than converted
+into a cache miss, because silently rebuilding over ambiguous or corrupt state
+would hide evidence.
+
+### Stage 3 boundary
+
+`prepare` is the only new workflow operation in this stage. It does not compile
+or execute the portable or materialized plan, launch the Engine, alter an active
+session, watch files, install vendor software, share environments globally, or
+perform cleanup/garbage collection. Use the existing low-level commands
+`package.py package` and `package.py prepare` when that explicit workflow is needed;
+their arguments and receipt/package formats remain unchanged.
+
 ## Focused tests
 
-The Stage 1 and Stage 2 tests use only the Python standard library, controlled
+The controlled Stage 1/2/3 unit cases use only the Python standard library,
 fixtures and temporary directories:
 
     & 'C:\Path\To\Python313\python.exe' -I -B source/ARTest.Python/tests/test_project.py -v
 
-They do not require the Engine, a prepared environment, vendor software, hardware
-or network access. The supported-interpreter smoke runs when the suite itself is
-executed with standard CPython 3.13 Windows x64. Reparse-point cases run when the
-host permits creation of test directory links; otherwise those individual cases
-report a skip.
+They do not require the Engine, vendor software, hardware or network access.
+Stage 3 acceptance additionally runs a real `package.py package`/`prepare` round
+trip with the current SDK wheel and pinned dependencies. The supported-interpreter
+smoke runs when the suite itself is executed with standard CPython 3.13 Windows
+x64. Reparse-point cases run when the host permits creation of test directory
+links; otherwise those individual cases report a skip.
