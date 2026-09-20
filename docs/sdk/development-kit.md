@@ -1,8 +1,8 @@
-# ARTest development kit (PY-DX-01 Stages 4A, 4B and 4C)
+# ARTest development kit (PY-DX-01 Stages 4A, 4B, 4C and 4)
 
-Stage 4A produced the inventory-checked Windows x64 evaluation kit. The Stage 4C
-candidate adds installation-scoped `register` to the accepted guided `new` and
-`build` dispatch for Python and C++ without a
+Stage 4A produced the inventory-checked Windows x64 evaluation kit. Stage 4 adds
+explicit Python Test plan execution to the accepted installation-scoped `new`,
+`build`, and `register` flow without a
 repository checkout, internal IDs, a global Python installation, or downloads.
 It reuses the native SDK distribution and accepted Python Stages 1-3 tools.
 
@@ -29,8 +29,8 @@ Outputs are generated only under:
 
 ```text
 artifacts/sdk-packages/x64/Release/
-  ARTestDevelopmentKit-0.3.0-evaluation-windows-x64/
-  ARTestDevelopmentKit-0.3.0-evaluation-windows-x64.zip
+  ARTestDevelopmentKit-0.4.0-evaluation-windows-x64/
+  ARTestDevelopmentKit-0.4.0-evaluation-windows-x64.zip
 ```
 
 The packager probes and then copies a complete installed CPython layout needed by
@@ -113,6 +113,43 @@ The destination CLI independently runs `extensions validate` and offline
 plan, initializes hardware, replaces CLI/Engine binaries, or reloads an active
 session. Custom hosts still consume their documented catalog configuration.
 
+## Explicitly run a Python Test plan
+
+Run is separate from registration and must be requested explicitly. It uses the
+selected installation profile, or the named `--target`, for the CLI and delegates
+the ordered preparation, offline validation, and execution flow to the Python
+project tool:
+
+```powershell
+$entry = 'D:\SDKs with spaces\ARTest Development Kit\artest.ps1'
+& $entry run --project 'D:\Work\My Python extension' --target station-a --mode sources
+$LASTEXITCODE
+```
+
+Omit `--target` to reuse the profile selected by registration. `run` does not
+register, publish, or modify the installation profile, catalog, or associations.
+`--mode sources` is the default. It prepares the current source project into a
+project-owned immutable revision, then creates or reuses an immutable project-local
+execution catalog. That local catalog contains the selected installation's
+registered packages and associations, with only this project's extension replaced
+by its prepared local revision. This lets a local Python Test script use a driver
+already registered in another package without changing the target.
+
+Use `--mode registered` to compile and execute the selected target's already
+registered revision directly. This mode does not prepare or copy current Test
+script sources and fails if the project's extension ID is not present in the
+selected catalog and Python association. Both modes snapshot their catalog and
+association inputs, compile the Test plan offline, verify that those inputs remain
+current, and only then execute. C++ keeps its existing native CLI workflow; this
+Python-specific command does not add another native execution path.
+
+Edit the Python Test script or Test plan and invoke the same command again.
+Identical inputs reuse preparation. A Test script edit prepares a new revision; a
+Test plan-only edit reuses the environment and is compiled again. CLI diagnostics,
+final run-result JSON, and exit codes are preserved. Failed prerequisites,
+preparation, or offline validation stop before execution; runtime failure,
+cancellation, and indeterminate effects are not retried.
+
 The accepted low-level Python workflow is preserved:
 
 ```powershell
@@ -151,17 +188,28 @@ documented native toolchain:
   -DependencyWheelRoot 'C:\PreparedInputs\wheels'
 ```
 
+Run the Stage 4 Debug/Release project-execution gate with those same prepared
+inputs:
+
+```powershell
+.\scripts\test-python-project-stage4.ps1 `
+  -PythonRuntime 'C:\Python313\python.exe' `
+  -DependencyWheelRoot 'C:\PreparedInputs\wheels'
+```
+
 It retains candidate identity, hashes, commands and results under
 `artifacts/acceptance/py-dx-01/stage4a-candidate/<run-id>/`. Generated kits,
 prepared environments and acceptance evidence are not source changes. Stage 4C
 records candidate identity, hashes, commands and results under
 `artifacts/acceptance/py-dx-01/stage4c-candidate/<run-id>/`.
+Stage 4 records the kit identity, Debug/Release results, unchanged/edited
+preparation identities, commands, logs, and preservation checks under
+`artifacts/acceptance/py-dx-01/stage4-candidate/<run-id>/`.
 
 ## Boundary and redistribution status
 
-This implements only the Stage 4C candidate over accepted Stages 4A and 4B. It
-does not implement Stage 4 plan execution or Stage 5
-acceptance. Existing C++ consumers continue to use the unchanged nested native
+This implements the Stage 4 candidate over accepted Stages 4A, 4B, and 4C. It
+does not implement Stage 5 acceptance. Existing C++ consumers continue to use the unchanged nested native
 SDK and v145 toolchain. C# remains unavailable.
 
 The artifact is for local evaluation, not a public release. Review

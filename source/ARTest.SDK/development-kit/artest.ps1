@@ -1,7 +1,7 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('verify', 'paths', 'python-project', 'new', 'build', 'register')]
+    [ValidateSet('verify', 'paths', 'python-project', 'new', 'build', 'register', 'run')]
     [string]$Command = 'verify',
 
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -43,7 +43,7 @@ function Read-KitManifest {
         Stop-Kit 'ARTESTKIT002' "Cannot read development-kit inventory: $($_.Exception.Message)"
     }
     if ($manifest.schema -ne 'artest.schema.development-kit-package.v1' -or
-        $manifest.kitVersion -ne '0.3.0' -or
+        $manifest.kitVersion -ne '0.4.0' -or
         $manifest.platform -ne 'windows-x64' -or
         $manifest.stability -ne 'evaluation') {
         Stop-Kit 'ARTESTKIT006' 'The development-kit declaration is incompatible with this entry point.'
@@ -199,7 +199,7 @@ function Get-KitPaths {
 try {
     $manifest = Read-KitManifest
     Assert-KitInventory $manifest
-    $probePython = $Command -in @('verify', 'paths', 'python-project')
+    $probePython = $Command -in @('verify', 'paths', 'python-project', 'run')
     Assert-KitCompatibility $manifest -ProbePython:$probePython -Deep:($Command -eq 'verify')
     $paths = Get-KitPaths $manifest
 
@@ -218,16 +218,17 @@ try {
         $paths | ConvertTo-Json -Depth 4
         exit 0
     }
-    if ($Command -in @('new', 'build', 'register')) {
+    if ($Command -in @('new', 'build', 'register', 'run')) {
         . $paths.authoringTool
-        if ($Command -eq 'register') { . $paths.registrationTool }
+        if ($Command -in @('register', 'run')) { . $paths.registrationTool }
         if ($Command -eq 'new') {
             Invoke-GuidedNew -Paths $paths -Values @($Arguments)
         }
         elseif ($Command -eq 'build') {
             Invoke-GuidedBuild -Paths $paths -Values @($Arguments)
         }
-        else { Invoke-GuidedRegister -Paths $paths -Values @($Arguments) }
+        elseif ($Command -eq 'register') { Invoke-GuidedRegister -Paths $paths -Values @($Arguments) }
+        else { Invoke-GuidedRun -Paths $paths -Values @($Arguments) }
         exit 0
     }
     if (-not $Arguments -or $Arguments.Count -eq 0) {

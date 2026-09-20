@@ -437,7 +437,7 @@ try {
             $null = Assert-KitFailure 'ARTESTSDK002' @('new', '--name', 'Bad Parent', '--folder', (Join-Path $projects 'missing'), '--language', 'python')
             $null = Assert-KitFailure 'ARTESTSDK005' @('new', '--name', 'No Compiler', '--folder', $projects, '--language', 'cpp', '--msbuild', (Join-Path $projects 'missing\MSBuild.exe'))
             $null = Assert-KitFailure 'ARTESTSDK003' @('new', '--name', 'No CSharp', '--folder', $projects, '--language', 'c#')
-            $null = Assert-KitFailure 'run' @('run')
+            $null = Assert-KitFailure 'ARTESTKIT008' @('python-project')
             if (Test-Path -LiteralPath (Join-Path $projects 'No Compiler')) { throw 'Missing-toolchain failure left a project behind.' }
             'all negative cases preserved their targets'
         }

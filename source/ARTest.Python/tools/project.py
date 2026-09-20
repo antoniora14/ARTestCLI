@@ -1,8 +1,8 @@
-"""Create, validate, check, and prepare an ARTest Python extension project."""
+"""Create, validate, prepare, and explicitly run an ARTest Python project."""
 
 import argparse
 import copy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from email.parser import BytesParser
 from email.policy import default as email_policy
@@ -41,7 +41,12 @@ PE_EXECUTABLE_IMAGE = 0x0002
 PE_DLL = 0x2000
 GENERATED_PLAN = Path(".artest/stage2/local-plan.json")
 PREPARATION_ROOT = Path(".artest/stage3")
+EXECUTION_PLAN_ROOT = Path(".artest/stage4/test-plans")
+EXECUTION_CATALOG_ROOT = Path(".artest/run")
 PREPARATION_SCHEMA_VERSION = 1
+CLI_COMPILE_TIMEOUT_SECONDS = 120.0
+CLI_EXECUTION_TIMEOUT_SECONDS = 24.0 * 60.0 * 60.0
+CLI_TERMINATION_TIMEOUT_SECONDS = 5.0
 PREPARATION_ID_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
 ENTRY_POINT_PATTERN = re.compile(
     r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*:[A-Za-z_][A-Za-z0-9_]*\Z"
@@ -51,6 +56,14 @@ STABLE_ID_PATTERN = re.compile(r"[a-z0-9]+(?:[.-][a-z0-9]+(?:-[a-z0-9]+)*)+\Z")
 
 class ProjectError(ValueError):
     """A project cannot be created or its configuration is invalid."""
+
+
+class RunPrerequisiteError(ProjectError):
+    """An explicit run cannot start because its local prerequisite check failed."""
+
+    def __init__(self, report: "PrerequisiteReport"):
+        super().__init__("Test plan run prerequisites failed")
+        self.report = report
 
 
 class InterpreterProbeError(RuntimeError):
@@ -181,6 +194,23 @@ class PreparationResult:
             "receipt": str(self.receipt),
             "association": str(self.association),
         }
+
+
+@dataclass(frozen=True)
+class ProjectRunResult:
+    preparation: PreparationResult | None
+    plan: Path
+    catalog: Path
+    association: Path
+    mode: str
+    compile_exit_code: int
+    execution_exit_code: int | None
+
+    @property
+    def exit_code(self) -> int:
+        if self.execution_exit_code is None:
+            return self.compile_exit_code
+        return self.execution_exit_code
 
 
 def _is_reparse_point(path: Path) -> bool:
@@ -1705,6 +1735,403 @@ def prepare_project(
                 raise
 
 
+def _project_with_cli(project: Project, cli_executable: Path | None) -> Project:
+    if cli_executable is None:
+        return project
+    if project.local is None:
+        raise ProjectError(f"Test plan execution requires {LOCAL_CONFIG_NAME}")
+    cli = Path(cli_executable).resolve(strict=False)
+    return replace(project, local=replace(project.local, cli_executable=cli))
+
+
+def _execution_plan(project: Project) -> Path:
+    """Resolve the portable Test plan or publish an immutable locally-bound copy."""
+    if project.local is None or not project.local.plan_bindings:
+        return project.configuration.plan
+    vendor_diagnostics = _vendor_diagnostics(project.local)
+    value, binding_diagnostics = _plan_with_bindings(project)
+    failures = vendor_diagnostics + binding_diagnostics
+    if failures:
+        first = failures[0]
+        raise ProjectError(
+            f"Test plan {first.stage} {first.field} failed: expected {first.expected}; "
+            f"cause: {first.cause}; correction: {first.correction}"
+        )
+    encoded = (json.dumps(value, indent=2, ensure_ascii=True) + "\n").encode("utf-8")
+    digest = hashlib.sha256(encoded).hexdigest()
+    root = project.configuration.root / EXECUTION_PLAN_ROOT
+    existing_parent = root
+    while not existing_parent.exists():
+        existing_parent = existing_parent.parent
+    _reject_reparse_ancestors(existing_parent)
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+    except OSError as error:
+        raise ProjectError(f"Cannot create local Test plan directory {root}: {error}") from error
+    _reject_reparse_ancestors(root)
+    output = root / f"{digest}.json"
+    if output.exists():
+        if _is_reparse_point(output) or not output.is_file():
+            raise ProjectError(f"Local Test plan output is unsafe: {output}")
+        try:
+            existing = output.read_bytes()
+        except OSError as error:
+            raise ProjectError(f"Cannot read local Test plan output {output}: {error}") from error
+        if existing != encoded:
+            raise ProjectError(f"Local Test plan output does not match its identity: {output}")
+        return output
+    try:
+        with output.open("xb") as stream:
+            stream.write(encoded)
+    except FileExistsError:
+        if _is_reparse_point(output) or not output.is_file():
+            raise ProjectError(f"Local Test plan output is unsafe: {output}")
+        try:
+            concurrent = output.read_bytes()
+        except OSError as error:
+            raise ProjectError(f"Cannot read local Test plan output {output}: {error}") from error
+        if concurrent != encoded:
+            raise ProjectError(f"Local Test plan output was changed concurrently: {output}")
+    except OSError as error:
+        raise ProjectError(f"Cannot publish local Test plan output {output}: {error}") from error
+    return output
+
+
+def _environment_mapping(path: Path) -> dict[str, str]:
+    value = _read_json_object(path)
+    for extension_id, receipt in value.items():
+        if not isinstance(extension_id, str) or not extension_id or not isinstance(receipt, str) or not receipt:
+            raise ProjectError(f"Python environment mapping is invalid: {path}")
+    return value
+
+
+def _catalog_packages(root: Path) -> dict[str, Path]:
+    if _is_reparse_point(root) or not root.is_dir():
+        raise ProjectError(f"Installation catalog is missing or unsafe: {root}")
+    _reject_reparse_tree(root)
+    packages = {}
+    try:
+        directories = sorted((item for item in root.iterdir() if item.is_dir()), key=lambda item: item.name)
+    except OSError as error:
+        raise ProjectError(f"Cannot inspect installation catalog {root}: {error}") from error
+    for directory in directories:
+        manifest_path = directory / "artest-extension.json"
+        if not manifest_path.exists():
+            continue
+        manifest = _read_json_object(manifest_path)
+        extension_id = manifest.get("extensionId")
+        if not isinstance(extension_id, str) or not extension_id:
+            raise ProjectError(f"Catalog package has no valid extensionId: {directory}")
+        if extension_id in packages:
+            raise ProjectError(f"Installation catalog contains duplicate extensionId {extension_id}")
+        packages[extension_id] = directory
+    return packages
+
+
+def _validate_composite_catalog(root: Path, inputs: dict, expected_mapping: dict[str, str], extension_id: str) -> None:
+    if root.name != _canonical_digest(inputs)[:32]:
+        raise ProjectError(f"Local execution catalog identity is invalid: {root}")
+    metadata = _strict_object(root / "composition.json", {"schemaVersion", "inputs", "catalogInventory"})
+    if metadata.get("schemaVersion") != 1 or metadata.get("inputs") != inputs:
+        raise ProjectError(f"Local execution catalog inputs do not match its identity: {root}")
+    catalog = root / "catalog"
+    mapping_path = root / "python-environments.json"
+    if _environment_mapping(mapping_path) != expected_mapping:
+        raise ProjectError(f"Local execution association was changed: {mapping_path}")
+    inventory = _content_inventory(catalog)
+    if metadata.get("catalogInventory") != inventory:
+        raise ProjectError(f"Local execution catalog inventory was changed: {catalog}")
+    if extension_id not in _catalog_packages(catalog):
+        raise ProjectError(f"Local execution catalog does not contain project extension {extension_id}")
+
+
+def _compose_execution_catalog(
+    project: Project,
+    preparation: PreparationResult,
+    installation_catalog: Path,
+    installation_association: Path,
+    expected_extension_id: str | None,
+) -> tuple[Path, Path]:
+    catalog_source = installation_catalog.resolve(strict=False)
+    association_source = installation_association.resolve(strict=False)
+    installed_packages = _catalog_packages(catalog_source)
+    installed_inventory = _content_inventory(catalog_source)
+    installed_mapping = _environment_mapping(association_source)
+    manifest = _read_json_object(preparation.package / "artest-extension.json")
+    extension_id = manifest.get("extensionId")
+    if not isinstance(extension_id, str) or not extension_id:
+        raise ProjectError("Prepared project package has no valid extensionId")
+    if expected_extension_id is not None and extension_id != expected_extension_id:
+        raise ProjectError(
+            f"Prepared project extensionId {extension_id!r} does not match guided project "
+            f"extensionId {expected_extension_id!r}"
+        )
+    inputs = {
+        "schemaVersion": 1,
+        "installationCatalog": str(catalog_source),
+        "installationCatalogInventory": installed_inventory,
+        "installationAssociation": str(association_source),
+        "installationAssociationSha256": _sha256(association_source),
+        "preparationId": preparation.preparation_id,
+        "projectExtensionId": extension_id,
+    }
+    identity = _canonical_digest(inputs)
+    root = project.configuration.root / EXECUTION_CATALOG_ROOT
+    existing_parent = root
+    while not existing_parent.exists():
+        existing_parent = existing_parent.parent
+    _reject_reparse_ancestors(existing_parent)
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+    except OSError as error:
+        raise ProjectError(f"Cannot create local execution catalog root {root}: {error}") from error
+    _reject_reparse_ancestors(root)
+    destination = root / identity[:32]
+    mapping = dict(installed_mapping)
+    mapping[extension_id] = str(preparation.receipt.resolve(strict=True))
+    if destination.exists():
+        _validate_composite_catalog(destination, inputs, mapping, extension_id)
+        return destination / "catalog", destination / "python-environments.json"
+
+    attempt = root / f".incomplete-{identity[:32]}-{secrets.token_hex(8)}"
+    try:
+        attempt.mkdir()
+        catalog = attempt / "catalog"
+        shutil.copytree(catalog_source, catalog, copy_function=shutil.copy2)
+        if extension_id in installed_packages:
+            relative = installed_packages[extension_id].relative_to(catalog_source)
+            replaced = catalog / relative
+            if _is_reparse_point(replaced) or not replaced.is_dir():
+                raise ProjectError(f"Installed project package is unsafe: {replaced}")
+            shutil.rmtree(replaced)
+        package_name = f"project-local-{hashlib.sha256(extension_id.encode('utf-8')).hexdigest()[:16]}"
+        local_package = catalog / package_name
+        if local_package.exists():
+            raise ProjectError(f"Local execution package name collides with installed catalog: {local_package}")
+        shutil.copytree(preparation.package, local_package, copy_function=shutil.copy2)
+        mapping_path = attempt / "python-environments.json"
+        with mapping_path.open("x", encoding="utf-8", newline="\n") as stream:
+            json.dump(mapping, stream, indent=2, ensure_ascii=True)
+            stream.write("\n")
+        metadata = {
+            "schemaVersion": 1,
+            "inputs": inputs,
+            "catalogInventory": _content_inventory(catalog),
+        }
+        _write_json_exclusive(attempt / "composition.json", metadata)
+        try:
+            attempt.rename(destination)
+        except FileExistsError:
+            _validate_composite_catalog(destination, inputs, mapping, extension_id)
+        if attempt.exists():
+            shutil.rmtree(attempt)
+    except BaseException:
+        if attempt.exists():
+            shutil.rmtree(attempt)
+        raise
+    _validate_composite_catalog(destination, inputs, mapping, extension_id)
+    return destination / "catalog", destination / "python-environments.json"
+
+
+def _registered_execution_inputs(
+    installation_catalog: Path,
+    installation_association: Path,
+    expected_extension_id: str | None,
+) -> tuple[Path, Path]:
+    if not expected_extension_id:
+        raise ProjectError("Registered revision execution requires --expected-extension-id")
+    catalog = installation_catalog.resolve(strict=False)
+    association = installation_association.resolve(strict=False)
+    packages = _catalog_packages(catalog)
+    if expected_extension_id not in packages:
+        raise ProjectError(
+            f"Selected installation has no registered revision for {expected_extension_id}"
+        )
+    mapping = _environment_mapping(association)
+    if expected_extension_id not in mapping:
+        raise ProjectError(
+            f"Selected installation has no Python environment association for {expected_extension_id}"
+        )
+    return catalog, association
+
+
+def _run_cli_process(arguments: list[str], timeout_seconds: float, operation: str) -> int:
+    if timeout_seconds <= 0:
+        raise ProjectError(f"{operation} has an invalid process wait bound")
+    try:
+        process = subprocess.Popen(arguments, shell=False)
+    except OSError as error:
+        raise ProjectError(f"Cannot start {operation}: {error}") from error
+    try:
+        return process.wait(timeout=timeout_seconds)
+    except KeyboardInterrupt:
+        try:
+            return process.wait(timeout=CLI_TERMINATION_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired as error:
+            raise ProjectError(
+                f"{operation} cancellation was requested, but process exit was not confirmed "
+                "within the bounded wait. The external effect is indeterminate; inspect it "
+                "before another Test plan run."
+            ) from error
+    except subprocess.TimeoutExpired as error:
+        termination_confirmed = False
+        try:
+            process.kill()
+            process.wait(timeout=CLI_TERMINATION_TIMEOUT_SECONDS)
+            termination_confirmed = True
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        if termination_confirmed:
+            raise ProjectError(
+                f"{operation} exceeded its {timeout_seconds:g}-second bound and was terminated; "
+                "the Test plan was not retried."
+            ) from error
+        raise ProjectError(
+            f"{operation} exceeded its {timeout_seconds:g}-second bound and process exit was "
+            "not confirmed. The external effect is indeterminate; inspect it before another "
+            "Test plan run."
+        ) from error
+
+
+def _execution_snapshot(
+    project: Project, preparation_id: str | None, plan: Path, catalog: Path,
+    association: Path,
+) -> dict:
+    local_path = project.configuration.root / LOCAL_CONFIG_NAME
+    return {
+        "preparationId": preparation_id,
+        "portableConfigurationSha256": _sha256(
+            project.configuration.root / CONFIG_NAME
+        ),
+        "localConfigurationSha256": _sha256(local_path),
+        "portablePlanSha256": _sha256(project.configuration.plan),
+        "executionPlan": str(plan),
+        "executionPlanSha256": _sha256(plan),
+        "executionCatalog": str(catalog),
+        "executionCatalogInventory": _content_inventory(catalog),
+        "executionAssociation": str(association),
+        "executionAssociationSha256": _sha256(association),
+        "cliExecutable": str(project.local.cli_executable),
+        "cliSha256": _sha256(project.local.cli_executable),
+    }
+
+
+def run_project(
+    project: Project,
+    *,
+    cli_executable: Path | None = None,
+    package_runner=None,
+    probe_runner=None,
+    identity_builder=None,
+    cli_runner=None,
+    mode: str = "sources",
+    installation_catalog: Path | None = None,
+    installation_association: Path | None = None,
+    expected_extension_id: str | None = None,
+) -> ProjectRunResult:
+    """Prepare, offline-compile, revalidate, and explicitly execute one Test plan."""
+    if mode not in {"sources", "registered"}:
+        raise ProjectError("Test plan run mode must be 'sources' or 'registered'")
+    project = _project_with_cli(project, cli_executable)
+    if project.local is None:
+        raise ProjectError(f"Test plan execution requires {LOCAL_CONFIG_NAME}")
+    if (installation_catalog is None) != (installation_association is None):
+        raise ProjectError("Installation catalog and Python environment association must be supplied together")
+    if mode == "registered" and installation_catalog is None:
+        raise ProjectError("Registered revision execution requires installation catalog inputs")
+    if mode == "sources":
+        report = check_prerequisites(project, probe_runner)
+    else:
+        diagnostics = _cli_diagnostics(project.local) + _vendor_diagnostics(project.local)
+        _, binding_diagnostics = _plan_with_bindings(project)
+        diagnostics.extend(binding_diagnostics)
+        report = PrerequisiteReport(tuple(diagnostics), None, None)
+    if not report.success:
+        raise RunPrerequisiteError(report)
+    runner = package_runner or _run_package_tool
+    build_identity = identity_builder or _preparation_inputs
+    preparation = None
+    inputs = None
+    if mode == "sources":
+        preparation = prepare_project(
+            project,
+            package_runner=runner,
+            probe_runner=probe_runner,
+            identity_builder=build_identity,
+        )
+        inputs = build_identity(project, report.python_probe)
+        if _canonical_digest(inputs) != preparation.preparation_id:
+            raise ProjectError("Project sources changed after preparation; the Test plan was not run")
+    plan = _execution_plan(project)
+    if mode == "registered":
+        catalog, association = _registered_execution_inputs(
+            installation_catalog, installation_association, expected_extension_id
+        )
+    elif installation_catalog is not None:
+        catalog, association = _compose_execution_catalog(
+            project, preparation, installation_catalog, installation_association,
+            expected_extension_id,
+        )
+    else:
+        catalog, association = preparation.revision, preparation.association
+    snapshot = _execution_snapshot(
+        project, preparation.preparation_id if preparation else None, plan, catalog, association
+    )
+    process_runner = cli_runner or _run_cli_process
+    compile_exit = process_runner(
+        [
+            str(project.local.cli_executable), "compile", str(plan),
+            "--extensions", str(catalog),
+            "--python-environments", str(association),
+        ],
+        CLI_COMPILE_TIMEOUT_SECONDS,
+        "ARTestCLI offline Test plan validation",
+    )
+    if compile_exit != 0:
+        return ProjectRunResult(preparation, plan, catalog, association, mode, compile_exit, None)
+
+    current_inputs = build_identity(project, report.python_probe) if mode == "sources" else None
+    current_plan = _execution_plan(project)
+    if mode == "registered":
+        current_catalog, current_association = _registered_execution_inputs(
+            installation_catalog, installation_association, expected_extension_id
+        )
+    elif installation_catalog is not None:
+        current_catalog, current_association = _compose_execution_catalog(
+            project, preparation, installation_catalog, installation_association,
+            expected_extension_id,
+        )
+    else:
+        current_catalog, current_association = preparation.revision, preparation.association
+    current_snapshot = _execution_snapshot(
+        project, _canonical_digest(current_inputs) if current_inputs is not None else None,
+        current_plan, current_catalog, current_association,
+    )
+    if current_snapshot != snapshot:
+        raise ProjectError(
+            "Project, prerequisite, or Test plan inputs changed after offline validation; "
+            "execution was not started. Run the command again to prepare and validate "
+            "the current inputs."
+        )
+    if preparation is not None:
+        _validate_revision(
+            project,
+            preparation.revision,
+            expected_inputs=current_inputs,
+            verify_current_inputs=True,
+            package_runner=runner,
+        )
+    execution_exit = process_runner(
+        [
+            str(project.local.cli_executable), "extension-run", str(plan),
+            str(catalog), "--python-environments", str(association),
+        ],
+        CLI_EXECUTION_TIMEOUT_SECONDS,
+        "ARTestCLI Test plan execution",
+    )
+    return ProjectRunResult(preparation, plan, catalog, association, mode, compile_exit, execution_exit)
+
+
 def _destination_is_available(destination: Path) -> bool:
     if _is_reparse_point(destination):
         raise ProjectError(f"Destination cannot be a reparse point: {destination}")
@@ -1866,6 +2293,36 @@ def main(argv=None) -> int:
         type=Path,
         help="prepare immutable revisions directly in an installation-owned root",
     )
+    run = commands.add_parser(
+        "run",
+        help="prepare, offline validate, and explicitly execute the project's Test plan",
+    )
+    run.add_argument("project", type=Path, nargs="?", default=Path.cwd())
+    run.add_argument(
+        "--cli-executable",
+        type=Path,
+        help="use the CLI from an already selected installation profile",
+    )
+    run.add_argument(
+        "--mode",
+        choices=("sources", "registered"),
+        default="sources",
+        help="test current local sources or execute the revision registered in the target",
+    )
+    run.add_argument(
+        "--installation-catalog",
+        type=Path,
+        help="catalog from the already selected installation profile",
+    )
+    run.add_argument(
+        "--installation-python-environments",
+        type=Path,
+        help="Python environment mapping from the selected installation",
+    )
+    run.add_argument(
+        "--expected-extension-id",
+        help="guided project extension identity used to select or replace its revision",
+    )
     args = parser.parse_args(argv)
     try:
         if args.command == "create":
@@ -1886,9 +2343,21 @@ def main(argv=None) -> int:
             return 0 if report.success else 1
         elif args.command == "materialize-plan":
             print(materialize_local_plan(load_project(args.project)))
-        else:
+        elif args.command == "prepare":
             result = prepare_project(load_project(args.project), output_root=args.output_root)
             print(json.dumps(result.as_dict(), indent=2, ensure_ascii=True))
+        else:
+            result = run_project(
+                load_project(args.project), cli_executable=args.cli_executable,
+                mode=args.mode,
+                installation_catalog=args.installation_catalog,
+                installation_association=args.installation_python_environments,
+                expected_extension_id=args.expected_extension_id,
+            )
+            return result.exit_code
+    except RunPrerequisiteError as error:
+        print(json.dumps(error.report.as_dict(), indent=2, ensure_ascii=True))
+        return 1
     except ProjectError as error:
         parser.error(str(error))
     return 0

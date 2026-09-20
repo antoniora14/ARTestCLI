@@ -79,12 +79,12 @@ is available until a real release artifact exists.
 | Integrate with ARTest | Python associations exist within a development project | Stage 4C: explicit installation target, safe publication and discovery through that target |
 | Optionally execute/check behavior | Stage 4 is planned | Keep Stage 4 and reuse its run orchestration from the installed SDK |
 
-Stages 1-3 stay accepted. Stage 4 retains its original execution scope. Stages
-4A, 4B and 4C are additional required delivery gates before Stage 5 acceptance;
+Stages 1-3 and 4A-4C are accepted. Stage 4 retains its original execution scope.
+Stages 4A, 4B and 4C are additional required delivery gates before Stage 5 acceptance;
 their identifiers do not rename completed work. 4A can be implemented independently
 of Stage 4; 4B depends on 4A, 4C depends on 4B, and final acceptance depends on all
 four. Do not expand a Developer's existing Stage 4 assignment without a scoped
-handoff. Stages 4A and 4B have now been accepted; the next delivery unit is 4C.
+handoff. Stage 4 is the current delivery unit.
 
 ## Registration semantics
 

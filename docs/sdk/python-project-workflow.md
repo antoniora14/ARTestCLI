@@ -1,10 +1,11 @@
-# Create a minimal Python extension project
+# Create and run a minimal Python extension project
 
-PY-DX-01 Stages 1 through 3 provide a hardware-free project scaffold, static
+PY-DX-01 Stages 1 through 4 provide a hardware-free project scaffold, static
 configuration validation, explicit local-prerequisite checks, an optional
-generated plan copy with machine-local vendor paths, and explicit verified
-preparation. Stage 3 creates or exactly reuses an immutable package/environment
-revision. It does not compile a plan or run ARTest.
+generated Test plan copy with machine-local vendor paths, verified preparation,
+offline validation, and explicit execution. Stage 3 creates or exactly reuses an
+immutable package/environment revision; Stage 4 coordinates the existing CLI
+without changing Engine execution policy.
 
 ## Create and inspect a project
 
@@ -300,9 +301,51 @@ perform cleanup/garbage collection. Use the existing low-level commands
 `package.py package` and `package.py prepare` when that explicit workflow is needed;
 their arguments and receipt/package formats remain unchanged.
 
+## Prepare, validate, and run the Test plan
+
+After configuring local prerequisites, explicitly run the project from any
+current directory:
+
+    & 'C:\Path\To\Python313\python.exe' -I -B source/ARTest.Python/tools/project.py run D:\Work\MyPythonExtension
+    $LASTEXITCODE
+
+`run` checks every configured prerequisite, prepares or exactly reuses the
+current immutable revision, resolves the Test plan, calls `ARTestCLI compile`,
+revalidates the project and preparation, and only then calls `ARTestCLI
+extension-run`. Arguments are passed separately. CLI stdout, stderr, final
+run-result JSON, and exit code pass through unchanged.
+
+The low-level command above executes against only the project-owned prepared
+revision. The development-kit `run --mode sources` adapter also supplies the
+selected installation catalog and Python associations. The project tool composes
+an immutable local execution catalog containing those registered packages plus
+the current prepared project revision; it never changes the selected target.
+Consequently a local Python Test script can use a driver registered by another
+package. `run --mode registered` instead uses the selected catalog and association
+directly, requires the project extension ID to be registered, and does not prepare
+or copy the current Test script sources. Neither mode publishes or selects a
+profile.
+
+Without `planBindings`, both CLI commands read the portable Test plan directly.
+With bindings, `run` writes a content-addressed local copy under
+`.artest/stage4/test-plans/` and uses it for both commands. It never edits the
+portable Test plan; Stage 2's explicitly materialized copy remains separate.
+
+Edit `src/extension.py` and run again. Unchanged inputs reuse preparation; a Test
+script edit creates a new immutable revision. A Test plan-only edit reuses the
+environment but is compiled again. Missing prerequisites, failed preparation,
+an invalid Test plan, or failed offline validation prevent execution. Runtime
+command errors, cancellation, timeouts, and indeterminate effects retain the
+existing result and failure code and are never retried automatically.
+
+The wrapper uses finite process waits. If its outer execution bound expires, it
+does not retry and reports whether termination was confirmed. An unconfirmed
+exit is an indeterminate external effect that must be inspected before rerunning;
+this is not a new Engine timeout or cleanup guarantee.
+
 ## Focused tests
 
-The controlled Stage 1/2/3 unit cases use only the Python standard library,
+The controlled Stage 1/2/3/4 unit cases use only the Python standard library,
 fixtures and temporary directories:
 
     & 'C:\Path\To\Python313\python.exe' -I -B source/ARTest.Python/tests/test_project.py -v

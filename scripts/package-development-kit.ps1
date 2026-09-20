@@ -21,7 +21,7 @@ $nativeVersionSource = Join-Path $repositoryRoot 'source\ARTest.SDK\sdk-version.
 $kitVersion = Get-Content -LiteralPath $kitVersionSource -Raw | ConvertFrom-Json
 $nativeVersion = Get-Content -LiteralPath $nativeVersionSource -Raw | ConvertFrom-Json
 if ($kitVersion.schema -ne 'artest.schema.development-kit-version.v1' -or
-    $kitVersion.kitVersion -ne '0.3.0' -or
+    $kitVersion.kitVersion -ne '0.4.0' -or
     $kitVersion.stability -ne 'evaluation' -or
     $kitVersion.platform -ne 'windows-x64' -or
     $kitVersion.nativeSdkVersion -ne $nativeVersion.sdkVersion -or

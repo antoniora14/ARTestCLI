@@ -112,7 +112,7 @@ try {
         Expand-Archive -LiteralPath $archive -DestinationPath $script:kit
         $script:entry = Join-Path $script:kit 'artest.ps1'
         $verify = ConvertFrom-LastJson (Invoke-Kit @('verify'))
-        if ($verify.kitVersion -ne '0.3.0') { throw 'Stage 4C kit version is not 0.3.0.' }
+        if ($verify.kitVersion -ne '0.4.0') { throw 'Current kit version is not 0.4.0.' }
         $script:projects = Join-Path $testRoot 'projects'; $null = New-Item -ItemType Directory -Path $script:projects
         $script:installation = Join-Path $testRoot 'installation'
         $runtime = Join-Path $script:installation 'runtime'; Copy-Item -LiteralPath (Join-Path $script:kit 'runtime\x64\Release') -Destination $runtime -Recurse
@@ -300,7 +300,7 @@ try {
         'foreign ownership and duplicate extension ID rejected'
     }
 
-    Invoke-Case 'Incompatible target, denied lock, and run guard preserve selection' {
+    Invoke-Case 'Incompatible target and denied lock preserve selection' {
         $registry = Join-Path $env:ARTEST_SDK_CONFIG_ROOT 'installations.json'; $before = [IO.File]::ReadAllBytes($registry)
         $bad = Join-Path $testRoot 'bad'; $null = New-Item -ItemType Directory -Path $bad; Copy-Item -LiteralPath $script:installedCli -Destination (Join-Path $bad 'ARTestCLI.exe')
         $null = Assert-KitFailure 'ARTESTREG003' @('register','--project',$script:nativeB,'--target','bad','--cli',(Join-Path $bad 'ARTestCLI.exe'),'--catalog',(Join-Path $bad 'e'),'--config',(Join-Path $bad 'c'),'--msbuild',$script:msbuild)
@@ -309,9 +309,8 @@ try {
         $lockPath = Join-Path (Split-Path -Parent $script:installConfig) ('.' + [IO.Path]::GetFileName($script:installConfig) + '.artest-register.lock')
         $lock = [IO.File]::Open($lockPath,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
         try { $null = Assert-KitFailure 'ARTESTREG005' @('register','--project',$script:nativeB,'--target','station','--msbuild',$script:msbuild) } finally {$lock.Dispose()}
-        $null = Assert-KitFailure 'run' @('run')
         if ([Convert]::ToBase64String($before) -cne [Convert]::ToBase64String([IO.File]::ReadAllBytes($registry))) { throw 'Failed target changed the selected installation.' }
-        'no elevation, fallback target, Engine replacement, or run command occurred'
+        'no elevation, fallback target, or Engine replacement occurred'
     }
 
     Invoke-Case 'Failed and interrupted publication preserve the complete prior catalog' {

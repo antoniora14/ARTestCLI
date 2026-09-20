@@ -693,14 +693,314 @@ class ProjectTests(unittest.TestCase):
 
         self.assertEqual(unknown.read_text(encoding="utf-8"), "preserve me\n")
 
-    def test_prepare_main_exposes_only_prepare_not_run(self):
+    def test_main_exposes_explicit_run_after_prepare(self):
         parser_output = io.StringIO()
         with self.assertRaises(SystemExit), redirect_stdout(parser_output):
             project.main(["--help"])
         help_text = parser_output.getvalue()
         self.assertIn("prepare", help_text)
         command_set = help_text.splitlines()[1].strip()
-        self.assertNotIn(",run", command_set)
+        self.assertIn("run", command_set)
+
+    def test_run_prepares_compiles_executes_reuses_and_detects_source_edits(self):
+        root = self.create("project with spaces")
+        self.configure_local(root)
+        package_runner = self.Stage3PackageRunner(self)
+        cli_calls = []
+
+        def cli_runner(arguments, timeout, operation):
+            cli_calls.append((tuple(arguments), timeout, operation, Path.cwd()))
+            return 0
+
+        outside = self.root / "different working directory"
+        outside.mkdir()
+        previous = Path.cwd()
+        try:
+            os.chdir(outside)
+            first = project.run_project(
+                project.load_project(root),
+                package_runner=package_runner,
+                probe_runner=lambda path: self.supported_probe(),
+                identity_builder=self.stage3_identity,
+                cli_runner=cli_runner,
+            )
+            second = project.run_project(
+                project.load_project(root),
+                package_runner=package_runner,
+                probe_runner=lambda path: self.supported_probe(),
+                identity_builder=self.stage3_identity,
+                cli_runner=cli_runner,
+            )
+            source = root / "src" / "extension.py"
+            source.write_text(
+                source.read_text(encoding="utf-8") + "\n# Stage 4 edit\n",
+                encoding="utf-8",
+            )
+            third = project.run_project(
+                project.load_project(root),
+                package_runner=package_runner,
+                probe_runner=lambda path: self.supported_probe(),
+                identity_builder=self.stage3_identity,
+                cli_runner=cli_runner,
+            )
+        finally:
+            os.chdir(previous)
+
+        self.assertFalse(first.preparation.reused)
+        self.assertTrue(second.preparation.reused)
+        self.assertFalse(third.preparation.reused)
+        self.assertEqual(first.preparation.preparation_id, second.preparation.preparation_id)
+        self.assertNotEqual(second.preparation.preparation_id, third.preparation.preparation_id)
+        self.assertEqual(package_runner.install_count, 2)
+        self.assertEqual(len(cli_calls), 6)
+        for index, (arguments, timeout, _, observed_cwd) in enumerate(cli_calls):
+            self.assertEqual(arguments[1], "compile" if index % 2 == 0 else "extension-run")
+            self.assertEqual(Path(arguments[2]), root / "plan" / "measurement.json")
+            if index % 2 == 0:
+                self.assertEqual(arguments[3], "--extensions")
+                self.assertEqual(arguments[5], "--python-environments")
+            else:
+                self.assertEqual(Path(arguments[3]), Path(cli_calls[index - 1][0][4]))
+                self.assertEqual(arguments[4], "--python-environments")
+            self.assertGreater(timeout, 0)
+            self.assertEqual(observed_cwd, outside)
+
+    def test_sources_run_composes_selected_catalog_and_associations_without_mutation(self):
+        root = self.create()
+        self.configure_local(root)
+        installed_catalog = self.root / "selected installation" / "catalog"
+        installed_catalog.mkdir(parents=True)
+        driver_package = installed_catalog / "registered-driver"
+        driver_package.mkdir()
+        (driver_package / "artest-extension.json").write_text(
+            json.dumps({"extensionId": "com.example.registered.driver"}) + "\n",
+            encoding="utf-8",
+        )
+        (driver_package / "driver.bin").write_bytes(b"registered driver")
+        old_project = installed_catalog / "registered-old-project"
+        old_project.mkdir()
+        (old_project / "artest-extension.json").write_text(
+            json.dumps({"extensionId": self.EXTENSION_ID}) + "\n", encoding="utf-8"
+        )
+        installed_mapping = self.root / "selected installation" / "python-environments.json"
+        installed_mapping.write_text(
+            json.dumps({"com.example.registered.driver": "D:/installed/driver-receipt.json"}) + "\n",
+            encoding="utf-8",
+        )
+        catalog_before = project._content_inventory(installed_catalog)
+        mapping_before = installed_mapping.read_bytes()
+        calls = []
+
+        result = project.run_project(
+            project.load_project(root),
+            package_runner=self.Stage3PackageRunner(self),
+            probe_runner=lambda path: self.supported_probe(),
+            identity_builder=self.stage3_identity,
+            cli_runner=lambda arguments, timeout, operation: (calls.append(tuple(arguments)) or 0),
+            installation_catalog=installed_catalog,
+            installation_association=installed_mapping,
+            expected_extension_id=self.EXTENSION_ID,
+        )
+
+        self.assertEqual(result.mode, "sources")
+        self.assertTrue(result.catalog.is_relative_to(root / project.EXECUTION_CATALOG_ROOT))
+        packages = project._catalog_packages(result.catalog)
+        self.assertEqual(set(packages), {"com.example.registered.driver", self.EXTENSION_ID})
+        composed_mapping = json.loads(result.association.read_text(encoding="utf-8"))
+        self.assertEqual(
+            composed_mapping["com.example.registered.driver"],
+            "D:/installed/driver-receipt.json",
+        )
+        self.assertEqual(
+            composed_mapping[self.EXTENSION_ID], str(result.preparation.receipt.resolve())
+        )
+        self.assertEqual(project._content_inventory(installed_catalog), catalog_before)
+        self.assertEqual(installed_mapping.read_bytes(), mapping_before)
+        self.assertEqual(Path(calls[0][6]), result.association)
+        self.assertEqual(Path(calls[1][3]), result.catalog)
+
+    def test_registered_run_uses_selected_revision_without_preparing_or_copying(self):
+        root = self.create()
+        self.configure_local(root)
+        installed_catalog = self.root / "target" / "catalog"
+        package = installed_catalog / "registered-project"
+        package.mkdir(parents=True)
+        (package / "artest-extension.json").write_text(
+            json.dumps({"extensionId": self.EXTENSION_ID}) + "\n", encoding="utf-8"
+        )
+        mapping = self.root / "target" / "python-environments.json"
+        mapping.write_text(
+            json.dumps({self.EXTENSION_ID: "D:/installed/project-receipt.json"}) + "\n",
+            encoding="utf-8",
+        )
+        calls = []
+
+        result = project.run_project(
+            project.load_project(root),
+            probe_runner=lambda path: self.fail("registered mode must not probe Python"),
+            identity_builder=lambda *args: self.fail("registered mode must not build an identity"),
+            package_runner=lambda *args: self.fail("registered mode must not prepare"),
+            cli_runner=lambda arguments, timeout, operation: (calls.append(tuple(arguments)) or 0),
+            mode="registered",
+            installation_catalog=installed_catalog,
+            installation_association=mapping,
+            expected_extension_id=self.EXTENSION_ID,
+        )
+
+        self.assertIsNone(result.preparation)
+        self.assertEqual(result.mode, "registered")
+        self.assertEqual(result.catalog, installed_catalog.resolve())
+        self.assertEqual(result.association, mapping.resolve())
+        self.assertFalse((root / project.PREPARATION_ROOT).exists())
+        self.assertEqual(Path(calls[0][6]), mapping.resolve())
+        self.assertEqual(Path(calls[1][3]), installed_catalog.resolve())
+
+    def test_run_prerequisite_prepare_and_compile_failures_never_start_execution(self):
+        root = self.create()
+        local = self.configure_local(root)
+        Path(local["cliExecutable"]).unlink()
+        cli_calls = []
+        with self.assertRaises(project.RunPrerequisiteError) as raised:
+            project.run_project(
+                project.load_project(root),
+                package_runner=self.Stage3PackageRunner(self),
+                probe_runner=lambda path: self.supported_probe(),
+                identity_builder=self.stage3_identity,
+                cli_runner=lambda *args: cli_calls.append(args),
+            )
+        self.assertIn("CLI_MISSING", self.diagnostic_codes(raised.exception.report))
+        self.assertEqual(cli_calls, [])
+        self.assertFalse((root / project.PREPARATION_ROOT).exists())
+
+        self.write_pe(Path(local["cliExecutable"]))
+        failed_runner = self.Stage3PackageRunner(self)
+        failed_runner.fail_next_prepare = project.ProjectError("controlled preparation failure")
+        with self.assertRaisesRegex(project.ProjectError, "controlled preparation failure"):
+            project.run_project(
+                project.load_project(root),
+                package_runner=failed_runner,
+                probe_runner=lambda path: self.supported_probe(),
+                identity_builder=self.stage3_identity,
+                cli_runner=lambda *args: cli_calls.append(args),
+            )
+        self.assertEqual(cli_calls, [])
+
+        compile_calls = []
+        result = project.run_project(
+            project.load_project(root),
+            package_runner=self.Stage3PackageRunner(self),
+            probe_runner=lambda path: self.supported_probe(),
+            identity_builder=self.stage3_identity,
+            cli_runner=lambda arguments, timeout, operation: (
+                compile_calls.append(tuple(arguments)) or 3
+            ),
+        )
+        self.assertEqual(result.exit_code, 3)
+        self.assertIsNone(result.execution_exit_code)
+        self.assertEqual([call[1] for call in compile_calls], ["compile"])
+
+    def test_run_propagates_execution_failures_without_retry(self):
+        failures = (("command error", 4), ("cancellation", 130), ("indeterminate effect", 75))
+        for index, (label, exit_code) in enumerate(failures):
+            with self.subTest(label=label):
+                root = self.create(f"failure-{index}")
+                self.configure_local(root)
+                calls = []
+
+                def cli_runner(arguments, timeout, operation):
+                    calls.append((tuple(arguments), operation))
+                    return 0 if arguments[1] == "compile" else exit_code
+
+                result = project.run_project(
+                    project.load_project(root),
+                    package_runner=self.Stage3PackageRunner(self),
+                    probe_runner=lambda path: self.supported_probe(),
+                    identity_builder=self.stage3_identity,
+                    cli_runner=cli_runner,
+                )
+                self.assertEqual(result.exit_code, exit_code)
+                self.assertEqual([call[0][1] for call in calls], ["compile", "extension-run"])
+
+    def test_run_materializes_immutable_local_test_plan_without_editing_portable_plan(self):
+        root = self.create()
+        plan_path = root / "plan" / "measurement.json"
+        plan = json.loads(plan_path.read_text(encoding="utf-8"))
+        plan["instruments"][0]["config"]["sdkDll"] = None
+        plan_path.write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
+        portable_before = plan_path.read_bytes()
+        vendor = root / "vendor with spaces" / "simulated sdk.dat"
+        vendor.parent.mkdir()
+        vendor.write_text("fixture\n", encoding="utf-8")
+        self.configure_local(
+            root,
+            vendor_paths={"simulatedSdk": str(vendor)},
+            plan_bindings=[{
+                "vendorPath": "simulatedSdk",
+                "instrumentId": "SimulatedSource1",
+                "configField": "sdkDll",
+            }],
+        )
+        calls = []
+        result = project.run_project(
+            project.load_project(root),
+            package_runner=self.Stage3PackageRunner(self),
+            probe_runner=lambda path: self.supported_probe(),
+            identity_builder=self.stage3_identity,
+            cli_runner=lambda arguments, timeout, operation: (
+                calls.append(tuple(arguments)) or 0
+            ),
+        )
+
+        self.assertEqual(plan_path.read_bytes(), portable_before)
+        self.assertTrue(result.plan.is_relative_to(root / project.EXECUTION_PLAN_ROOT))
+        generated = json.loads(result.plan.read_text(encoding="utf-8"))
+        self.assertEqual(generated["instruments"][0]["config"]["sdkDll"], str(vendor))
+        self.assertEqual(Path(calls[0][2]), result.plan)
+        self.assertEqual(Path(calls[1][2]), result.plan)
+
+    def test_run_revalidates_inputs_after_compile_and_does_not_execute_stale_sources(self):
+        root = self.create()
+        self.configure_local(root)
+        calls = []
+
+        def cli_runner(arguments, timeout, operation):
+            calls.append(tuple(arguments))
+            source = root / "src" / "extension.py"
+            source.write_text(source.read_text(encoding="utf-8") + "\n# changed\n", encoding="utf-8")
+            return 0
+
+        with self.assertRaisesRegex(project.ProjectError, "inputs changed"):
+            project.run_project(
+                project.load_project(root),
+                package_runner=self.Stage3PackageRunner(self),
+                probe_runner=lambda path: self.supported_probe(),
+                identity_builder=self.stage3_identity,
+                cli_runner=cli_runner,
+            )
+        self.assertEqual([call[1] for call in calls], ["compile"])
+
+    def test_cli_process_timeout_is_bounded_and_never_retried(self):
+        class TimedOutProcess:
+            def __init__(self):
+                self.waits = []
+                self.kills = 0
+
+            def wait(self, timeout=None):
+                self.waits.append(timeout)
+                if len(self.waits) == 1:
+                    raise project.subprocess.TimeoutExpired("cli", timeout)
+                return -9
+
+            def kill(self):
+                self.kills += 1
+
+        process_double = TimedOutProcess()
+        with mock.patch.object(project.subprocess, "Popen", return_value=process_double) as popen:
+            with self.assertRaisesRegex(project.ProjectError, "was terminated"):
+                project._run_cli_process(["cli", "compile"], 7.0, "offline validation")
+        popen.assert_called_once_with(["cli", "compile"], shell=False)
+        self.assertEqual(process_double.waits, [7.0, project.CLI_TERMINATION_TIMEOUT_SECONDS])
+        self.assertEqual(process_double.kills, 1)
 
     def test_create_and_load_valid_project(self):
         root = self.create()

@@ -699,3 +699,35 @@ function Invoke-GuidedRegister {
     }
     finally { $selectionLock.Dispose() }
 }
+
+function Invoke-GuidedRun {
+    param([object]$Paths,[string[]]$Values)
+    $parsed = Read-GuidedArguments -Values $Values -AllowedOptions @('project','target','mode') -MaximumPositionals 1
+    if ($parsed.Options.ContainsKey('project') -and $parsed.Positionals.Count -gt 0) {
+        Stop-Kit 'ARTESTREG001' 'Specify the project either positionally or with --project, not both.'
+    }
+    $projectText = if ($parsed.Options.ContainsKey('project')) { [string]$parsed.Options.project }
+        elseif ($parsed.Positionals.Count -eq 1) { [string]$parsed.Positionals[0] }
+        elseif (Test-Path -LiteralPath (Join-Path (Get-Location) $script:GuidedProjectName) -PathType Leaf) { [string](Get-Location) }
+        else { Read-GuidedValue @{} 'project' 'Project folder' $null -Required }
+    $project = Read-GuidedProject $projectText
+    if ($project.Value.language -ne 'python') {
+        Stop-Kit 'ARTESTSDK003' 'PY-DX-01 Stage 4 run supports Python Test plan projects only.'
+    }
+    $mode = if ($parsed.Options.ContainsKey('mode')) { [string]$parsed.Options.mode } else { 'sources' }
+    if ($mode -notin @('sources','registered')) {
+        Stop-Kit 'ARTESTREG001' '--mode must be sources or registered.'
+    }
+
+    $selected = Resolve-InstallationProfile -Paths $Paths -Options $parsed.Options
+    Assert-InstallationProfile $selected
+    $mapping = Join-Path ([string]$selected.Profile.configuration) 'python-environments.json'
+    & $Paths.privatePython -I -B $Paths.pythonProjectTool run $project.Root `
+        --cli-executable ([string]$selected.Profile.cli) `
+        --mode $mode `
+        --installation-catalog ([string]$selected.Profile.catalog) `
+        --installation-python-environments $mapping `
+        --expected-extension-id ([string]$project.Value.extensionId)
+    $runExit = $LASTEXITCODE
+    if ($runExit -ne 0) { exit $runExit }
+}

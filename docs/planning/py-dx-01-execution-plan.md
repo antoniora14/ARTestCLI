@@ -2,7 +2,7 @@
 
 Official name: **PY-DX-01 — Python Developer Experience: create, prepare and run**.
 Status: initial scope approved by the owner on 2026-09-13; Stages 1-3 accepted
-after Architect review. Stages 4A and 4B are also accepted; Stages 4, 4C and 5 remain pending. The owner-requested flow update
+after Architect review. Stages 4A, 4B and 4C are also accepted; Stages 4 and 5 remain pending. The owner-requested flow update
 on 2026-09-15 adds mandatory delivery stages 4A/4B/4C before Stage 5.
 Position: after accepted C-02, before mandatory C-03 and C-04; no .NET work.
 Authority: [current roadmap](../architecture/roadmap-pre-dotnet.md) and
@@ -83,7 +83,7 @@ that is not offline Engine compilation and must not open hardware.
 
 ## Small, verifiable implementation stages
 
-Stages 1-3, 4A and 4B are accepted; Stage 4, 4C and Stage 5 remain pending.
+Stages 1-3, 4A, 4B and 4C are accepted; Stage 4 and Stage 5 remain pending.
 4A may proceed independently of Stage 4; 4B depends on 4A, 4C depends on 4B,
 and Stage 5 requires all four. Accept each unit before expanding
 into the next.
@@ -395,6 +395,10 @@ installed-target discovery. Explicit simulated run is checked through Stage 4.
 **Do not touch:** Engine DLL replacement, other installations, live sessions,
 global cleanup, public contracts, .NET or C-03/C-04 implementations.
 
+Stage 4C closure: `PY-DX-01 STAGE 4C ACCEPTED` at
+`bf89848f7f7b43d84742702e565a63b1c4e7e993`. Registration remains separate
+from execution; Stage 4 and Stage 5 are not accepted by this closure.
+
 ### 5. Authoring acceptance and final evidence
 
 **Objective:** demonstrate the complete initial author workflow and preserve
@@ -461,9 +465,9 @@ stop and report the smallest contradiction; do not implement a new architecture.
 **Original first handoff (completed):** stage 1 only, on model Sol (`gpt-5.6-sol`) with High reasoning,
 as requested by the owner. Provide AGENTS.md, this plan's scope/ownership and stage 1,
 and the referenced minimal example/authoring guide; no full roadmap history needed.
-Stages 1-3 are accepted. Preserve the scoped Stage 4 handoff; do not silently
-expand an assigned implementation. The next delivery handoff is Stage 4C after accepted Stages 4A and 4B,
-as specified in the SDK authoring journey. Final acceptance
+Stages 1-3 and 4A-4C are accepted. Preserve the scoped Stage 4 handoff; do not silently
+expand an assigned implementation. Stage 4 is the current delivery handoff.
+Final acceptance
 requires the whole installed-SDK journey, not only repository tooling tests.
 This documentation update does not start another task, implement a new stage,
 authorize commit/push or accept the overall PY-DX-01 iteration.
