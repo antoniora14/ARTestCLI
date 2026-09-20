@@ -1414,16 +1414,23 @@ def _validate_revision(
     return extension_id, receipt_path
 
 
-def _prepare_directories(project: Project) -> tuple[Path, Path, Path, Path]:
-    root = project.configuration.root / PREPARATION_ROOT
+def _prepare_directories(
+    project: Project, output_root: Path | None = None
+) -> tuple[Path, Path, Path, Path]:
+    root = (
+        output_root.resolve(strict=False)
+        if output_root is not None
+        else project.configuration.root / PREPARATION_ROOT
+    )
     artest_root = root.parent
     _reject_reparse_ancestors(project.configuration.root)
+    _reject_reparse_ancestors(artest_root)
     for directory in (artest_root, root, root / "work", root / "incomplete", root / "revisions"):
         if directory.exists():
             if _is_reparse_point(directory) or not directory.is_dir():
                 raise ProjectError(f"Owned preparation path is not a regular directory: {directory}")
         else:
-            directory.mkdir()
+            directory.mkdir(parents=True)
     allowed = {"work", "incomplete", "revisions", "ready.json", "preparation.lock"}
     unknown = sorted(item.name for item in root.iterdir() if item.name not in allowed)
     if unknown:
@@ -1569,6 +1576,7 @@ def _remove_attempt_marker(marker: Path) -> None:
 def prepare_project(
     project: Project,
     *,
+    output_root: Path | None = None,
     package_runner=None,
     probe_runner=None,
     identity_builder=None,
@@ -1576,7 +1584,7 @@ def prepare_project(
     """Prepare or exactly reuse one immutable project-local Python revision."""
     runner = package_runner or _run_package_tool
     probe = _preparation_prerequisites(project, probe_runner)
-    root, work, incomplete, revisions = _prepare_directories(project)
+    root, work, incomplete, revisions = _prepare_directories(project, output_root)
     lock, token = _acquire_preparation_lock(root)
     attempt = None
     work_marker = None
@@ -1853,6 +1861,11 @@ def main(argv=None) -> int:
         help="create or exactly reuse a verified immutable package/environment revision",
     )
     prepare.add_argument("project", type=Path, nargs="?", default=Path.cwd())
+    prepare.add_argument(
+        "--output-root",
+        type=Path,
+        help="prepare immutable revisions directly in an installation-owned root",
+    )
     args = parser.parse_args(argv)
     try:
         if args.command == "create":
@@ -1874,7 +1887,7 @@ def main(argv=None) -> int:
         elif args.command == "materialize-plan":
             print(materialize_local_plan(load_project(args.project)))
         else:
-            result = prepare_project(load_project(args.project))
+            result = prepare_project(load_project(args.project), output_root=args.output_root)
             print(json.dumps(result.as_dict(), indent=2, ensure_ascii=True))
     except ProjectError as error:
         parser.error(str(error))

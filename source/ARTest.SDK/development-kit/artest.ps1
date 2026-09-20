@@ -1,7 +1,7 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('verify', 'paths', 'python-project', 'new', 'build')]
+    [ValidateSet('verify', 'paths', 'python-project', 'new', 'build', 'register')]
     [string]$Command = 'verify',
 
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -43,7 +43,7 @@ function Read-KitManifest {
         Stop-Kit 'ARTESTKIT002' "Cannot read development-kit inventory: $($_.Exception.Message)"
     }
     if ($manifest.schema -ne 'artest.schema.development-kit-package.v1' -or
-        $manifest.kitVersion -ne '0.2.0' -or
+        $manifest.kitVersion -ne '0.3.0' -or
         $manifest.platform -ne 'windows-x64' -or
         $manifest.stability -ne 'evaluation') {
         Stop-Kit 'ARTESTKIT006' 'The development-kit declaration is incompatible with this entry point.'
@@ -107,6 +107,7 @@ function Assert-KitCompatibility {
         $Manifest.components.pythonRuntime.gilEnabled -ne $true -or
         $Manifest.components.runtime.configuration -ne 'Release' -or
         $Manifest.components.authoring.tool -ne 'authoring.ps1' -or
+        $Manifest.components.registration.tool -ne 'registration.ps1' -or
         (@($Manifest.components.authoring.languages) -join ',') -ne 'python,cpp' -or
         (@($Manifest.components.authoring.variants) -join ',') -ne 'driver-command,driver-only,command-only') {
         Stop-Kit 'ARTESTKIT006' 'One or more bundled component versions are incompatible.'
@@ -188,6 +189,7 @@ function Get-KitPaths {
         pythonSdkWheel = Resolve-KitPath $Manifest.components.pythonSdk.wheel 'Python SDK wheel'
         pythonProjectTool = Resolve-KitPath $Manifest.components.pythonTools.projectTool 'Python project tool'
         authoringTool = Resolve-KitPath $Manifest.components.authoring.tool 'SDK authoring tool'
+        registrationTool = Resolve-KitPath $Manifest.components.registration.tool 'SDK registration tool'
         cliExecutable = Resolve-KitPath $Manifest.components.runtime.cli 'CLI'
         engine = Resolve-KitPath $Manifest.components.runtime.engine 'Engine'
         nativeSdkRoot = Resolve-KitPath $Manifest.components.nativeSdk.root 'native SDK'
@@ -216,14 +218,16 @@ try {
         $paths | ConvertTo-Json -Depth 4
         exit 0
     }
-    if ($Command -in @('new', 'build')) {
+    if ($Command -in @('new', 'build', 'register')) {
         . $paths.authoringTool
+        if ($Command -eq 'register') { . $paths.registrationTool }
         if ($Command -eq 'new') {
             Invoke-GuidedNew -Paths $paths -Values @($Arguments)
         }
-        else {
+        elseif ($Command -eq 'build') {
             Invoke-GuidedBuild -Paths $paths -Values @($Arguments)
         }
+        else { Invoke-GuidedRegister -Paths $paths -Values @($Arguments) }
         exit 0
     }
     if (-not $Arguments -or $Arguments.Count -eq 0) {

@@ -1,6 +1,6 @@
-# ARTest development kit 0.2.0 (evaluation)
+# ARTest development kit 0.3.0 (evaluation)
 
-This extracted Windows x64 kit is the PY-DX-01 Stage 4B candidate.
+This extracted Windows x64 kit is the PY-DX-01 Stage 4C candidate.
 It contains independent component versions: native SDK 0.4.0, Python SDK 0.2.0,
 a compatible private standard CPython 3.13 x64 GIL runtime, pinned example wheels,
 and a matching Release CLI/Engine evaluation runtime.
@@ -44,8 +44,22 @@ portable and persistent. Python prerequisite paths and C++ SDK/MSBuild selection
 are written only to ignored local configuration. Preparation uses the bundled
 exact wheelhouse with `pip --no-index`; it installs nothing globally.
 
-This candidate provides Stage 4B `new`/`build` only. It does not provide Stage 4C
-registration, Stage 4 plan execution, or Stage 5 acceptance. The nested native
+Register with a named installation. The first use supplies the installed CLI and
+separate catalog/configuration locations; later calls reuse the local profile:
+
+    & 'D:\SDK path\artest.ps1' register --project 'D:\Work\My extension' `
+        --target station-a --cli 'C:\Program Files\ARTest\ARTestCLI.exe' `
+        --catalog 'D:\ARTest Data\extensions' --config 'D:\ARTest Data\configuration'
+    & 'D:\SDK path\artest.ps1' register --project 'D:\Work\My extension' `
+        --target station-a
+
+Registration publishes only installation-owned revisions, prepares Python
+environments at final paths, validates the whole catalog, and performs an
+installed-CLI offline discovery check. It does not run a plan, initialize
+hardware, replace CLI/Engine binaries, reload sessions, or elevate permissions.
+
+This candidate provides Stage 4C `register` over accepted `new`/`build`. It does
+not provide Stage 4 plan execution or Stage 5 acceptance. The nested native
 SDK remains available at `native-sdk`; existing low-level consumers remain
 independent of Python.
 

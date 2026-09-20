@@ -21,7 +21,7 @@ $nativeVersionSource = Join-Path $repositoryRoot 'source\ARTest.SDK\sdk-version.
 $kitVersion = Get-Content -LiteralPath $kitVersionSource -Raw | ConvertFrom-Json
 $nativeVersion = Get-Content -LiteralPath $nativeVersionSource -Raw | ConvertFrom-Json
 if ($kitVersion.schema -ne 'artest.schema.development-kit-version.v1' -or
-    $kitVersion.kitVersion -ne '0.2.0' -or
+    $kitVersion.kitVersion -ne '0.3.0' -or
     $kitVersion.stability -ne 'evaluation' -or
     $kitVersion.platform -ne 'windows-x64' -or
     $kitVersion.nativeSdkVersion -ne $nativeVersion.sdkVersion -or
@@ -177,6 +177,7 @@ try {
     }
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'artest.ps1') -Destination (Join-Path $stagingRoot 'artest.ps1')
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'authoring.ps1') -Destination (Join-Path $stagingRoot 'authoring.ps1')
+    Copy-Item -LiteralPath (Join-Path $sourceRoot 'registration.ps1') -Destination (Join-Path $stagingRoot 'registration.ps1')
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'README.md') -Destination (Join-Path $stagingRoot 'README.md')
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'THIRD_PARTY_NOTICES.md') -Destination (Join-Path $stagingRoot 'THIRD_PARTY_NOTICES.md')
     Copy-Item -LiteralPath $kitVersionSource -Destination (Join-Path $stagingRoot 'development-kit-version.json')
@@ -330,6 +331,11 @@ try {
                 tool = 'authoring.ps1'
                 languages = @('python', 'cpp')
                 variants = @('driver-command', 'driver-only', 'command-only')
+            }
+            registration = [ordered]@{
+                tool = 'registration.ps1'
+                profileSchema = 'artest.schema.sdk-installations.v1'
+                stateSchema = 'artest.schema.sdk-registration-state.v1'
             }
         }
         files = $inventory

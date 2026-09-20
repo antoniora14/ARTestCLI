@@ -247,7 +247,7 @@ try {
         & (Join-Path $PSScriptRoot 'verify-development-kit.ps1')
     }
 
-    Invoke-Case 'Package and extract the 0.2.0 kit outside the repository' {
+    Invoke-Case 'Package and extract the current kit outside the repository' {
         $arguments = @{
             Configuration = $Configuration; Platform = $Platform
             PythonRuntime = $PythonRuntime; DependencyWheelRoot = $DependencyWheelRoot
@@ -262,8 +262,8 @@ try {
         Expand-Archive -LiteralPath $archivePath -DestinationPath $script:kit
         $script:entry = Join-Path $script:kit 'artest.ps1'
         $verification = ConvertFrom-LastJsonObject (Invoke-Kit @('verify'))
-        if ($verification.status -ne 'ready' -or $verification.kitVersion -ne '0.2.0') {
-            throw 'Extracted Stage 4B kit did not verify as version 0.2.0.'
+        if ($verification.status -ne 'ready' -or $verification.kitVersion -ne $version.kitVersion) {
+            throw "Extracted kit did not verify as version $($version.kitVersion)."
         }
         "archiveSha256=$((Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant())"
     }
@@ -437,7 +437,6 @@ try {
             $null = Assert-KitFailure 'ARTESTSDK002' @('new', '--name', 'Bad Parent', '--folder', (Join-Path $projects 'missing'), '--language', 'python')
             $null = Assert-KitFailure 'ARTESTSDK005' @('new', '--name', 'No Compiler', '--folder', $projects, '--language', 'cpp', '--msbuild', (Join-Path $projects 'missing\MSBuild.exe'))
             $null = Assert-KitFailure 'ARTESTSDK003' @('new', '--name', 'No CSharp', '--folder', $projects, '--language', 'c#')
-            $null = Assert-KitFailure 'register' @('register')
             $null = Assert-KitFailure 'run' @('run')
             if (Test-Path -LiteralPath (Join-Path $projects 'No Compiler')) { throw 'Missing-toolchain failure left a project behind.' }
             'all negative cases preserved their targets'
@@ -482,7 +481,7 @@ finally {
         externalTestRootRemoved = $false
         cases = @($results)
         limitations = @(
-            'Stage 4C registration, Stage 4 execution, Stage 5 acceptance and .NET are not implemented.',
+            'Stage 4 execution, Stage 5 acceptance and .NET are not implemented.',
             'The hardware-free starters do not prove vendor SDK, physical instrument or PicoSDK availability.',
             'The evaluation artifact is not a public release, installer, package feed or ABI 1.0 claim.'
         )

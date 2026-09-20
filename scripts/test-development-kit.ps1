@@ -512,7 +512,7 @@ finally {
         evidenceProvenance = 'evidence-provenance.json'
         limitations = @(
             'Local evaluation only; no public release, signing or feed.',
-            'Stage 4B wizard/build, Stage 4C registration, Stage 4 execution and Stage 5 acceptance are not implemented.',
+            'Stage 4B/4C behavior is exercised by its dedicated gates; Stage 4 execution and Stage 5 acceptance are not implemented.',
             'No hardware or vendor-tool installation was attempted.'
         )
     }

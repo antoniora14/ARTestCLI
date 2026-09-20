@@ -446,6 +446,34 @@ class ProjectTests(unittest.TestCase):
             self.assertEqual(python, project.load_project(root).local.python)
             self.assertIn("--output", arguments)
 
+    def test_prepare_can_publish_directly_to_an_installation_owned_root(self):
+        root = self.create("source project")
+        self.configure_local(root)
+        output = root.parent / "installation" / "configuration" / "python"
+        loaded = project.load_project(root)
+        runner = self.Stage3PackageRunner(self)
+
+        first = project.prepare_project(
+            loaded,
+            output_root=output,
+            package_runner=runner,
+            probe_runner=lambda path: self.supported_probe(),
+            identity_builder=self.stage3_identity,
+        )
+        second = project.prepare_project(
+            loaded,
+            output_root=output,
+            package_runner=runner,
+            probe_runner=lambda path: self.supported_probe(),
+            identity_builder=self.stage3_identity,
+        )
+
+        self.assertEqual(first.revision.parent, output / "revisions")
+        self.assertEqual(first.receipt.parent.parent, first.revision)
+        self.assertFalse(first.reused)
+        self.assertTrue(second.reused)
+        self.assertFalse((root / project.PREPARATION_ROOT).exists())
+
     @unittest.skipUnless(
         sys.platform == "win32"
         and sys.version_info[:2] == (3, 13)

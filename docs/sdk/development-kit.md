@@ -1,7 +1,8 @@
-# ARTest development kit (PY-DX-01 Stages 4A and 4B)
+# ARTest development kit (PY-DX-01 Stages 4A, 4B and 4C)
 
-Stage 4A produced the inventory-checked Windows x64 evaluation kit. The Stage 4B
-candidate adds guided `new` and `build` dispatch for Python and C++ without a
+Stage 4A produced the inventory-checked Windows x64 evaluation kit. The Stage 4C
+candidate adds installation-scoped `register` to the accepted guided `new` and
+`build` dispatch for Python and C++ without a
 repository checkout, internal IDs, a global Python installation, or downloads.
 It reuses the native SDK distribution and accepted Python Stages 1-3 tools.
 
@@ -28,8 +29,8 @@ Outputs are generated only under:
 
 ```text
 artifacts/sdk-packages/x64/Release/
-  ARTestDevelopmentKit-0.2.0-evaluation-windows-x64/
-  ARTestDevelopmentKit-0.2.0-evaluation-windows-x64.zip
+  ARTestDevelopmentKit-0.3.0-evaluation-windows-x64/
+  ARTestDevelopmentKit-0.3.0-evaluation-windows-x64.zip
 ```
 
 The packager probes and then copies a complete installed CPython layout needed by
@@ -82,6 +83,36 @@ metadata publisher. The project remains directly buildable in Visual Studio.
 Generated `artest-sdk-project.json`, component IDs and plan references are
 portable. Private Python, wheel, CLI, native SDK and MSBuild paths are local-only.
 
+## Register with an installation
+
+The first registration names and verifies the target CLI plus separate writable
+catalog and configuration locations. That selection is retained only in the
+authoring tool's local configuration; it is not an Engine registry.
+
+```powershell
+$entry = 'D:\SDKs with spaces\ARTest Development Kit\artest.ps1'
+& $entry register --project 'D:\Work\My Python extension' `
+  --target station-a `
+  --cli 'C:\Program Files\ARTest\ARTestCLI.exe' `
+  --catalog 'D:\ARTest Data\extensions' `
+  --config 'D:\ARTest Data\configuration'
+
+& $entry register --project 'D:\Work\My native extension' --target station-a
+```
+
+`register` checks/builds current sources, retains immutable revisions, validates
+the complete candidate catalog, and switches one active revision per extension
+ID. Python environments are prepared directly below the target configuration;
+they are never moved or patched. Existing packages and mappings are preserved.
+Repeating an identical registration is a verified no-op. Conflicts, incompatible
+targets, locks, permission failures, and failed or interrupted publication leave
+the prior catalog and selected profile usable without elevation or fallback.
+
+The destination CLI independently runs `extensions validate` and offline
+`compile --extensions ... --python-environments ...`. Registration never runs a
+plan, initializes hardware, replaces CLI/Engine binaries, or reloads an active
+session. Custom hosts still consume their documented catalog configuration.
+
 The accepted low-level Python workflow is preserved:
 
 ```powershell
@@ -111,14 +142,25 @@ Run the complete focused gate with the same prepared inputs:
   -DependencyWheelRoot 'C:\PreparedInputs\wheels'
 ```
 
+Run the Stage 4C extracted-kit registration gate with the same inputs and the
+documented native toolchain:
+
+```powershell
+.\scripts\test-development-kit-stage4c.ps1 `
+  -PythonRuntime 'C:\Python313\python.exe' `
+  -DependencyWheelRoot 'C:\PreparedInputs\wheels'
+```
+
 It retains candidate identity, hashes, commands and results under
 `artifacts/acceptance/py-dx-01/stage4a-candidate/<run-id>/`. Generated kits,
-prepared environments and acceptance evidence are not source changes.
+prepared environments and acceptance evidence are not source changes. Stage 4C
+records candidate identity, hashes, commands and results under
+`artifacts/acceptance/py-dx-01/stage4c-candidate/<run-id>/`.
 
 ## Boundary and redistribution status
 
-This implements only the Stage 4B candidate over accepted Stage 4A. It does not
-implement Stage 4C installation registration, Stage 4 plan execution, or Stage 5
+This implements only the Stage 4C candidate over accepted Stages 4A and 4B. It
+does not implement Stage 4 plan execution or Stage 5
 acceptance. Existing C++ consumers continue to use the unchanged nested native
 SDK and v145 toolchain. C# remains unavailable.
 
