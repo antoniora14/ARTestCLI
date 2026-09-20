@@ -1,6 +1,6 @@
-# ARTest development kit 0.1.0 (evaluation)
+# ARTest development kit 0.2.0 (evaluation)
 
-This extracted Windows x64 kit is the PY-DX-01 Stage 4A development artifact.
+This extracted Windows x64 kit is the PY-DX-01 Stage 4B candidate.
 It contains independent component versions: native SDK 0.4.0, Python SDK 0.2.0,
 a compatible private standard CPython 3.13 x64 GIL runtime, pinned example wheels,
 and a matching Release CLI/Engine evaluation runtime.
@@ -10,7 +10,26 @@ From any current directory, verify the complete inventory and the private
 
     & 'D:\SDK path\artest.ps1' verify
 
-Use the accepted low-level Python workflow without a repository or global Python:
+Create and build a starter without a repository or internal IDs. The normal
+non-interactive flow needs only name, parent folder, and language:
+
+    & 'D:\SDK path\artest.ps1' new --name 'My extension' `
+        --folder 'D:\Work' --language python
+    & 'D:\SDK path\artest.ps1' build --project 'D:\Work\My extension'
+
+Use `--language cpp` for an IDE-buildable native project. C++ requires Visual
+Studio 18 Insiders, Desktop development with C++, and MSVC v145 x64; pass
+`--msbuild <path>` if discovery is ambiguous. `new` prompts for omitted normal
+inputs. `build` uses the current directory when it contains a guided project,
+otherwise it prompts for the project folder.
+
+The default starter contains a simulated driver plus a broker-based command.
+`--variant driver-only` and `--variant command-only` are also supported. The
+command-only plan names the compatible sample driver expected at integration;
+the command declares its required service contract and never links a driver.
+C# is explicitly unavailable until the .NET gates.
+
+The accepted low-level Python commands remain available:
 
     & 'D:\SDK path\artest.ps1' python-project create 'D:\Work\My extension' `
         --extension-id com.example.my-extension `
@@ -20,16 +39,15 @@ Use the accepted low-level Python workflow without a repository or global Python
     & 'D:\SDK path\artest.ps1' python-project check 'D:\Work\My extension'
     & 'D:\SDK path\artest.ps1' python-project prepare 'D:\Work\My extension'
 
-The root entry locates only kit-relative tools and writes the generated project's
-machine-local paths after `create`. Preparation uses the bundled exact wheelhouse
-with `pip --no-index`; it installs nothing globally and prepares the environment
-directly in its immutable final project revision.
+The root entry locates only kit-relative tools. Generated IDs and references are
+portable and persistent. Python prerequisite paths and C++ SDK/MSBuild selections
+are written only to ignored local configuration. Preparation uses the bundled
+exact wheelhouse with `pip --no-index`; it installs nothing globally.
 
-Stage 4A intentionally does not provide the guided `new`/`build` wizard, C++
-dispatch, installation registration, plan execution, or final journey acceptance.
-Those remain Stages 4B, 4C, Stage 4, and Stage 5 respectively. The nested native
-SDK remains available at `native-sdk`; use its README and supported MSVC v145
-toolchain for existing C++ consumers.
+This candidate provides Stage 4B `new`/`build` only. It does not provide Stage 4C
+registration, Stage 4 plan execution, or Stage 5 acceptance. The nested native
+SDK remains available at `native-sdk`; existing low-level consumers remain
+independent of Python.
 
 This is a local evaluation artifact, not a public release, signed installer,
 package feed, ABI 1.0 promise, or redistribution-license decision.

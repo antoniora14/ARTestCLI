@@ -84,7 +84,7 @@ Stages 1-3 stay accepted. Stage 4 retains its original execution scope. Stages
 their identifiers do not rename completed work. 4A can be implemented independently
 of Stage 4; 4B depends on 4A, 4C depends on 4B, and final acceptance depends on all
 four. Do not expand a Developer's existing Stage 4 assignment without a scoped
-handoff. Stage 4A has now been accepted; the next delivery unit is 4B.
+handoff. Stages 4A and 4B have now been accepted; the next delivery unit is 4C.
 
 ## Registration semantics
 

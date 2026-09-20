@@ -2,7 +2,7 @@
 
 Official name: **PY-DX-01 — Python Developer Experience: create, prepare and run**.
 Status: initial scope approved by the owner on 2026-09-13; Stages 1-3 accepted
-after Architect review. Stage 4A is also accepted; Stages 4, 4B, 4C and 5 remain pending. The owner-requested flow update
+after Architect review. Stages 4A and 4B are also accepted; Stages 4, 4C and 5 remain pending. The owner-requested flow update
 on 2026-09-15 adds mandatory delivery stages 4A/4B/4C before Stage 5.
 Position: after accepted C-02, before mandatory C-03 and C-04; no .NET work.
 Authority: [current roadmap](../architecture/roadmap-pre-dotnet.md) and
@@ -83,7 +83,7 @@ that is not offline Engine compilation and must not open hardware.
 
 ## Small, verifiable implementation stages
 
-Stages 1-3 and 4A are accepted; Stage 4, 4B, 4C and Stage 5 remain pending.
+Stages 1-3, 4A and 4B are accepted; Stage 4, 4C and Stage 5 remain pending.
 4A may proceed independently of Stage 4; 4B depends on 4A, 4C depends on 4B,
 and Stage 5 requires all four. Accept each unit before expanding
 into the next.
@@ -352,6 +352,18 @@ toolchain and explicit rejection of C#; retain Stage 1-3 regression tests.
 **Do not touch:** runtime contracts, automatic compiler/PicoSDK installation,
 language-version selection or advanced third-party dependency resolution.
 
+Stage 4B closure: `PY-DX-01 STAGE 4B ACCEPTED` (2026-09-20).
+Evidence: `artifacts/acceptance/py-dx-01/stage4b-candidate/20260920T023615Z-51bf0a2f/`;
+`candidate.json` SHA-256:
+`d84c491df235ca2e75f2e8cd4e612969c29671bcc59be75c4ef54e745e56306c`.
+The 9/9 focused cases passed. C++ template-name collisions preserve the project;
+Python and C++ command-only starters use the unchanged native driver's contract
+and operation, with real interoperability producing 42 * 2 = 84.
+The accepted development-kit 0.2.0 ZIP SHA-256 is
+`340a243d4ea622d5175d517cfe02873a012bc9f7fb7671b88dd4a0df7c2b9928`.
+Only new/build is accepted. Stage 4C registration is the next delivery unit;
+Stage 4 execution, Stage 5 and .NET remain outside this closure.
+
 ### 4C. Register with the selected ARTest installation
 
 **Objective:** make the built extension discoverable by a named installation,
@@ -450,8 +462,8 @@ stop and report the smallest contradiction; do not implement a new architecture.
 as requested by the owner. Provide AGENTS.md, this plan's scope/ownership and stage 1,
 and the referenced minimal example/authoring guide; no full roadmap history needed.
 Stages 1-3 are accepted. Preserve the scoped Stage 4 handoff; do not silently
-expand an assigned implementation. The next delivery handoff is Stage 4B after accepted Stage 4A,
-followed by 4C, as specified in the SDK authoring journey. Final acceptance
+expand an assigned implementation. The next delivery handoff is Stage 4C after accepted Stages 4A and 4B,
+as specified in the SDK authoring journey. Final acceptance
 requires the whole installed-SDK journey, not only repository tooling tests.
 This documentation update does not start another task, implement a new stage,
 authorize commit/push or accept the overall PY-DX-01 iteration.

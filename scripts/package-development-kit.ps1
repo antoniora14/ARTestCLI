@@ -21,7 +21,7 @@ $nativeVersionSource = Join-Path $repositoryRoot 'source\ARTest.SDK\sdk-version.
 $kitVersion = Get-Content -LiteralPath $kitVersionSource -Raw | ConvertFrom-Json
 $nativeVersion = Get-Content -LiteralPath $nativeVersionSource -Raw | ConvertFrom-Json
 if ($kitVersion.schema -ne 'artest.schema.development-kit-version.v1' -or
-    $kitVersion.kitVersion -ne '0.1.0' -or
+    $kitVersion.kitVersion -ne '0.2.0' -or
     $kitVersion.stability -ne 'evaluation' -or
     $kitVersion.platform -ne 'windows-x64' -or
     $kitVersion.nativeSdkVersion -ne $nativeVersion.sdkVersion -or
@@ -176,6 +176,7 @@ try {
         $null = New-Item -ItemType Directory -Path (Join-Path $stagingRoot $relative) -Force
     }
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'artest.ps1') -Destination (Join-Path $stagingRoot 'artest.ps1')
+    Copy-Item -LiteralPath (Join-Path $sourceRoot 'authoring.ps1') -Destination (Join-Path $stagingRoot 'authoring.ps1')
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'README.md') -Destination (Join-Path $stagingRoot 'README.md')
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'THIRD_PARTY_NOTICES.md') -Destination (Join-Path $stagingRoot 'THIRD_PARTY_NOTICES.md')
     Copy-Item -LiteralPath $kitVersionSource -Destination (Join-Path $stagingRoot 'development-kit-version.json')
@@ -324,6 +325,11 @@ try {
                 cli = 'runtime/x64/Release/ARTestCLI.exe'
                 engine = 'runtime/x64/Release/ARTestEngine.dll'
                 bundledProcessDependencies = @($crtFiles | Sort-Object Name | ForEach-Object { "runtime/x64/Release/$($_.Name)" })
+            }
+            authoring = [ordered]@{
+                tool = 'authoring.ps1'
+                languages = @('python', 'cpp')
+                variants = @('driver-command', 'driver-only', 'command-only')
             }
         }
         files = $inventory

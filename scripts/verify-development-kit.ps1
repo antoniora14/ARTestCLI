@@ -6,6 +6,7 @@ $repositoryRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $sourceRoot = Join-Path $repositoryRoot 'source\ARTest.SDK\development-kit'
 $required = @(
     'artest.ps1',
+    'authoring.ps1',
     'README.md',
     'THIRD_PARTY_NOTICES.md',
     'development-kit-version.json'
@@ -19,7 +20,7 @@ foreach ($relative in $required) {
 $kitVersion = Get-Content -LiteralPath (Join-Path $sourceRoot 'development-kit-version.json') -Raw | ConvertFrom-Json
 $nativeVersion = Get-Content -LiteralPath (Join-Path $repositoryRoot 'source\ARTest.SDK\sdk-version.json') -Raw | ConvertFrom-Json
 if ($kitVersion.schema -ne 'artest.schema.development-kit-version.v1' -or
-    $kitVersion.kitVersion -ne '0.1.0' -or
+    $kitVersion.kitVersion -ne '0.2.0' -or
     $kitVersion.stability -ne 'evaluation' -or
     $kitVersion.platform -ne 'windows-x64' -or
     $kitVersion.nativeSdkVersion -ne $nativeVersion.sdkVersion -or
@@ -30,16 +31,17 @@ if ($kitVersion.schema -ne 'artest.schema.development-kit-version.v1' -or
 }
 
 $entryText = Get-Content -LiteralPath (Join-Path $sourceRoot 'artest.ps1') -Raw
-if ($entryText -match "ValidateSet\([^\)]*'new'" -or
-    $entryText -match "ValidateSet\([^\)]*'build'" -or
+if ($entryText -notmatch "ValidateSet\('verify', 'paths', 'python-project', 'new', 'build'\)" -or
     $entryText -match "ValidateSet\([^\)]*'register'" -or
     $entryText -match "ValidateSet\([^\)]*'run'") {
-    throw 'The Stage 4A root entry point crosses into Stage 4, 4B or 4C commands.'
+    throw 'The development-kit entry point must expose Stage 4B new/build while prohibiting Stage 4 register/run.'
 }
 foreach ($path in @(
         (Join-Path $sourceRoot 'artest.ps1'),
+        (Join-Path $sourceRoot 'authoring.ps1'),
         (Join-Path $repositoryRoot 'scripts\package-development-kit.ps1'),
-        (Join-Path $repositoryRoot 'scripts\test-development-kit.ps1'))) {
+        (Join-Path $repositoryRoot 'scripts\test-development-kit.ps1'),
+        (Join-Path $repositoryRoot 'scripts\test-development-kit-stage4b.ps1'))) {
     $tokens = $null
     $errors = $null
     $null = [Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
@@ -49,6 +51,16 @@ foreach ($path in @(
     $text = Get-Content -LiteralPath $path -Raw
     if ($text -match 'Invoke-WebRequest|Invoke-RestMethod|Start-BitsTransfer|pip\s+download') {
         throw "Stage 4A packaging must not download dependencies: $path"
+    }
+}
+
+$stage4BTest = Get-Content -LiteralPath (Join-Path $repositoryRoot 'scripts\test-development-kit-stage4b.ps1') -Raw
+foreach ($requiredCoverage in @(
+        "'new'", "'build'", 'Invoke-InteractiveKit', 'driver-only', 'command-only',
+        'author source change', 'ARTESTSDK002', 'ARTESTSDK003', 'ARTESTSDK005',
+        "@('register')", "@('run')", 'stage4b-candidate', 'externalTestRootRemoved')) {
+    if ($stage4BTest -notmatch [regex]::Escape($requiredCoverage)) {
+        throw "The Stage 4B gate is missing required coverage: $requiredCoverage"
     }
 }
 
@@ -76,4 +88,4 @@ if ($packageText -notmatch '--no-index' -or
     throw 'The Python preparation tool does not enforce the bundled offline wheelhouse path.'
 }
 
-Write-Host 'PY-DX-01 Stage 4A source verification: PASSED'
+Write-Host 'PY-DX-01 Stage 4A/4B development-kit source verification: PASSED'

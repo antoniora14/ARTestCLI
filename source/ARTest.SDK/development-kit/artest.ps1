@@ -1,7 +1,7 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('verify', 'paths', 'python-project')]
+    [ValidateSet('verify', 'paths', 'python-project', 'new', 'build')]
     [string]$Command = 'verify',
 
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -43,7 +43,7 @@ function Read-KitManifest {
         Stop-Kit 'ARTESTKIT002' "Cannot read development-kit inventory: $($_.Exception.Message)"
     }
     if ($manifest.schema -ne 'artest.schema.development-kit-package.v1' -or
-        $manifest.kitVersion -ne '0.1.0' -or
+        $manifest.kitVersion -ne '0.2.0' -or
         $manifest.platform -ne 'windows-x64' -or
         $manifest.stability -ne 'evaluation') {
         Stop-Kit 'ARTESTKIT006' 'The development-kit declaration is incompatible with this entry point.'
@@ -97,7 +97,7 @@ function Assert-KitInventory {
 }
 
 function Assert-KitCompatibility {
-    param([object]$Manifest, [switch]$Deep)
+    param([object]$Manifest, [switch]$ProbePython, [switch]$Deep)
     if ($Manifest.components.nativeSdk.version -ne '0.4.0' -or
         $Manifest.components.nativeSdk.engineApi -ne '0.4' -or
         $Manifest.components.nativeSdk.nativeExtensionAbi -ne '0.2' -or
@@ -105,11 +105,13 @@ function Assert-KitCompatibility {
         $Manifest.components.pythonRuntime.version -notmatch '^3\.13\.' -or
         $Manifest.components.pythonRuntime.architecture -ne 'x64' -or
         $Manifest.components.pythonRuntime.gilEnabled -ne $true -or
-        $Manifest.components.runtime.configuration -ne 'Release') {
+        $Manifest.components.runtime.configuration -ne 'Release' -or
+        $Manifest.components.authoring.tool -ne 'authoring.ps1' -or
+        (@($Manifest.components.authoring.languages) -join ',') -ne 'python,cpp' -or
+        (@($Manifest.components.authoring.variants) -join ',') -ne 'driver-command,driver-only,command-only') {
         Stop-Kit 'ARTESTKIT006' 'One or more bundled component versions are incompatible.'
     }
 
-    $python = Resolve-KitPath $Manifest.components.pythonRuntime.executable 'private Python'
     $nativeVersionPath = Resolve-KitPath $Manifest.components.nativeSdk.versionFile 'native SDK version'
     try {
         $nativeVersion = Get-Content -LiteralPath $nativeVersionPath -Raw | ConvertFrom-Json
@@ -123,6 +125,9 @@ function Assert-KitCompatibility {
         Stop-Kit 'ARTESTKIT006' 'The nested native SDK does not match the development-kit declaration.'
     }
 
+    if (-not $ProbePython) { return }
+
+    $python = Resolve-KitPath $Manifest.components.pythonRuntime.executable 'private Python'
     $probeScript = @'
 import json, platform, sys
 print(json.dumps({
@@ -182,6 +187,7 @@ function Get-KitPaths {
         privatePython = Resolve-KitPath $Manifest.components.pythonRuntime.executable 'private Python'
         pythonSdkWheel = Resolve-KitPath $Manifest.components.pythonSdk.wheel 'Python SDK wheel'
         pythonProjectTool = Resolve-KitPath $Manifest.components.pythonTools.projectTool 'Python project tool'
+        authoringTool = Resolve-KitPath $Manifest.components.authoring.tool 'SDK authoring tool'
         cliExecutable = Resolve-KitPath $Manifest.components.runtime.cli 'CLI'
         engine = Resolve-KitPath $Manifest.components.runtime.engine 'Engine'
         nativeSdkRoot = Resolve-KitPath $Manifest.components.nativeSdk.root 'native SDK'
@@ -191,7 +197,8 @@ function Get-KitPaths {
 try {
     $manifest = Read-KitManifest
     Assert-KitInventory $manifest
-    Assert-KitCompatibility $manifest -Deep:($Command -eq 'verify')
+    $probePython = $Command -in @('verify', 'paths', 'python-project')
+    Assert-KitCompatibility $manifest -ProbePython:$probePython -Deep:($Command -eq 'verify')
     $paths = Get-KitPaths $manifest
 
     if ($Command -eq 'verify') {
@@ -207,6 +214,16 @@ try {
     }
     if ($Command -eq 'paths') {
         $paths | ConvertTo-Json -Depth 4
+        exit 0
+    }
+    if ($Command -in @('new', 'build')) {
+        . $paths.authoringTool
+        if ($Command -eq 'new') {
+            Invoke-GuidedNew -Paths $paths -Values @($Arguments)
+        }
+        else {
+            Invoke-GuidedBuild -Paths $paths -Values @($Arguments)
+        }
         exit 0
     }
     if (-not $Arguments -or $Arguments.Count -eq 0) {

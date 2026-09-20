@@ -1,9 +1,9 @@
-# ARTest development kit (PY-DX-01 Stage 4A)
+# ARTest development kit (PY-DX-01 Stages 4A and 4B)
 
-Stage 4A produces a local, inventory-checked Windows x64 evaluation kit that can
-create, check and prepare the accepted minimal Python example without a repository
-checkout, a global Python installation, or downloads during that author flow.
-It reuses the native SDK distribution and the accepted Python Stages 1-3 tools.
+Stage 4A produced the inventory-checked Windows x64 evaluation kit. The Stage 4B
+candidate adds guided `new` and `build` dispatch for Python and C++ without a
+repository checkout, internal IDs, a global Python installation, or downloads.
+It reuses the native SDK distribution and accepted Python Stages 1-3 tools.
 
 ## Build the local candidate
 
@@ -28,8 +28,8 @@ Outputs are generated only under:
 
 ```text
 artifacts/sdk-packages/x64/Release/
-  ARTestDevelopmentKit-0.1.0-evaluation-windows-x64/
-  ARTestDevelopmentKit-0.1.0-evaluation-windows-x64.zip
+  ARTestDevelopmentKit-0.2.0-evaluation-windows-x64/
+  ARTestDevelopmentKit-0.2.0-evaluation-windows-x64.zip
 ```
 
 The packager probes and then copies a complete installed CPython layout needed by
@@ -55,7 +55,34 @@ components (`ARTESTKIT003`), corrupt files (`ARTESTKIT004`), unexpected files
 (`ARTESTKIT005`), incompatible components (`ARTESTKIT006`) and missing venv/pip
 capability (`ARTESTKIT007`). Do not repair a failed kit in place; rebuild it.
 
-The Stage 4A root entry exposes the already accepted low-level Python workflow:
+## Guided create and build
+
+From any working directory, supply the three normal inputs. The folder is an
+existing parent directory; `new` creates a child directory named after the
+project and refuses any existing destination.
+
+```powershell
+$entry = 'D:\SDKs with spaces\ARTest Development Kit\artest.ps1'
+& $entry new --name 'My Python extension' --folder 'D:\Work' --language python
+& $entry build --project 'D:\Work\My Python extension'
+
+& $entry new --name 'My native extension' --folder 'D:\Work' --language cpp
+& $entry build --project 'D:\Work\My native extension'
+```
+
+Omit the normal arguments for an interactive prompt. `driver-command` is the
+default; `--variant driver-only` and `--variant command-only` select the other
+approved starters. `--author` is optional. C++ discovery can be made explicit
+with `--msbuild`; the selected tool is retained only in ignored local config.
+C# is rejected with a message explaining the pending .NET gates.
+
+Python `build` performs Stage 2 checking and Stage 3 preparation/reuse. C++
+`build` invokes the generated `.vcxproj` using the existing SDK props/targets and
+metadata publisher. The project remains directly buildable in Visual Studio.
+Generated `artest-sdk-project.json`, component IDs and plan references are
+portable. Private Python, wheel, CLI, native SDK and MSBuild paths are local-only.
+
+The accepted low-level Python workflow is preserved:
 
 ```powershell
 $entry = 'D:\SDKs with spaces\ARTest Development Kit\artest.ps1'
@@ -90,10 +117,10 @@ prepared environments and acceptance evidence are not source changes.
 
 ## Boundary and redistribution status
 
-This is Stage 4A only. It does not implement the Stage 4B guided
-`new`/`build` flow or C++ dispatch, Stage 4C installation registration, Stage 4
-plan execution, or Stage 5 global acceptance. Existing C++ consumers continue to
-use the unchanged nested native SDK and v145 toolchain. C# remains unavailable.
+This implements only the Stage 4B candidate over accepted Stage 4A. It does not
+implement Stage 4C installation registration, Stage 4 plan execution, or Stage 5
+acceptance. Existing C++ consumers continue to use the unchanged nested native
+SDK and v145 toolchain. C# remains unavailable.
 
 The artifact is for local evaluation, not a public release. Review
 `THIRD_PARTY_NOTICES.md`, the private runtime's `LICENSE.txt`, embedded wheel
