@@ -55,3 +55,7 @@ The complete file inventory and SHA-256 hashes are in sdk-manifest.json.
 This package is suitable for compatibility evaluation and extension development.
 It is not an ABI 1.0 promise. ARTest project redistribution terms must be chosen
 before a public SDK release; bundled nlohmann/json terms are recorded separately.
+
+PY-DX-01 Stage 4A may nest this package unchanged inside an independently
+versioned evaluation development kit. See `docs/development-kit.md`; that wrapper
+does not change this SDK's version, ABI, toolset or existing C++ consumer flow.

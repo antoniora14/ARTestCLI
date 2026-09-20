@@ -1,0 +1,10 @@
+{
+  "schema": "artest.schema.development-kit-version.v1",
+  "kitVersion": "0.1.0",
+  "stability": "evaluation",
+  "platform": "windows-x64",
+  "nativeSdkVersion": "0.4.0",
+  "pythonSdkVersion": "0.2.0",
+  "pythonRuntime": "3.13",
+  "pythonGil": "required"
+}

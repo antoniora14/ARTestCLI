@@ -496,7 +496,7 @@ def _join_probe_readers(readers) -> bool:
 def _run_python_probe(python: Path) -> dict:
     try:
         process = subprocess.Popen(
-            [str(python), "-I", "-S", "-c", PYTHON_PROBE],
+            [str(python), "-I", "-B", "-S", "-c", PYTHON_PROBE],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

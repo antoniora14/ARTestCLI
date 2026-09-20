@@ -32,3 +32,8 @@ C++20. ABI 0.2 remains experimental. New packages require an updated Engine;
 the frozen ABI 0.1 consumer gate is separate from current-SDK acceptance.
 Before public community distribution, the
 repository owner must choose explicit licensing terms for ARTest itself.
+
+PY-DX-01 Stage 4A builds a separate, independently versioned evaluation
+development kit around this unchanged native package. See
+[development-kit.md](development-kit.md). It does not rename the native SDK or
+expand the supported native toolchain matrix.

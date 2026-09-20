@@ -6,18 +6,26 @@ import hashlib
 import importlib
 import io
 import json
+import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import zipfile
 
+OFFLINE_WHEELHOUSE_NAME = "artest-offline-wheelhouse.json"
+OFFLINE_WHEELHOUSE_SCHEMA = "artest.schema.python-wheelhouse.v1"
+
 def digest(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 def write_json(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
-def checked(command): subprocess.run([str(item) for item in command], check=True)
+def checked(command):
+    environment = os.environ.copy()
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    subprocess.run([str(item) for item in command], check=True, env=environment)
 def inventory(root):
     return [{"path": item.relative_to(root).as_posix(), "sha256": digest(item)}
             for item in sorted(root.rglob("*"))
@@ -33,6 +41,49 @@ def verify_inventory(root, records, excluded):
 def runtime_check():
     if sys.version_info[:2] != (3, 13) or sys.maxsize != 2**63 - 1 or not sys._is_gil_enabled():
         raise RuntimeError("D4.2 requires standard GIL-enabled CPython 3.13 x64")
+
+def offline_wheelhouse(sdk):
+    """Return a verified adjacent wheelhouse, or None for the legacy explicit flow."""
+    root = sdk.resolve().parent
+    manifest_path = root / OFFLINE_WHEELHOUSE_NAME
+    if not manifest_path.exists():
+        return None
+    if not manifest_path.is_file() or manifest_path.is_symlink() or manifest_path.is_junction():
+        raise ValueError("Offline wheelhouse manifest must be a regular file")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"Cannot read offline wheelhouse manifest: {error}") from error
+    if set(manifest) != {"schema", "files"} or manifest["schema"] != OFFLINE_WHEELHOUSE_SCHEMA:
+        raise ValueError("Offline wheelhouse manifest is incompatible")
+    if not isinstance(manifest["files"], list) or not manifest["files"]:
+        raise ValueError("Offline wheelhouse manifest has no files")
+    seen = set()
+    for entry in manifest["files"]:
+        if not isinstance(entry, dict) or set(entry) != {"path", "sha256"}:
+            raise ValueError("Offline wheelhouse manifest contains an invalid entry")
+        relative = entry["path"]
+        expected = entry["sha256"]
+        if (not isinstance(relative, str) or not relative or
+                Path(relative).name != relative or relative in {".", ".."} or
+                not isinstance(expected, str) or
+                not re.fullmatch(r"[0-9a-f]{64}", expected)):
+            raise ValueError("Offline wheelhouse manifest contains an unsafe entry")
+        key = relative.casefold()
+        if key in seen:
+            raise ValueError("Offline wheelhouse manifest contains duplicate entries")
+        seen.add(key)
+        wheel = root / relative
+        if not wheel.is_file() or wheel.is_symlink() or wheel.is_junction():
+            raise ValueError(f"Offline wheelhouse file is missing: {relative}")
+        if digest(wheel) != expected:
+            raise ValueError(f"Offline wheelhouse checksum mismatch: {relative}")
+    actual = {item.name.casefold() for item in root.glob("*.whl") if item.is_file()}
+    if actual != seen:
+        raise ValueError("Offline wheelhouse full file inventory mismatch")
+    if sdk.name.casefold() not in seen:
+        raise ValueError("Offline wheelhouse does not inventory the selected SDK wheel")
+    return root
 
 def sdk(args):
     runtime_check()
@@ -107,6 +158,7 @@ def package(args):
 def prepare(args):
     runtime_check()
     package_root = args.package.resolve(strict=True)
+    wheelhouse = offline_wheelhouse(args.sdk)
     manifest = json.loads((package_root / "artest-extension.json").read_text())
     verify_inventory(package_root, manifest["inventory"], "artest-extension.json")
     if args.output.exists():
@@ -118,12 +170,17 @@ def prepare(args):
             raise ValueError("Pinned interpreter changed")
         print(args.output / "artest-environment.json")
         return
-    checked([sys.executable, "-I", "-m", "venv", args.output])
+    checked([sys.executable, "-I", "-B", "-m", "venv", args.output])
     python = args.output / "Scripts/python.exe"
-    checked([python, "-I", "-m", "pip", "--isolated", "install", "--disable-pip-version-check",
-             "--require-hashes", "--only-binary=:all:", "-r", package_root / manifest["runtime"]["dependencyLock"]])
-    checked([python, "-I", "-m", "pip", "--isolated", "install", "--no-deps", args.sdk.resolve()])
-    checked([python, "-I", "-m", "pip", "--isolated", "check"])
+    dependency_command = [python, "-I", "-B", "-m", "pip", "--isolated", "install",
+                          "--disable-pip-version-check", "--require-hashes",
+                          "--only-binary=:all:"]
+    if wheelhouse is not None:
+        dependency_command.extend(["--no-index", "--find-links", wheelhouse])
+    dependency_command.extend(["-r", package_root / manifest["runtime"]["dependencyLock"]])
+    checked(dependency_command)
+    checked([python, "-I", "-B", "-m", "pip", "--isolated", "install", "--no-deps", args.sdk.resolve()])
+    checked([python, "-I", "-B", "-m", "pip", "--isolated", "check"])
     site = args.output.resolve() / "Lib/site-packages"
     # Launch the pinned base executable directly (no Windows venv redirector child).
     # -I -S excludes ambient packages and executable .pth startup hooks.

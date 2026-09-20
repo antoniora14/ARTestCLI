@@ -79,6 +79,10 @@ unless the user explicitly requests them.
   C-02 is accepted and closed. The approved next work is PY-DX-01, Python
   Developer Experience: create, prepare and run, before mandatory C-03 and C-04.
   Read docs/planning/py-dx-01-execution-plan.md before implementing that tooling.
+  The 2026-09-15 SDK authoring journey adds delivery gates 4A/4B/4C before final
+  acceptance; read docs/planning/sdk-authoring-journey.md. Python/C++ use existing
+  tooling paths; C# remains unavailable until the .NET gates. No Engine contract
+  changes or automatic hardware execution are authorized by SDK registration.
   This priority does not authorize .NET or reopen the accepted timeout closure.
 
 - C-02 is an independent TCP example under examples/ARTestTcpHello, not a public

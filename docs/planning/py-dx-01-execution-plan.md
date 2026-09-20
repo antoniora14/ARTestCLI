@@ -2,13 +2,22 @@
 
 Official name: **PY-DX-01 — Python Developer Experience: create, prepare and run**.
 Status: initial scope approved by the owner on 2026-09-13; Stages 1-3 accepted
-after Architect review. Stages 4-5 remain pending.
+after Architect review. Stage 4A is also accepted; Stages 4, 4B, 4C and 5 remain pending. The owner-requested flow update
+on 2026-09-15 adds mandatory delivery stages 4A/4B/4C before Stage 5.
 Position: after accepted C-02, before mandatory C-03 and C-04; no .NET work.
 Authority: [current roadmap](../architecture/roadmap-pre-dotnet.md) and
 [AGENTS.md](../../AGENTS.md). This is a Python-specific authoring tool, not a
-multi-language abstraction.
+multi-language abstraction. The [SDK authoring journey](sdk-authoring-journey.md)
+is the authority for the added delivery scope: an installed SDK entry point,
+Python/C++ authoring via existing tools, and registration with a selected ARTest
+installation. C# remains explicitly unavailable until the .NET gates.
 
 ## Outcome and scope
+
+The user-facing completion criterion is install SDK -> create by name/folder/
+language -> edit source -> build -> register. The starter must not require a
+repository checkout or manual internal configuration. Optional explicit run uses
+Stage 4. The detailed additions are in the SDK authoring journey and stages 4A-4C.
 
 A developer creates a small driver/command/plan project, configures workstation
 prerequisites once, and explicitly prepares or runs it. The tool chooses and
@@ -32,7 +41,9 @@ Excluded: hot reload; changing active sessions; global shared environments; adva
 dependency-conflict resolution; global automatic cleanup; automatic PicoSDK
 installation; waveform streaming; IPC optimization; Studio; .NET; changes to native
 ABI, Engine API, IPC protocol, receipt formats or execution-manifest formats.
-No package feed, full offline deployment product or general plugin/language framework.
+A self-contained local evaluation development kit and installed-target registration
+are now included by the 2026-09-15 scope update. Public package feeds, complete
+production/offline deployment, and a general plugin/language framework remain out.
 
 ## Existing mechanisms and ownership
 
@@ -50,8 +61,8 @@ Inspect these implementation entry points before changing tooling:
 
 Proposed new ownership is `source/ARTest.Python/tools/project.py`, a minimal
 `source/ARTest.Python/templates/minimal/` template and focused project-tool tests.
-Stage 1 has delivered project creation and configuration validation in these paths;
-preparation and execution commands are not yet available. Keep new logic
+Stages 1-3 have delivered creation, structural/prerequisite checks and verified
+preparation in these paths; execution and the SDK-level delivery flow are pending. Keep new logic
 there; extract a small helper only when this implementation actually needs one.
 The existing C++ CLI, Engine, Core, SDK runtime API, broker, supervisor and worker
 need no feature changes. Packaging integration may need a small private helper;
@@ -72,7 +83,9 @@ that is not offline Engine compilation and must not open hardware.
 
 ## Small, verifiable implementation stages
 
-Stages 1-3 are accepted; Stages 4-5 remain pending. Accept each unit before expanding
+Stages 1-3 and 4A are accepted; Stage 4, 4B, 4C and Stage 5 remain pending.
+4A may proceed independently of Stage 4; 4B depends on 4A, 4C depends on 4B,
+and Stage 5 requires all four. Accept each unit before expanding
 into the next.
 
 Stage 1 closure: `PY-DX-01 STAGE 1 ACCEPTED`. The Architect reproduced 22 tests
@@ -270,6 +283,106 @@ Use simulated/fault fixtures and existing runtime tests; no physical device requ
 **Do not touch:** CLI command contracts, Core execution policy, broker/supervisor/
 worker, active sessions, retry rules, IPC or C-03 recovery behavior.
 
+### 4A. Installable SDK development kit
+
+**Objective:** deliver the authoring journey from an extracted SDK without a
+repository checkout. See [SDK authoring journey](sdk-authoring-journey.md).
+
+**Files/components:** SDK packaging scripts, distribution README/notices/inventory
+and focused extracted-kit tests. Reuse native distribution assets; package the
+Python tools, metadata SDK, wheel, templates, compatible private interpreter and
+starter dependencies, plus a matching evaluation CLI/runtime bundle.
+
+**Expected changes:** a versioned, inventory-checked development artifact with
+SDK-relative tool discovery and a root entry point. Preserve embedded component
+versions independently; do not rename native SDK or change contracts to version
+the kit. Record redistribution requirements; do not publish a public release here.
+
+**Invariants:** no Engine environment manager, global installation mutation or
+dependency on developer machine paths. Preserve existing SDK consumers and tools.
+
+**Acceptance criteria:** installed tools and Python scaffold/preparation operate
+from a path with spaces with repository access absent and without global Python.
+All bundled component paths, runtime dependencies and hashes are verified.
+
+**Tests:** archive inventory/path safety, extracted-copy operation, private Python
+venv/pip functionality, starter preparation and missing/corrupt kit diagnostics.
+
+**Do not touch:** ABI, Engine API, IPC, receipt formats, native toolchain support
+matrix or unrelated publication-graph incidents. No generic installer platform.
+
+Stage 4A closure: `PY-DX-01 STAGE 4A ACCEPTED`. The accepted evaluation ZIP is
+`ARTestDevelopmentKit-0.1.0-evaluation-windows-x64.zip`, SHA-256
+`b268ed96cd5da16c36dc90ec813545d96ff2691a92b4746d6c2ae3d9063fffcf`.
+Evidence: `artifacts/acceptance/py-dx-01/stage4a-candidate/20260920T002306Z-7ec0288e/`.
+The external Python flow passed with all 408 Git-visible checkout files locked
+and a confirmed sharing-violation probe; the extracted native SDK consumer built
+and activated with the candidate CLI/Engine. A real junction was rejected.
+Source, report and artifact hashes are recorded in the evidence provenance.
+Only Stage 4A is accepted; Stage 4B is the next delivery unit. This closure does
+not accept Stage 4 execution, 4C registration, Stage 5 or authorize .NET.
+
+### 4B. Guided create and build from the SDK
+
+**Objective:** implement name + folder + supported language -> editable project
+-> build, using the root SDK entry point.
+
+**Files/components:** SDK authoring entry point/templates, Python project tool
+adapters, existing native template/build adapters, workflow docs and focused tests.
+
+**Expected changes:** interactive console and equivalent explicit arguments;
+generate consistent persistent IDs/configuration/plan without expert mandatory
+inputs. Default to driver+command, offer supported authoring choices. Python build
+uses Stage 3; C++ build/IDE uses existing SDK props/targets and metadata generation.
+Remember workstation paths locally; derive bundled paths from the kit. C# is
+unavailable until .NET is implemented. This is fixed dispatch, not a language framework.
+
+**Invariants:** preserve low-level commands and author-owned edits, separate local
+and portable settings, and do not put native extensions behind a Python dependency.
+
+**Acceptance criteria:** Python and C++ starter projects are generated outside the
+repository using the three normal inputs and build through supported paths. A
+missing compiler/vendor dependency produces an actionable setup message. No manual
+ID, wheel, receipt or association editing is required for the starter.
+
+**Tests:** both language starters, consistent references, driver/command choices,
+invalid paths/nonempty destinations, repeat builds, local settings, missing native
+toolchain and explicit rejection of C#; retain Stage 1-3 regression tests.
+
+**Do not touch:** runtime contracts, automatic compiler/PicoSDK installation,
+language-version selection or advanced third-party dependency resolution.
+
+### 4C. Register with the selected ARTest installation
+
+**Objective:** make the built extension discoverable by a named installation,
+without manual file placement. Follow the registration semantics in the journey.
+
+**Files/components:** SDK entry point, installation-profile/publication adapter,
+Python preparation adapter, existing native publication tools and registration tests.
+
+**Expected changes:** explicit target selection saved locally; build-if-needed;
+validate/publish owned package outputs and environment association; verify target
+catalog discovery. Prepare Python environments at their definitive target paths.
+Preserve other registrations, existing sessions and previous valid selections.
+Do not overwrite runtime binaries. Repeated unchanged registration is idempotent.
+
+**Invariants:** existing catalog/manifest/receipt/API semantics; no hidden hardware
+I/O, global registry, hot reload or relocation of prepared environments.
+
+**Acceptance criteria:** registration works from the extracted kit for both
+supported languages; the selected installed runtime discovers the extension;
+deleting access to the source project does not break the registered installation.
+Failed or incompatible updates preserve the previous usable registration.
+Success names the target and extension, and does not claim a measurement ran.
+
+**Tests:** first/repeated/updated registration, multiple package ownership and ID
+conflicts, target mismatch, access denied, failed/interrupted publication, complete
+catalog preservation, Python path/receipt integrity, source independence and
+installed-target discovery. Explicit simulated run is checked through Stage 4.
+
+**Do not touch:** Engine DLL replacement, other installations, live sessions,
+global cleanup, public contracts, .NET or C-03/C-04 implementations.
+
 ### 5. Authoring acceptance and final evidence
 
 **Objective:** demonstrate the complete initial author workflow and preserve
@@ -282,17 +395,24 @@ needed and generated evidence under `artifacts/acceptance/py-dx-01/`.
 **Expected changes:** document prerequisites once, create/prepare/run, edit/rerun,
 reuse, local vendor configuration, diagnostics and ownership of generated files.
 Clearly distinguish the new optional author workflow from existing low-level
-commands. Supply an external-directory exercise using the documented tool/SDK/CLI
-locations; no repository-private import/include path may leak into the generated
-extension. This is not a standalone distribution/feed or D4.4 deployment gate.
+commands. Start the external exercise from the extracted development kit with no
+repository access. Cover the owner's complete install/create/edit/build/register
+flow and an explicitly requested simulated run through the registered target.
+Verify Python without global Python or a compiler, and C++ with the documented
+native toolchain. Observe a first-use engineer following the short guide; record
+where assistance was needed. No internal manual ID/wheel/receipt/mapping edits
+are allowed in the starter flow. This is not a public feed or complete D4.4
+production deployment gate.
 
 **Invariants:** no hardware-required acceptance, installation of PicoSDK, extra
 language abstraction, C-02 reacceptance or phase advance. User/manual evidence
 and unrelated working-tree files are preserved.
 
 **Acceptance criteria:** all stage criteria pass with no unexplained failures or
-skipped required cases; a copied minimal project runs outside the repository;
-existing low-level Python authoring and native-only execution remain usable.
+skipped required cases; the extracted SDK completes the journey and the installed
+target discovers/runs the registered simulated package independently of its source
+project. Stages 4/4A/4B/4C must pass. Existing low-level Python authoring and
+native-only execution remain usable.
 Run required Debug/Release aggregate checks from AGENTS.md at integration, plus
 the relevant Python SDK/worker/runtime and project tests on the final candidate.
 Apply installed/frozen native-consumer gates as required by AGENTS.md; reuse
@@ -329,7 +449,9 @@ stop and report the smallest contradiction; do not implement a new architecture.
 **Original first handoff (completed):** stage 1 only, on model Sol (`gpt-5.6-sol`) with High reasoning,
 as requested by the owner. Provide AGENTS.md, this plan's scope/ownership and stage 1,
 and the referenced minimal example/authoring guide; no full roadmap history needed.
-Stages 1-3 are accepted. The next handoff is Stage 4 only, using its existing
-scope above. No new general architecture plan is required. The owner's separate
-closure instruction authorizes the Stage 3 commit/push and preparation of that
-handoff; it does not implement Stage 4 or accept the overall PY-DX-01 iteration.
+Stages 1-3 are accepted. Preserve the scoped Stage 4 handoff; do not silently
+expand an assigned implementation. The next delivery handoff is Stage 4B after accepted Stage 4A,
+followed by 4C, as specified in the SDK authoring journey. Final acceptance
+requires the whole installed-SDK journey, not only repository tooling tests.
+This documentation update does not start another task, implement a new stage,
+authorize commit/push or accept the overall PY-DX-01 iteration.

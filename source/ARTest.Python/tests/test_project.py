@@ -1086,7 +1086,7 @@ class ProjectTests(unittest.TestCase):
             python = Path("C:/Python 313/python.exe")
             observed = project._run_python_probe(python)
         command = popen.call_args.args[0]
-        self.assertEqual(command[:4], [str(python), "-I", "-S", "-c"])
+        self.assertEqual(command[:5], [str(python), "-I", "-B", "-S", "-c"])
         self.assertFalse(popen.call_args.kwargs["shell"])
         self.assertEqual(observed, self.supported_probe())
 

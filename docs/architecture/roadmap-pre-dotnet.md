@@ -1,7 +1,8 @@
 # ARTestCLI pre-.NET roadmap
 
 Status: approved planning decision, 2026-09-13. PY-DX-01 Stages 1-3 are accepted;
-Stages 4-5 remain pending. This closure does not implement Stage 4.
+Stage 4A is accepted; Stages 4, 4B, 4C and 5 remain pending. The 2026-09-15 journey adds
+mandatory delivery gates 4A/4B/4C before Stage 5. Stage 4B is the next delivery unit.
 This file is the canonical ARTestCLI sequencing record after C-02. Earlier
 cross-project planning in ARTestStudio is historical for this sequencing decision;
 it does not override this record. Historical D-stage identifiers are unchanged.
@@ -20,7 +21,10 @@ The owner approved **PY-DX-01 — Python Developer Experience: create, prepare a
 run** before C-03. This is Python authoring tooling over existing mechanisms,
 not a new runtime architecture, a contract revision or a multi-language platform.
 See the [execution plan](../planning/py-dx-01-execution-plan.md) for its complete
-scope, staged acceptance and first implementable unit.
+scope and staged acceptance. The [SDK authoring journey](../planning/sdk-authoring-journey.md)
+records the install -> create -> edit -> build -> register outcome and the new
+extracted-kit, guided-authoring and installation-registration gates. C++ parity
+reuses its existing SDK; C# remains deferred to .NET.
 
 ## Mandatory order
 
@@ -28,7 +32,7 @@ scope, staged acceptance and first implementable unit.
 | --- | --- | --- |
 | 1 | C-01: external-effect uncertainty | Completed prerequisite; preserve its result semantics |
 | 2 | C-02: bounded TCP SDK example | ACCEPTED and closed; see the [checkpoint](checkpoint-c02-tcp-hello.md) |
-| 3 | PY-DX-01: Python Developer Experience: create, prepare and run | Stages 1-3 accepted; Stage 4 is next within the approved plan; overall iteration not yet accepted |
+| 3 | PY-DX-01: Python Developer Experience: create, prepare and run | Stages 1-3 and 4A accepted; Stage 4B next; Stage 4, 4C and 5 pending |
 | 4 | C-03: cleanup, recovery and unconfirmed physical state | Pending; mandatory before .NET |
 | 5 | C-04: minimal modular instrument scenario | Pending; depends on C-03 and remains mandatory before .NET |
 | 6 | D4.3: .NET runtime parity | Not authorized by this decision; requires the preceding gates and a separate start decision |
@@ -38,6 +42,17 @@ scope, staged acceptance and first implementable unit.
 PY-DX-01 does not absorb C-03 or C-04 and does not claim their acceptance.
 C-01..C-04 remain the pre-.NET consolidation gates; this decision adds PY-DX-01
 to the required sequence. Completion of a tooling stage does not advance a phase.
+
+## Delivery sequencing added on 2026-09-15
+
+Stage 4 keeps its scoped run orchestration. New Stage 4A packages the development
+kit; 4B depends on 4A and supplies guided create/build; 4C depends on 4B and supplies
+registration with a selected installation. 4A may proceed independently of Stage
+4 and is the first new delivery unit. Stage 5 waits for Stage 4 and all three new
+gates, including a first-use exercise and installed-target verification.
+This is an explicit extension of the original repository-oriented authoring scope,
+not retroactive failure of accepted Stages 1-3 or authorization of .NET. It does
+not create a multi-language runtime or waive the following C-03/C-04 gates.
 
 ## Preserve the remaining checkpoints
 
