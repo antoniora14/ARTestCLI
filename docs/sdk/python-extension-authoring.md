@@ -1,5 +1,9 @@
 # Develop Python commands and Instrument Drivers
 
+For the normal extracted-kit workflow that generates IDs and local configuration,
+follow the [development-kit guide](development-kit.md). The commands below remain
+the supported low-level authoring path and do not require the guided wrapper.
+
 D4.2 supports standard GIL-enabled CPython 3.13 x64 on Windows. Python 3.7 and
 free-threaded builds are unsupported. The Python SDK is experimental 0.2.0;
 native SDK 0.4.0, native ABI 0.2 and Engine API 0.4 remain experimental.

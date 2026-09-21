@@ -76,9 +76,15 @@ unless the user explicitly requests them.
 ## Maintenance guidance
 
 - Current sequencing is recorded in docs/architecture/roadmap-pre-dotnet.md.
-  C-02 is accepted and closed. The approved next work is PY-DX-01, Python
-  Developer Experience: create, prepare and run, before mandatory C-03 and C-04.
-  Read docs/planning/py-dx-01-execution-plan.md before implementing that tooling.
+  C-02 and PY-DX-01 (Stages 1-5 and 4A-4C) are accepted and closed.
+  Read docs/architecture/py-dx-01-closure.md for evidence and owner-approved
+  deferrals. Preserve the accepted tooling; C-03 and C-04 remain mandatory
+  before .NET and require a separate implementation handoff. ARTestDev.exe is
+  a proposed GUI, not an approved implementation stage or replacement runtime.
+  Use docs/sdk/development-kit.md as the current authoring entry point.
+  Use Test plan or Test script in new user-facing prose; preserve existing IDs,
+  file names and CLI contracts. Read docs/planning/py-dx-01-execution-plan.md
+  before changing this tooling.
   The 2026-09-15 SDK authoring journey adds delivery gates 4A/4B/4C before final
   acceptance; read docs/planning/sdk-authoring-journey.md. Python/C++ use existing
   tooling paths; C# remains unavailable until the .NET gates. No Engine contract

@@ -1,8 +1,9 @@
 # ARTestCLI pre-.NET roadmap
 
-Status: approved planning decision, 2026-09-13. PY-DX-01 Stages 1-3 and 4A-4C are
-accepted; Stages 4 and 5 remain pending. The 2026-09-15 journey adds mandatory
-delivery gates 4A/4B/4C before Stage 5. Stage 4 is the current delivery unit.
+Status: PY-DX-01 Stages 1-5 and 4A-4C are ACCEPTED and closed after automated
+and human review with owner-approved deferrals. See [closure](py-dx-01-closure.md).
+C-03 and C-04 remain mandatory before .NET; no next implementation is started.
+ARTestDev.exe is a proposed GUI requiring its own scoped decision.
 This file is the canonical ARTestCLI sequencing record after C-02. Earlier
 cross-project planning in ARTestStudio is historical for this sequencing decision;
 it does not override this record. Historical D-stage identifiers are unchanged.
@@ -11,8 +12,7 @@ it does not override this record. Historical D-stage identifiers are unchanged.
 
 C-02 is **ACCEPTED and closed**, committed in
 `3ca474ee0f10fc2a3d238a244b4a1c71fc0a24c6` and pushed according to the owner's
-closure confirmation. The inspected branch is `main`; its local upstream
-reference matches that commit. The dedicated acceptance was executed against
+closure confirmation. At the C-02 closure, branch `main` and its upstream matched that commit. The dedicated acceptance was executed against
 source candidate
 `20d3bb6b160ab7f6921fefc45219b7db6c670a3dc5381586d75b7cdb7708aa1c`,
 before the commit was created. Candidate identity is not a Git commit hash.
@@ -32,7 +32,7 @@ reuses its existing SDK; C# remains deferred to .NET.
 | --- | --- | --- |
 | 1 | C-01: external-effect uncertainty | Completed prerequisite; preserve its result semantics |
 | 2 | C-02: bounded TCP SDK example | ACCEPTED and closed; see the [checkpoint](checkpoint-c02-tcp-hello.md) |
-| 3 | PY-DX-01: Python Developer Experience: create, prepare and run | Stages 1-3 and 4A-4C accepted; Stage 4 and 5 pending |
+| 3 | PY-DX-01: Python Developer Experience: create, prepare and run | ACCEPTED and closed; see the closure record |
 | 4 | C-03: cleanup, recovery and unconfirmed physical state | Pending; mandatory before .NET |
 | 5 | C-04: minimal modular instrument scenario | Pending; depends on C-03 and remains mandatory before .NET |
 | 6 | D4.3: .NET runtime parity | Not authorized by this decision; requires the preceding gates and a separate start decision |

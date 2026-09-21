@@ -155,7 +155,11 @@ return Result.verdict(
 
 This is an excerpt from an execute method. The [complete simulated extension](source/ARTest.Python/examples/simulated/extension.py) shows registration, parameter declarations, service calls, and driver shutdown.
 
-Start with the [Python authoring guide](docs/sdk/python-extension-authoring.md). Use cooperative waits and bounded vendor I/O; do not detach hardware work or retain a call's Context.
+Start with the [development-kit workflow](docs/sdk/development-kit.md) for the
+guided create/edit/build/register/run journey, or the
+[Python authoring guide](docs/sdk/python-extension-authoring.md) for the API and
+low-level commands. Use cooperative waits and bounded vendor I/O; do not detach
+hardware work or retain a call's Context.
 
 ## How the pieces fit
 

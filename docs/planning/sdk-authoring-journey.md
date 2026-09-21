@@ -5,6 +5,10 @@ This document translates the owner's flow diagram into acceptance requirements.
 It changes delivery/authoring scope, not Engine architecture. No feature in this
 document is claimed as implemented merely by recording this decision.
 
+Implementation status: Stages 1-5 and 4A-4C are accepted and PY-DX-01 is closed.
+The observed first-use exercise passed with assistance and documented deviations;
+see [closure and deferrals](../architecture/py-dx-01-closure.md).
+
 ## User outcome
 
 An engineer who does not know the repository must be able to:
@@ -18,8 +22,7 @@ A successful registration makes the extension discoverable by the selected
 installation's configured catalog. Running a test is a separate explicit action;
 registration must not initialize hardware or execute the example measurement.
 
-Proposed entry point, to be implemented and tested rather than documented as
-already available: `artest.ps1 new|build|register|run`. It lives at the SDK root
+The implemented entry point is `artest.ps1 new|build|register|run`. It lives at the SDK root
 and locates bundled tools relative to itself. An interactive console wizard is
 sufficient; a GUI is not required. Arguments provide an equivalent repeatable path.
 
@@ -77,14 +80,13 @@ is available until a real release artifact exists.
 | Edit code | Python and C++ examples exist | Stage 4B: clear edit points and minimal runnable example; no prerequisite knowledge of internal JSON |
 | Build | Native build and Python Stage 3 preparation exist | Stage 4B: one build entry point; preserve IDE builds and low-level tools |
 | Integrate with ARTest | Python associations exist within a development project | Stage 4C: explicit installation target, safe publication and discovery through that target |
-| Optionally execute/check behavior | Stage 4 is planned | Keep Stage 4 and reuse its run orchestration from the installed SDK |
+| Optionally execute/check behavior | Stage 4 is accepted | Reuse its run orchestration from the installed SDK in Stage 5 acceptance |
 
-Stages 1-3 and 4A-4C are accepted. Stage 4 retains its original execution scope.
+Stages 1-4 and 4A-4C are accepted. Stage 4 retained its original execution scope.
 Stages 4A, 4B and 4C are additional required delivery gates before Stage 5 acceptance;
 their identifiers do not rename completed work. 4A can be implemented independently
 of Stage 4; 4B depends on 4A, 4C depends on 4B, and final acceptance depends on all
-four. Do not expand a Developer's existing Stage 4 assignment without a scoped
-handoff. Stage 4 is the current delivery unit.
+four. These gates are now closed; ARTestDev.exe remains a separately scoped proposal.
 
 ## Registration semantics
 

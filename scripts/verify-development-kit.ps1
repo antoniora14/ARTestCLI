@@ -9,6 +9,7 @@ $required = @(
     'authoring.ps1',
     'registration.ps1',
     'README.md',
+    'FIRST_USE.md',
     'THIRD_PARTY_NOTICES.md',
     'development-kit-version.json'
 )
@@ -43,7 +44,8 @@ foreach ($path in @(
         (Join-Path $repositoryRoot 'scripts\test-development-kit.ps1'),
         (Join-Path $repositoryRoot 'scripts\test-development-kit-stage4b.ps1'),
         (Join-Path $repositoryRoot 'scripts\test-development-kit-stage4c.ps1'),
-        (Join-Path $repositoryRoot 'scripts\test-python-project-stage4.ps1'))) {
+        (Join-Path $repositoryRoot 'scripts\test-python-project-stage4.ps1'),
+        (Join-Path $repositoryRoot 'scripts\test-py-dx-01-stage5.ps1'))) {
     $tokens = $null
     $errors = $null
     $null = [Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
@@ -128,4 +130,22 @@ if (-not (Test-Path -LiteralPath (Join-Path $repositoryRoot 'scripts\test-stage4
     throw 'The Stage 4 real cancellation launcher is missing.'
 }
 
-Write-Host 'PY-DX-01 Stage 4A/4B/4C/4 development-kit source verification: PASSED'
+$firstUseText = Get-Content -LiteralPath (Join-Path $sourceRoot 'FIRST_USE.md') -Raw
+foreach ($requiredCoverage in @(
+        'Do not open an ARTest source checkout', 'Do not use a global Python',
+        '--mode registered', 'Test plan', 'extension-run', 'intervention')) {
+    if ($firstUseText -notmatch [regex]::Escape($requiredCoverage)) {
+        throw "The Stage 5 first-use guide is missing required coverage: $requiredCoverage"
+    }
+}
+$stage5Test = Get-Content -LiteralPath (Join-Path $repositoryRoot 'scripts\test-py-dx-01-stage5.ps1') -Raw
+foreach ($requiredCoverage in @(
+        'stage4-provenance-applicability', 'no-global-python-visible',
+        'frozen-native-consumer', 'low-level-python-prepare',
+        'sourcePathsUnavailable', 'detached-cpp-native-run', 'humanExercise')) {
+    if ($stage5Test -notmatch [regex]::Escape($requiredCoverage)) {
+        throw "The Stage 5 acceptance harness is missing required coverage: $requiredCoverage"
+    }
+}
+
+Write-Host 'PY-DX-01 Stage 4A/4B/4C/4/5 development-kit source verification: PASSED'

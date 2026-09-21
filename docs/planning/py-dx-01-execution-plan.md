@@ -1,8 +1,10 @@
 # PY-DX-01 execution plan
 
 Official name: **PY-DX-01 — Python Developer Experience: create, prepare and run**.
-Status: initial scope approved by the owner on 2026-09-13; Stages 1-3 accepted
-after Architect review. Stages 4A, 4B and 4C are also accepted; Stages 4 and 5 remain pending. The owner-requested flow update
+Status: initial scope approved by the owner on 2026-09-13; Stages 1-4 accepted
+after Architect review. Stages 4A-4C and Stage 5 are also accepted. Overall
+PY-DX-01 is closed with the owner-approved deferrals in
+[the closure record](../architecture/py-dx-01-closure.md). The owner-requested flow update
 on 2026-09-15 adds mandatory delivery stages 4A/4B/4C before Stage 5.
 Position: after accepted C-02, before mandatory C-03 and C-04; no .NET work.
 Authority: [current roadmap](../architecture/roadmap-pre-dotnet.md) and
@@ -62,7 +64,7 @@ Inspect these implementation entry points before changing tooling:
 Proposed new ownership is `source/ARTest.Python/tools/project.py`, a minimal
 `source/ARTest.Python/templates/minimal/` template and focused project-tool tests.
 Stages 1-3 have delivered creation, structural/prerequisite checks and verified
-preparation in these paths; execution and the SDK-level delivery flow are pending. Keep new logic
+preparation in these paths; execution and SDK delivery were subsequently accepted. Keep new logic
 there; extract a small helper only when this implementation actually needs one.
 The existing C++ CLI, Engine, Core, SDK runtime API, broker, supervisor and worker
 need no feature changes. Packaging integration may need a small private helper;
@@ -83,7 +85,7 @@ that is not offline Engine compilation and must not open hardware.
 
 ## Small, verifiable implementation stages
 
-Stages 1-3, 4A, 4B and 4C are accepted; Stage 4 and Stage 5 remain pending.
+Stages 1-5 and 4A-4C are accepted. Stage descriptions below retain their original acceptance requirements; final disposition is recorded in the closure record.
 4A may proceed independently of Stage 4; 4B depends on 4A, 4C depends on 4B,
 and Stage 5 requires all four. Accept each unit before expanding
 into the next.
@@ -246,7 +248,7 @@ The Architect reproduced 57 tests: 55 passed and 2 admissible WinError 1314
 symlink skips. Matching Debug/Release XML reports show 242 enabled tests per
 configuration, no failures/errors and 31 disabled tests. The previous defective
 candidate evidence was preserved; it is not acceptance evidence for this closure.
-Stage 4 and overall PY-DX-01 acceptance remain pending.
+At Stage 3 closure, Stage 4 and overall acceptance were still pending; see the final closure record for current status.
 
 ### 4. Prepare, offline validate and execute from the project
 
@@ -282,6 +284,14 @@ Use simulated/fault fixtures and existing runtime tests; no physical device requ
 
 **Do not touch:** CLI command contracts, Core execution policy, broker/supervisor/
 worker, active sessions, retry rules, IPC or C-03 recovery behavior.
+
+Stage 4 closure: `PY-DX-01 STAGE 4 ACCEPTED` at
+`8b8427ff04167990012ba5bb855fccffa5fcf694`. Evidence:
+`artifacts/acceptance/py-dx-01/stage4-candidate/20260920T211457Z-30284d3a/`.
+The 20/20 execution cases passed, including Debug/Release, exact reuse, edited
+source regeneration, cross-package sources/registered modes, real cancellation,
+and single-attempt indeterminate-effect propagation. Stage 5 and overall
+acceptance were subsequently completed; see the final closure record.
 
 ### 4A. Installable SDK development kit
 
@@ -319,7 +329,7 @@ The external Python flow passed with all 408 Git-visible checkout files locked
 and a confirmed sharing-violation probe; the extracted native SDK consumer built
 and activated with the candidate CLI/Engine. A real junction was rejected.
 Source, report and artifact hashes are recorded in the evidence provenance.
-Only Stage 4A is accepted; Stage 4B is the next delivery unit. This closure does
+At that historical closure, only Stage 4A was accepted and Stage 4B was next. This closure does
 not accept Stage 4 execution, 4C registration, Stage 5 or authorize .NET.
 
 ### 4B. Guided create and build from the SDK
@@ -361,7 +371,7 @@ Python and C++ command-only starters use the unchanged native driver's contract
 and operation, with real interoperability producing 42 * 2 = 84.
 The accepted development-kit 0.2.0 ZIP SHA-256 is
 `340a243d4ea622d5175d517cfe02873a012bc9f7fb7671b88dd4a0df7c2b9928`.
-Only new/build is accepted. Stage 4C registration is the next delivery unit;
+At that historical closure, only new/build was accepted and Stage 4C was next;
 Stage 4 execution, Stage 5 and .NET remain outside this closure.
 
 ### 4C. Register with the selected ARTest installation
@@ -465,9 +475,8 @@ stop and report the smallest contradiction; do not implement a new architecture.
 **Original first handoff (completed):** stage 1 only, on model Sol (`gpt-5.6-sol`) with High reasoning,
 as requested by the owner. Provide AGENTS.md, this plan's scope/ownership and stage 1,
 and the referenced minimal example/authoring guide; no full roadmap history needed.
-Stages 1-3 and 4A-4C are accepted. Preserve the scoped Stage 4 handoff; do not silently
-expand an assigned implementation. Stage 4 is the current delivery handoff.
+Stages 1-5 and 4A-4C are accepted. There is no remaining PY-DX-01 implementation handoff; follow the final closure record for deferrals.
 Final acceptance
 requires the whole installed-SDK journey, not only repository tooling tests.
-This documentation update does not start another task, implement a new stage,
-authorize commit/push or accept the overall PY-DX-01 iteration.
+Final acceptance is recorded in the closure document. This record does not
+start another task or authorize a subsequent implementation stage.

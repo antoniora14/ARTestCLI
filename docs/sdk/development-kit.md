@@ -1,10 +1,47 @@
-# ARTest development kit (PY-DX-01 Stages 4A, 4B, 4C and 4)
+# ARTest development kit (PY-DX-01 Stages 4A, 4B, 4C, 4 and 5)
 
 Stage 4A produced the inventory-checked Windows x64 evaluation kit. Stage 4 adds
 explicit Python Test plan execution to the accepted installation-scoped `new`,
 `build`, and `register` flow without a
 repository checkout, internal IDs, a global Python installation, or downloads.
 It reuses the native SDK distribution and accepted Python Stages 1-3 tools.
+The extracted kit includes `FIRST_USE.md`, the short Stage 5 exercise for a new
+engineer. Stage 5 and PY-DX-01 are accepted with documented usability deferrals;
+see [the closure record](../architecture/py-dx-01-closure.md).
+
+## Start here: accepted SDK and authoring guide
+
+This is the canonical current guide for the Python/C++ developer workflow.
+Use `FIRST_USE.md` inside the extracted ZIP for the step-by-step starter exercise,
+then the API guides for real driver/command logic: [Python](python-extension-authoring.md)
+and [C++](extension-authoring.md).
+
+The tested local artifact is:
+
+```text
+artifacts/acceptance/py-dx-01/stage5-candidate/20260921T004123Z-9c977c49/ARTestDevelopmentKit-0.4.0-evaluation-windows-x64.zip
+SHA-256: 3f14011c33511e7b4bd78588573eea29dd2b44da1c98b0cb9bca9b01c7bc989b
+```
+
+Send that complete ZIP to the developer. It is not committed to Git or published
+as a release; cloning the repository does not download it. The archived ZIP and
+its original evidence remain immutable; pending labels inside it are historical.
+
+First-use clarifications from human observation:
+
+- Open PowerShell 7 (`pwsh`), not Windows PowerShell 5.1. Installation is separate;
+  the current kit does not provide an early compatible-shell diagnostic.
+- Choose short working and target paths. `$env:TEMP` in the exercise is only
+  the current directory, to verify independence from the project directory.
+- In Python, edit the result-message occurrence of `Minimum simulated value check`
+  in the command implementation, not the description in `Extension(...)`.
+- In the C++ driver-command starter, edit `ReadValueCommand.h` for command behavior
+  and `SimulatedValueSource.h` for driver behavior. `Extension.cpp` defines metadata;
+  the current `new` edit hint points there.
+- Python build reports preparation reuse. C++ build need not return a `reused`
+  field; repeated registration has its own reuse result.
+
+These clarifications do not change the accepted kit or its contracts.
 
 ## Build the local candidate
 
@@ -208,8 +245,9 @@ preparation identities, commands, logs, and preservation checks under
 
 ## Boundary and redistribution status
 
-This implements the Stage 4 candidate over accepted Stages 4A, 4B, and 4C. It
-does not implement Stage 5 acceptance. Existing C++ consumers continue to use the unchanged nested native
+This implements the accepted Stage 4 flow over accepted Stages 4A, 4B, and 4C
+and supplies the Stage 5 acceptance guide. Stage 5 and overall PY-DX-01 are
+accepted with the owner-approved deferrals recorded in the closure document. Existing C++ consumers continue to use the unchanged nested native
 SDK and v145 toolchain. C# remains unavailable.
 
 The artifact is for local evaluation, not a public release. Review

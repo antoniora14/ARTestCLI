@@ -179,6 +179,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'authoring.ps1') -Destination (Join-Path $stagingRoot 'authoring.ps1')
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'registration.ps1') -Destination (Join-Path $stagingRoot 'registration.ps1')
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'README.md') -Destination (Join-Path $stagingRoot 'README.md')
+    Copy-Item -LiteralPath (Join-Path $sourceRoot 'FIRST_USE.md') -Destination (Join-Path $stagingRoot 'FIRST_USE.md')
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'THIRD_PARTY_NOTICES.md') -Destination (Join-Path $stagingRoot 'THIRD_PARTY_NOTICES.md')
     Copy-Item -LiteralPath $kitVersionSource -Destination (Join-Path $stagingRoot 'development-kit-version.json')
 

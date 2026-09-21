@@ -1,6 +1,6 @@
 # ARTest development kit 0.4.0 (evaluation)
 
-This extracted Windows x64 kit is the PY-DX-01 Stage 4 candidate.
+This extracted Windows x64 kit is the PY-DX-01 Stage 5 acceptance candidate.
 It contains independent component versions: native SDK 0.4.0, Python SDK 0.2.0,
 a compatible private standard CPython 3.13 x64 GIL runtime, pinned example wheels,
 and a matching Release CLI/Engine evaluation runtime.
@@ -9,6 +9,10 @@ From any current directory, verify the complete inventory and the private
 `venv`/`pip` capability:
 
     & 'D:\SDK path\artest.ps1' verify
+
+For the shortest complete first-use exercise, follow `FIRST_USE.md`. It covers
+Python and C++ create, edit, build, register, and explicit simulated Test plan
+execution without requiring knowledge of internal IDs or deployment files.
 
 Create and build a starter without a repository or internal IDs. The normal
 non-interactive flow needs only name, parent folder, and language:
@@ -78,7 +82,10 @@ through without automatic retry.
 Failed checks, preparation, or compile never start execution.
 
 This candidate provides explicit Stage 4 Python Test plan execution over accepted
-`new`, `build`, and `register`. It does not provide Stage 5 acceptance. The nested native
+`new`, `build`, and `register`. Stage 5 and PY-DX-01 are accepted with
+owner-approved usability deferrals. In the repository, see
+`docs/architecture/py-dx-01-closure.md` and the current authoring entry point
+`docs/sdk/development-kit.md`. The preserved tested ZIP is unchanged. The nested native
 SDK remains available at `native-sdk`; existing low-level consumers remain
 independent of Python.
 
