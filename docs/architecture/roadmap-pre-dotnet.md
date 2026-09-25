@@ -2,8 +2,8 @@
 
 Status: PY-DX-01 Stages 1-5 and 4A-4C are ACCEPTED and closed after automated
 and human review with owner-approved deferrals. See [closure](py-dx-01-closure.md).
-C-03 and C-04 remain mandatory before .NET; no next implementation is started.
-ARTestDev.exe is a proposed GUI requiring its own scoped decision.
+DEV-01 (ARTestDev) is the next scoped roadmap, formalized on 2026-09-21.
+C-03 and C-04 remain mandatory before .NET; DEV-01.4-A now precedes DEV-01.5.
 This file is the canonical ARTestCLI sequencing record after C-02. Earlier
 cross-project planning in ARTestStudio is historical for this sequencing decision;
 it does not override this record. Historical D-stage identifiers are unchanged.
@@ -26,6 +26,30 @@ records the install -> create -> edit -> build -> register outcome and the new
 extracted-kit, guided-authoring and installation-registration gates. C++ parity
 reuses its existing SDK; C# remains deferred to .NET.
 
+The owner requested a basic graphical authoring journey without the repeated
+PowerShell steps. **DEV-01 — ARTestDev: graphical extension development** is now
+inserted after PY-DX-01 and before C-03. Read its
+[scope and technology decision](artestdev-initial-scope.md) and
+[delivery roadmap](../planning/artestdev-roadmap.md). DEV-01.1/01.2/01.2-A/01.3/01.4
+are ACCEPTED. DEV-01.4-A (incremental native builds and bounded retention) was
+accepted on 2026-09-25 after its selective-recompilation correction.
+DEV-01.5 is next; DEV-01.5–01.7 are not started here.
+The owner subsequently required separate authoring SDKs/projects and an independently
+selected ARTest installation. The [scope amendment](artestdev-initial-scope.md)
+replaces the proposed bundled evaluation target for new DEV-01 distribution;
+it leaves the accepted PY-DX-01 artifact and its inventory unchanged.
+The latest owner diagram sets Welcome -> form -> Generate -> Edit -> Integrate
+as the GUI journey. C++ builds in Visual Studio; Python prepares inside Integrate.
+Only ARTestCLI is an operational destination. Integrate to ARTestStudio remains
+a disabled future menu item, with no dependency on unfinished Studio integration.
+The seven main delivery stages are retained, with DEV-01.4-A inserted; optional
+Test plan execution stays separate. The latest owner requirements remove the
+bundled Python runtime, allow SDK installation on a chosen drive/folder, suggest
+C:\Users\Public\ArtestDev as an editable workspace and require detection plus
+manual setup messages for missing Python/Visual Studio/components. No dependency
+download or installation assistant is included. The SDK's own installer belongs
+to DEV-01.7. This does not authorize D5 or alter C-03/C-04.
+
 ## Mandatory order
 
 | Order | Work | Current disposition |
@@ -33,15 +57,18 @@ reuses its existing SDK; C# remains deferred to .NET.
 | 1 | C-01: external-effect uncertainty | Completed prerequisite; preserve its result semantics |
 | 2 | C-02: bounded TCP SDK example | ACCEPTED and closed; see the [checkpoint](checkpoint-c02-tcp-hello.md) |
 | 3 | PY-DX-01: Python Developer Experience: create, prepare and run | ACCEPTED and closed; see the closure record |
-| 4 | C-03: cleanup, recovery and unconfirmed physical state | Pending; mandatory before .NET |
-| 5 | C-04: minimal modular instrument scenario | Pending; depends on C-03 and remains mandatory before .NET |
-| 6 | D4.3: .NET runtime parity | Not authorized by this decision; requires the preceding gates and a separate start decision |
-| 7 | D4.4: deployment, compatibility, resource soak and measured performance | Subsequent acceptance work |
-| 8 | D5: Studio integration | Subsequent work with its own integration gates |
+| 4 | DEV-01: ARTestDev graphical extension development | DEV-01.1/01.2/01.2-A/01.3/01.4/01.4-A ACCEPTED; DEV-01.5 and later stages pending |
+| 5 | C-03: cleanup, recovery and unconfirmed physical state | Pending; mandatory before .NET |
+| 6 | C-04: minimal modular instrument scenario | Pending; depends on C-03 and remains mandatory before .NET |
+| 7 | D4.3: .NET runtime parity | Not authorized by this decision; requires the preceding gates and a separate start decision |
+| 8 | D4.4: deployment, compatibility, resource soak and measured performance | Subsequent acceptance work |
+| 9 | D5: Studio integration | Subsequent work with its own integration gates |
 
-PY-DX-01 does not absorb C-03 or C-04 and does not claim their acceptance.
-C-01..C-04 remain the pre-.NET consolidation gates; this decision adds PY-DX-01
-to the required sequence. Completion of a tooling stage does not advance a phase.
+PY-DX-01 and DEV-01 do not absorb C-03 or C-04 or claim their acceptance.
+C-01..C-04 remain the pre-.NET consolidation gates; the tooling priorities add
+PY-DX-01 and DEV-01 to the sequence. Completion of a tooling stage does not
+authorize the next phase. DEV-01 uses CLI subprocesses, not Studio/Engine API
+subscriptions, and does not satisfy or waive C-06 for its existing scope.
 
 ## Delivery sequencing added on 2026-09-15
 
@@ -80,7 +107,7 @@ C-07 does not declare ABI 1.0. This decision does not initiate any of these item
 
 ## Known incidents and parallel work
 
-| Item | Disposition for PY-DX-01 |
+| Item | Disposition for subsequent authoring work |
 | --- | --- |
 | Python Debug/Release timeout | Closed: `TIMEOUT CLOSURE ACCEPTED`. Do not reopen without a concrete regression. Preserve eager activation, integrity and `Wait(30000)`. |
 | `ARTESTPKG015` | Separate, nonblocking publication incident. A sharing-violation mechanism was reproduced; exact attribution of the historical failure remains unproven because its original log is unavailable. Do not claim the build graph was repaired. If current tooling validation encounters it, preserve the log and report the affected gate; graph repair needs separate scope. |
@@ -100,4 +127,5 @@ replace those records.
 
 The [PicoScope developer-experience feedback](python-extension-developer-experience-feedback.md)
 is a historical input, now located in ARTestCLI. Its original proposals are not
-all approved features. The scope in the execution plan governs this iteration.
+all approved features. The PY-DX-01 execution plan governs its closed iteration; the DEV-01 scope
+and delivery roadmap govern the new GUI work.

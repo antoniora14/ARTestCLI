@@ -1,0 +1,4 @@
+# Local development dependencies and CMake/Visual Studio output.
+/Qt/
+/downloads/
+/build/

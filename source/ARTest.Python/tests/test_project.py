@@ -47,6 +47,43 @@ class ProjectTests(unittest.TestCase):
     def portable_value(self, root):
         return json.loads((root / project.CONFIG_NAME).read_text(encoding="utf-8"))
 
+    def test_private_preparation_loader_does_not_relax_public_cli_contract(self):
+        root = self.create("private preparation configuration")
+        python = self.root / "selected python.exe"
+        wheel = self.root / "installed sdk.whl"
+        portable = (root / project.CONFIG_NAME).read_bytes()
+        local = {"schemaVersion": 1, "vendorPaths": {"vendor": "vendor/library.dll"},
+                 "vendorDlls": ["vendor"], "planBindings": []}
+        self.write_local(root, local)
+        original = (root / project.LOCAL_CONFIG_NAME).read_bytes()
+        with self.assertRaises(project.ProjectError):
+            project.load_project(root)
+        loaded = project._load_project(root, preparation=(python, wheel))
+        self.assertEqual(loaded.local.python, python.resolve())
+        self.assertEqual(loaded.local.sdk_wheel, wheel.resolve())
+        self.assertIsNone(loaded.local.cli_executable)
+        self.assertEqual(loaded.local.vendor_paths["vendor"], (root / "vendor/library.dll").resolve())
+        self.assertEqual(loaded.local.vendor_dlls, frozenset({"vendor"}))
+        self.assertEqual((root / project.LOCAL_CONFIG_NAME).read_bytes(), original)
+        self.assertEqual((root / project.CONFIG_NAME).read_bytes(), portable)
+        local.update(python="old/python.exe", sdkWheel="old/sdk.whl", cliExecutable="old/ARTestCLI.exe")
+        self.write_local(root, local)
+        original = (root / project.LOCAL_CONFIG_NAME).read_bytes()
+        loaded = project._load_project(root, preparation=(python, wheel))
+        self.assertEqual(loaded.local.cli_executable, (root / "old/ARTestCLI.exe").resolve())
+        self.assertEqual((root / project.LOCAL_CONFIG_NAME).read_bytes(), original)
+        self.assertEqual(project.load_project(root).local.python, (root / "old/python.exe").resolve())
+
+    def test_private_preparation_loader_preserves_local_validation(self):
+        root = self.create("private invalid configuration")
+        for local in ({"schemaVersion": 2}, {"schemaVersion": 1, "foreign": True},
+                      {"schemaVersion": 1, "vendorDlls": ["unknown"]}):
+            self.write_local(root, local)
+            original = (root / project.LOCAL_CONFIG_NAME).read_bytes()
+            with self.assertRaises(project.ProjectError):
+                project._load_project(root, preparation=(self.root / "python.exe", self.root / "sdk.whl"))
+            self.assertEqual((root / project.LOCAL_CONFIG_NAME).read_bytes(), original)
+
     def write_portable(self, root, value):
         (root / project.CONFIG_NAME).write_text(
             json.dumps(value, indent=2) + "\n", encoding="utf-8"

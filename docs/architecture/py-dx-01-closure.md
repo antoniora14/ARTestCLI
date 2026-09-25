@@ -49,8 +49,11 @@ See [current authoring guidance](../sdk/development-kit.md) for practical clarif
 
 ## Next-work boundary
 
-ARTestDev.exe is a proposed GUI, not an implemented or approved delivery stage.
-A separate scoped decision must define its relation to the roadmap. A GUI which
-calls PowerShell scripts still depends on PowerShell. C-03 and C-04 remain
-mandatory before .NET; this closure starts neither. No hardware qualification,
-Studio integration, public release, signing, feed or ABI freeze is implied.
+At this closure ARTestDev.exe remained a proposal requiring a separate scoped
+decision. The subsequent 2026-09-21 [DEV-01 decision](artestdev-initial-scope.md)
+and [roadmap](../planning/artestdev-roadmap.md) now formalize that work before C-03.
+They do not modify the accepted candidate or its owner-approved deferrals.
+A GUI calling PowerShell still depends on it; DEV-01 must remove that dependency
+from its new journey. C-03/C-04 remain mandatory before .NET. No hardware
+qualification, Studio integration, public release, signing, feed or ABI freeze
+is implied, and no DEV-01 implementation is claimed.

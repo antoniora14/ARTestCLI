@@ -79,8 +79,38 @@ unless the user explicitly requests them.
   C-02 and PY-DX-01 (Stages 1-5 and 4A-4C) are accepted and closed.
   Read docs/architecture/py-dx-01-closure.md for evidence and owner-approved
   deferrals. Preserve the accepted tooling; C-03 and C-04 remain mandatory
-  before .NET and require a separate implementation handoff. ARTestDev.exe is
-  a proposed GUI, not an approved implementation stage or replacement runtime.
+  before .NET and require a separate implementation handoff. DEV-01 now records
+  the scoped ARTestDev.exe GUI roadmap before C-03.
+  DEV-01.1/01.2/01.2-A/01.3/01.4/01.4-A are ACCEPTED. DEV-01.4-A was accepted
+  on 2026-09-25 after the selective native recompilation correction and bounded
+  retention gate. Read docs/sdk/artestdev-dev01-4.md. DEV-01.5 remains pending.
+  Always-Rebuild, repeated full-toolchain hashing and indefinite native output
+  retention are replaceable tooling policies, not runtime invariants. Preserve
+  content integrity, ownership and interrupted recovery. This closure does not
+  authorize starting DEV-01.5 or later stages.
+  Read docs/architecture/artestdev-initial-scope.md and
+  docs/planning/artestdev-roadmap.md. Use C++20/Qt Widgets and application-local
+  CMake. Keep orchestration outside Engine through existing CLI processes; the new
+  user journey must not invoke PowerShell, including native metadata publication.
+  Preserve legacy tooling and native-only independence from Python/.NET.
+  The owner amended DEV-01 distribution: keep the authoring SDK, extension projects
+  and selected ARTest installation separate. New kits/projects must not bundle the
+  ARTestCLI/Engine or Python runtime. Use a compatible machine-installed Python
+  for Python tooling. Preserve strict inventories of historical all-in-one
+  kits; distinguish missing target installation from SDK corruption. DEV-01.4 must
+  preserve Engine-backed package validation using the separate installation.
+  The owner's current GUI flow is Welcome -> form -> Generate -> Edit -> Integrate.
+  Edit opens an external Python IDE or Visual Studio; native IDE builds precede
+  integration, while Python preparation is internal to Integrate. Implement only
+  Integrate to ARTestCLI. Keep Integrate to ARTestStudio visible but disabled as
+  future work: no Studio discovery, adapter, writes or acceptance dependency.
+  Run Test plan remains secondary and explicit, never automatic on integration.
+  The form suggests C:\Users\Public\ArtestDev as workspace, with a user override.
+  New SDK installation may be on any chosen drive/folder and contains only authoring
+  resources plus mandatory ARTestDev tools/dependencies. DEV-01.7 includes the SDK's
+  own selectable-destination installation. Missing external prerequisites produce
+  manual setup diagnostics only: no downloads, package-manager calls or dependency
+  installers. This latest clarification supersedes the proposed install assistant.
   Use docs/sdk/development-kit.md as the current authoring entry point.
   Use Test plan or Test script in new user-facing prose; preserve existing IDs,
   file names and CLI contracts. Read docs/planning/py-dx-01-execution-plan.md
@@ -172,8 +202,10 @@ Read `docs/architecture/stage-d3-3c-sdk-distribution.md` and
 - Keep the starter free of Engine/Core linkage and handwritten ABI plumbing.
 - Reference migration is implemented separately in D3.3-B; preserve the
   independent installed-consumer gate during reference maintenance.
-- Do not claim ABI 1.0 or a public release. Licensing, signing, CMake and package
-  feeds remain explicit release-readiness work.
+- Do not claim ABI 1.0 or a public release. Licensing, signing, SDK-wide CMake
+  migration and package feeds remain explicit release-readiness work. DEV-01 permits
+  CMake only for ARTestDev and its private helpers/tests, not migration of the SDK
+  or Engine build. Its included Qt components require runtime files and notices.
 
 ## D3.3-B reference packages
 

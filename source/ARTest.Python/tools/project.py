@@ -382,6 +382,11 @@ def _local_plan_bindings(
 
 def load_project(project_root: Path | str) -> Project:
     """Read and structurally validate portable and optional local configuration."""
+    return _load_project(project_root)
+
+
+def _load_project(project_root, *, preparation=None):
+    """Private authoring adapter; injected preparation paths are never persisted."""
     supplied_root = Path(project_root)
     try:
         root = supplied_root.resolve(strict=True)
@@ -431,13 +436,18 @@ def load_project(project_root: Path | str) -> Project:
     local_path = root / LOCAL_CONFIG_NAME
     if _is_reparse_point(local_path):
         raise ProjectError(f"Local configuration cannot be a reparse point: {local_path}")
-    if not local_path.exists():
+    if not local_path.exists() and preparation is None:
         return Project(configuration=configuration, local=None)
-    local_value = _read_json_object(local_path)
+    local_value = _read_json_object(local_path) if local_path.exists() else {"schemaVersion": 1}
+    required = {"schemaVersion", "python", "sdkWheel", "cliExecutable"}
+    optional = {"vendorPaths", "vendorDlls", "planBindings"}
+    if preparation is not None:
+        optional |= required - {"schemaVersion"}
+        required = {"schemaVersion"}
     _validate_keys(
         local_value,
-        {"schemaVersion", "python", "sdkWheel", "cliExecutable"},
-        {"vendorPaths", "vendorDlls", "planBindings"},
+        required,
+        optional,
         local_path,
     )
     _validate_version(local_value["schemaVersion"], local_path)
@@ -462,9 +472,10 @@ def load_project(project_root: Path | str) -> Project:
         local_value.get("planBindings", []), vendor_paths, local_path
     )
     local = LocalConfiguration(
-        python=_local_path(root, local_value["python"], "python", local_path),
-        sdk_wheel=_local_path(root, local_value["sdkWheel"], "sdkWheel", local_path),
-        cli_executable=_local_path(root, local_value["cliExecutable"], "cliExecutable", local_path),
+        python=_local_path(root, str(preparation[0]) if preparation else local_value["python"], "python", local_path),
+        sdk_wheel=_local_path(root, str(preparation[1]) if preparation else local_value["sdkWheel"], "sdkWheel", local_path),
+        cli_executable=(_local_path(root, local_value["cliExecutable"], "cliExecutable", local_path)
+                        if "cliExecutable" in local_value else None),
         vendor_paths=vendor_paths,
         vendor_dlls=vendor_dlls,
         plan_bindings=plan_bindings,

@@ -9,6 +9,13 @@ The extracted kit includes `FIRST_USE.md`, the short Stage 5 exercise for a new
 engineer. Stage 5 and PY-DX-01 are accepted with documented usability deferrals;
 see [the closure record](../architecture/py-dx-01-closure.md).
 
+ARTestDev is planned separately in [DEV-01](../architecture/artestdev-initial-scope.md).
+It is not included in this accepted ZIP; the commands below remain the available
+workflow until the new graphical kit passes its own acceptance. The new DEV-01
+kit will exclude ARTestCLI/Engine and Python runtimes, use manually installed
+prerequisites and allow a selected SDK installation folder. These requirements do
+not describe or change the historical ZIP documented below.
+
 ## Start here: accepted SDK and authoring guide
 
 This is the canonical current guide for the Python/C++ developer workflow.

@@ -24,7 +24,10 @@ registration must not initialize hardware or execute the example measurement.
 
 The implemented entry point is `artest.ps1 new|build|register|run`. It lives at the SDK root
 and locates bundled tools relative to itself. An interactive console wizard is
-sufficient; a GUI is not required. Arguments provide an equivalent repeatable path.
+sufficient for the closed PY-DX-01 scope; a GUI was not required by that gate.
+Arguments provide an equivalent repeatable path. The subsequent
+[DEV-01 roadmap](artestdev-roadmap.md) adds a GUI with no PowerShell dependency
+for its new user journey, without retroactively changing this acceptance.
 
 The normal flow asks for name, folder and language. A driver+command example is
 the default; a driver-only or command-only choice may be offered without making
@@ -86,7 +89,8 @@ Stages 1-4 and 4A-4C are accepted. Stage 4 retained its original execution scope
 Stages 4A, 4B and 4C are additional required delivery gates before Stage 5 acceptance;
 their identifiers do not rename completed work. 4A can be implemented independently
 of Stage 4; 4B depends on 4A, 4C depends on 4B, and final acceptance depends on all
-four. These gates are now closed; ARTestDev.exe remains a separately scoped proposal.
+four. These gates are now closed; the separately scoped ARTestDev work is
+recorded in [DEV-01](../architecture/artestdev-initial-scope.md).
 
 ## Registration semantics
 

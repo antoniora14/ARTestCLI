@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Private DEV-01.4-A profile. Historical ARTestMetadata.targets is unchanged. -->
+  <PropertyGroup>
+    <ARTestDevNative>$([System.IO.Path]::GetFullPath('$(ARTestSDKRoot)\..\ARTestDevNative.exe'))</ARTestDevNative>
+    <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
+  </PropertyGroup>
+  <!-- Children import the standard MSVC targets without this wrapper. -->
+  <Target Name="_ARTestDevCheck">
+    <Error Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(MSBuildProjectFullPath)', '[$%;]'))" Text="MSBuild project paths must not contain $, % or ;." />
+    <Error Condition="!Exists('$(ARTestDevNative)')" Text="Repair the DEV-01.4 authoring SDK; native helper missing." />
+    <Error Condition="'$(Platform)'!='x64'" Text="Native IDE builds require x64." />
+  </Target>
+  <Target Name="Build" DependsOnTargets="_ARTestDevCheck" Returns="@(BuiltProjectOutputGroupOutput)">
+    <Exec Timeout="1800000" Command="&quot;$(ARTestDevNative)&quot; ide &quot;$(MSBuildProjectFullPath)&quot; &quot;$(ARTestSDKRoot)\.&quot; &quot;$(Configuration)&quot; &quot;$(Platform)&quot; &quot;$(MSBuildBinPath)\MSBuild.exe&quot; &quot;$(VCToolsInstallDir).&quot; &quot;$(WindowsSdkDir).&quot; &quot;$(TargetPlatformVersion)&quot; &quot;$(TargetName)&quot;" />
+  </Target>
+  <Target Name="Rebuild" DependsOnTargets="_ARTestDevCheck">
+    <Exec Timeout="1800000" Command="&quot;$(ARTestDevNative)&quot; ide-rebuild &quot;$(MSBuildProjectFullPath)&quot; &quot;$(ARTestSDKRoot)\.&quot; &quot;$(Configuration)&quot; &quot;$(Platform)&quot; &quot;$(MSBuildBinPath)\MSBuild.exe&quot; &quot;$(VCToolsInstallDir).&quot; &quot;$(WindowsSdkDir).&quot; &quot;$(TargetPlatformVersion)&quot; &quot;$(TargetName)&quot;" />
+  </Target>
+  <Target Name="Clean" DependsOnTargets="_ARTestDevCheck">
+    <Exec Timeout="1800000" Command="&quot;$(ARTestDevNative)&quot; ide-clean &quot;$(MSBuildProjectFullPath)&quot; &quot;$(ARTestSDKRoot)\.&quot; &quot;$(Configuration)&quot; &quot;$(Platform)&quot; &quot;$(MSBuildBinPath)\MSBuild.exe&quot; &quot;$(VCToolsInstallDir).&quot; &quot;$(WindowsSdkDir).&quot; &quot;$(TargetPlatformVersion)&quot; &quot;$(TargetName)&quot;" />
+  </Target>
+</Project>

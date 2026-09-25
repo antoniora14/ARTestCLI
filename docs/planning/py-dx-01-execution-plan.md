@@ -14,6 +14,9 @@ is the authority for the added delivery scope: an installed SDK entry point,
 Python/C++ authoring via existing tools, and registration with a selected ARTest
 installation. C# remains explicitly unavailable until the .NET gates.
 
+Next authoring work is the separately scoped [DEV-01 roadmap](artestdev-roadmap.md),
+positioned before C-03. It does not add stages to or reopen this closed plan.
+
 ## Outcome and scope
 
 The user-facing completion criterion is install SDK -> create by name/folder/
