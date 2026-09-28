@@ -10,6 +10,9 @@
 #include <QDir>
 #include <QFile>
 #include <QPlainTextEdit>
+#include <QMenu>
+#include <QContextMenuEvent>
+#include <QTimer>
 
 static QString normalizedPath(const QString &path) {
     return QDir::cleanPath(QDir::fromNativeSeparators(path));
@@ -19,6 +22,32 @@ using namespace ARTestDev;
 class UiTests : public QObject {
     Q_OBJECT
 private slots:
+    void clearMessages() {
+        QTemporaryDir settings;
+        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
+        AuthoringWidget widget(nullptr, QSettings::IniFormat, qEnvironmentVariable("ARTESTDEV_TEST_STAGING") + "/ARTestDev.exe");
+        widget.show(); QTRY_VERIFY_WITH_TIMEOUT(!widget.busy(), 20000);
+        auto *log = widget.findChild<QPlainTextEdit *>(); QVERIFY(log);
+        log->appendPlainText("old authoring message");
+        QList<QPair<QPushButton *, bool>> states;
+        for (auto *button : widget.findChildren<QPushButton *>()) states.append({button, button->isEnabled()});
+        bool found = false;
+        QTimer::singleShot(0, &widget, [&] {
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget()); if (!menu) return;
+            for (auto *action : menu->actions()) if (action->text() == "Clear" && action->isEnabled()) {
+                found = true; QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier, menu->actionGeometry(action).center()); return;
+            }
+            menu->close();
+        });
+        QTimer escape; escape.setSingleShot(true);
+        connect(&escape, &QTimer::timeout, &widget, [] { if (auto *popup = QApplication::activePopupWidget()) popup->close(); }); escape.start(2000);
+        const QPoint point(10, 10); QContextMenuEvent context(QContextMenuEvent::Mouse, point, log->viewport()->mapToGlobal(point));
+        QApplication::sendEvent(log->viewport(), &context); escape.stop();
+        QVERIFY(found); QVERIFY(log->toPlainText().isEmpty()); QVERIFY(!widget.busy());
+        QTimer::singleShot(0, log, [log] { log->appendPlainText("new authoring message"); });
+        QTRY_COMPARE(log->toPlainText(), QString("new authoring message"));
+        for (const auto &state : states) QCOMPARE(state.first->isEnabled(), state.second);
+    }
     void formGenerateEditAndPreferences() {
         const QString staging = qEnvironmentVariable("ARTESTDEV_TEST_STAGING");
         if (staging.isEmpty()) QSKIP("Set ARTESTDEV_TEST_STAGING for the UI generation acceptance test");

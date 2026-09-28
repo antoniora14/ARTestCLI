@@ -9,7 +9,8 @@ to diagnostics/manual setup; dependency downloading/installing is not included.
 DEV-01.1/01.2/01.2-A/01.3/01.4/01.4-A are ACCEPTED. The performance/retention
 amendment DEV-01.4-A was accepted on 2026-09-25 after its selective-build correction;
 see the [current native-build guide](../sdk/artestdev-dev01-4.md#dev-014-a--incremental-native-builds-and-bounded-retention).
-This acceptance does not start DEV-01.5.
+DEV-01.4-B and DEV-01.5 are also ACCEPTED; see the
+[integration guide](../sdk/artestdev-dev01-5.md). DEV-01.6/01.7 remain pending.
 The Architect previously resolved the SDK format blocker by
 authorizing private development staging; see [the delivery guide](../sdk/artestdev-dev01-2.md#dev-012-a--localización-automática-y-staging-privado).
 PY-DX-01 remains accepted and closed.
@@ -325,7 +326,7 @@ similarity is advisory and bounded, never identity merging or hardware selection
 Selected-installation checks remain DEV-01.5. Existing projects/IDs are not
 silently migrated; all accepted stages and the readable-ID correction remain valid.
 DEV-01.4-B is ACCEPTED after review of the two blocker corrections (2026-09-27).
-DEV-01.5 is the next authorized implementation; later gates remain separate.
+DEV-01.5 is now ACCEPTED (2026-09-28); later gates remain separate.
 
 ## Boundaries and invariants
 

@@ -19,6 +19,8 @@ public:
         , const QString &testExecutable = {}
 #endif
     );
+    const Project &currentProject() const { return project_; }
+    QString selectedPython() const;
     bool busy() const;
     bool canClose() const;
     void open(const Project &project);

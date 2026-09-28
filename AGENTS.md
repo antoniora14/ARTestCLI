@@ -92,12 +92,14 @@ unless the user explicitly requests them.
   changing presentation must not change identity. Similarity is advisory, never
   service selection. Compatible SDK source additions are authorized only for this
   unit; Engine/ABI/API/IPC and execution formats remain unchanged.
-  The next authorized implementation is DEV-01.5: Integrate to ARTestCLI.
-  Its prerequisites are satisfied; DEV-01.6/01.7 remain pending.
+  DEV-01.5 (Integrate to ARTestCLI) is ACCEPTED on 2026-09-28, including
+  Clear in all diagnostic panels and inspection-scoped suppression. Read
+  docs/sdk/artestdev-dev01-5.md. DEV-01.6 is next in the roadmap but requires
+  a separate implementation handoff; DEV-01.6/01.7 remain pending.
   Always-Rebuild, repeated full-toolchain hashing and indefinite native output
   retention are replaceable tooling policies, not runtime invariants. Preserve
-  content integrity, ownership and interrupted recovery. DEV-01.5 authorization
-  does not include Test plan execution or later stages.
+  content integrity, ownership and interrupted recovery. DEV-01.5 acceptance
+  does not include Test plan execution or authorize starting later stages.
   Read docs/architecture/artestdev-initial-scope.md and
   docs/planning/artestdev-roadmap.md. Use C++20/Qt Widgets and application-local
   CMake. Keep orchestration outside Engine through existing CLI processes; the new

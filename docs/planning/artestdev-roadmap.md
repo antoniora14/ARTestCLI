@@ -2,8 +2,9 @@
 
 Status (2026-09-28): DEV-01.1/01.2/01.2-A/01.3/01.4/01.4-A are ACCEPTED.
 The readable-ID Generate adjustment and DEV-01.4-B (simplified authoring and managed
-identities) are ACCEPTED, including their blocker corrections. DEV-01.5 is the next
-authorized implementation; DEV-01.6/01.7 remain pending.
+identities) are ACCEPTED, including their blocker corrections. DEV-01.5 is ACCEPTED,
+including Clear in all diagnostic panels and its inspection-scoped correction.
+DEV-01.6 is next with a separate handoff required; DEV-01.6/01.7 remain pending.
 The owner-approved flow diagram supersedes the earlier primary Build and integrate
 journey. The subsequent clarification excludes functional Studio integration;
 only its disabled menu item is included. The latest SDK amendment excludes bundled
@@ -50,7 +51,7 @@ C-03/C-04, .NET and D5 sequencing is unchanged.
 | DEV-01.4-A | ACCEPTED: incremental native builds and bounded project-local retention; selective recompilation verified in Debug/Release |
 | Generate readable IDs | ACCEPTED: readable defaults/overrides, exact one-pass substitutions and historical IDs preserved |
 | DEV-01.4-B | ACCEPTED: code-only presentation, stable managed identities, optional Description and local name-similarity diagnostics |
-| DEV-01.5 | Integrate menu, CLI target discovery/selection, safe registration and visible result; prerequisites satisfied, authorized next |
+| DEV-01.5 | ACCEPTED: CLI target selection, safe registration/recovery, installed discovery and diagnostic Clear |
 | DEV-01.6 | Secondary explicit Test plan validation/execution |
 | DEV-01.7 | Minimal SDK with selectable installation folder; first-use acceptance after manual prerequisite setup |
 
@@ -217,7 +218,7 @@ build-order incident repair. Project-local draft output is never target success.
 
 **Status:** ACCEPTED on 2026-09-25 after correction of grouped-source invalidation
 and independent review of Debug/Release evidence. The initial REQUIRES FIXES is
-resolved. DEV-01.5 remains pending. Accepted correction evidence is in
+resolved. DEV-01.5 was subsequently accepted; see its section. Accepted correction evidence is in
 `source/ARTestDev/build/dev014a-selective-evidence/`. The
 [guide amendment](../sdk/artestdev-dev01-4.md#dev-014-a--incremental-native-builds-and-bounded-retention)
 is the detailed scope and acceptance authority for this unit.
@@ -287,9 +288,11 @@ when necessary; they are not new developer-maintained configuration.
 
 ## DEV-01.5 — Integrate to ARTestCLI
 
+**Status:** ACCEPTED on 2026-09-28. See the [guide](../sdk/artestdev-dev01-5.md)
+for integration evidence and the final Clear correction. This does not start DEV-01.6.
+
 **Prerequisite:** DEV-01.4-A and DEV-01.4-B accepted, including the already accepted
-readable-ID correction. These prerequisites are satisfied; DEV-01.5 is authorized
-as the next implementation on 2026-09-28. Reuse DEV-01.4-B's
+readable-ID correction. These prerequisites are satisfied. Preserve DEV-01.4-B's
 diagnostic policy for the selected installation: updates retain identity;
 similar names alone never reject or replace another package. Actual target ID
 conflicts remain subject to the existing full-catalog validation and ownership.

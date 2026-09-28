@@ -45,7 +45,7 @@ def package_operation(arguments, sdk_root):
     package.main()
 
 
-def prepare(root, python, sdk_root, *, authorize_commit=None):
+def prepare(root, python, sdk_root, *, authorize_commit=None, output_root=None):
     tool = load_tool(sdk_root / "python/tools/project.py")
     wheel = sdk_root / "python/wheels/artest_python-0.2.1-py3-none-any.whl"
     project = tool._load_project(root, preparation=(python, wheel))
@@ -114,7 +114,7 @@ def prepare(root, python, sdk_root, *, authorize_commit=None):
     tool._publish_ready = publish_when_authorized
     tool._release_preparation_lock = release_lock
     tool._preserve_failed_attempt = preserve_in_place
-    result = tool.prepare_project(project, package_runner=run_package, identity_builder=identity).as_dict()
+    result = tool.prepare_project(project, output_root=output_root, package_runner=run_package, identity_builder=identity).as_dict()
     if warnings:
         result["diagnostic"] = "; ".join(warnings)
     return result
@@ -125,6 +125,7 @@ def main():
     parser.add_argument("--project", type=Path)
     parser.add_argument("--python", type=Path)
     parser.add_argument("--package-arguments")
+    parser.add_argument("--output-root")
     args = parser.parse_args()
     if args.package_arguments is not None:
         package_operation(json.loads(args.package_arguments), Path(__file__).resolve().parents[2])
@@ -136,7 +137,7 @@ def main():
         if sys.stdin.readline() != "commit\n":
             raise RuntimeError("Preparation selection was not authorized; previous selection preserved")
     try:
-        result = prepare(args.project, args.python, Path(__file__).resolve().parents[2], authorize_commit=authorize_commit)
+        result = prepare(args.project, args.python, Path(__file__).resolve().parents[2], authorize_commit=authorize_commit, output_root=Path(args.output_root) if args.output_root else None)
         code = 0
     except Exception as error:
         result = {"success": False, "diagnostic": str(error)}

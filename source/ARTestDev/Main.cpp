@@ -1,8 +1,12 @@
 #include "Inspection.h"
+#include "DiagnosticMenu.h"
+#include <QSignalBlocker>
+#include <QSet>
 #include "SdkLocation.h"
 #include "ProcessAdapter.h"
 #include "Readiness.h"
 #include "AuthoringWidget.h"
+#include "IntegrationDialog.h"
 
 #include <QApplication>
 #include <QFileDialog>
@@ -29,15 +33,18 @@
 using namespace ARTestDev;
 
 class Window final : public QMainWindow {
+#ifdef ARTESTDEV_WINDOW_TESTING
+    friend class MainUiTests;
+#endif
 public:
-    Window() {
+    explicit Window(QSettings::Format settingsFormat = QSettings::NativeFormat) {
         setWindowTitle(QStringLiteral("ARTestDev"));
         resize(960, 760);
         auto *body = new QWidget(this);
         auto *layout = new QVBoxLayout(body);
         auto *form = new QFormLayout;
         auto *projectRow = new QHBoxLayout;
-        projectPath_ = new QLineEdit;
+        projectPath_ = new QLineEdit; projectPath_->setObjectName("inspectionProjectPath");
         projectPath_->setReadOnly(true);
         auto *chooseProject = new QPushButton(QStringLiteral("Abrir proyecto…"));
         projectRow->addWidget(projectPath_);
@@ -45,14 +52,23 @@ public:
         form->addRow(QStringLiteral("Proyecto"), projectRow);
         layout->addLayout(form);
         summary_ = new QLabel(QStringLiteral("Seleccione un proyecto existente. Los recursos SDK se resuelven desde ARTestDev."));
+        summary_->setObjectName("inspectionSummary");
         summary_->setTextInteractionFlags(Qt::TextSelectableByMouse);
         layout->addWidget(summary_);
         diagnostics_ = new QPlainTextEdit;
         diagnostics_->setReadOnly(true);
+        diagnostics_->setObjectName("inspectionDiagnostics");
+        enableDiagnosticClear(diagnostics_);
+        connect(diagnostics_, &QPlainTextEdit::textChanged, this, [this] {
+            if (diagnostics_->toPlainText().isEmpty())
+                for (const auto &message : diagnosticSnapshot_) clearedDiagnostics_.insert(message);
+        });
         layout->addWidget(diagnostics_);
         status_ = new QLabel(QStringLiteral("Listo para inspeccionar."));
+        status_->setObjectName("inspectionStatus");
         layout->addWidget(status_);
         recheck_ = new QPushButton(QStringLiteral("Volver a comprobar"));
+        recheck_->setObjectName("inspectionRecheck");
         recheck_->setEnabled(false);
         layout->addWidget(recheck_);
         auto *shell = new QWidget;
@@ -65,16 +81,23 @@ public:
         welcomeLayout->addWidget(new QLabel(QStringLiteral("The Art of Testing")));
         welcomeCreate_ = new QPushButton(QStringLiteral("Create your own Driver, Command or both"));
         welcomeLayout->addWidget(welcomeCreate_); welcomeLayout->addStretch();
-        authoring_ = new AuthoringWidget;
+        authoring_ = new AuthoringWidget(nullptr, settingsFormat);
         pages_->addWidget(welcome); pages_->addWidget(authoring_); pages_->addWidget(body);
         shellLayout->addWidget(pages_); setCentralWidget(shell);
         auto *projectMenu = menuBar()->addMenu(QStringLiteral("Project"));
         newProject_ = projectMenu->addAction(QStringLiteral("New"));
         loadProject_ = projectMenu->addAction(QStringLiteral("Load"));
         auto *integrateMenu = menuBar()->addMenu(QStringLiteral("Integrate"));
-        auto *cliAction = integrateMenu->addAction(QStringLiteral("To ARTestCLI"));
-        cliAction->setEnabled(false);
-        cliAction->setStatusTip(QStringLiteral("Disponible cuando se implemente DEV-01.5."));
+        cliAction_ = integrateMenu->addAction(QStringLiteral("To ARTestCLI"));
+        cliAction_->setEnabled(false);
+        cliAction_->setStatusTip(QStringLiteral("Preparar, validar y registrar en una instalacion ARTestCLI seleccionada."));
+        connect(cliAction_, &QAction::triggered, this, [this] {
+            if (authoring_->busy() || !authoring_->currentProject().valid) return;
+            IntegrationDialog dialog(authoring_->currentProject(), authoring_->selectedPython(), this);
+            integrationActive_ = true;
+            dialog.exec();
+            integrationActive_ = false;
+        });
         auto *studioAction = integrateMenu->addAction(QStringLiteral("To ARTestStudio"));
         studioAction->setEnabled(false);
         studioAction->setStatusTip(QStringLiteral("Integración futura; sin acciones disponibles."));
@@ -84,7 +107,7 @@ public:
             QMessageBox::about(this, QStringLiteral("About ARTestDev"),
                 QStringLiteral("ARTestDev\nThe Art of Testing\n\n"
                                "Herramienta para crear y editar proyectos de drivers y comandos Python/C++.\n"
-                               "La integración con ARTestCLI todavía no está disponible."));
+                               "Integrate → To ARTestCLI prepara, valida y registra sin ejecutar Test plans."));
         });
         menuBar()->hide();
         connect(pages_, &QStackedWidget::currentChanged, this, [this](int page) {
@@ -140,6 +163,9 @@ public:
 
     void openProject(const QString &path) {
         if (projectWatcher_.isRunning()) return;
+        // Explicit Load/recheck starts a new inspection, including repeated diagnostics.
+        clearedDiagnostics_.clear();
+        diagnosticSnapshot_.clear();
         openSdk();
         check_.selectionChanged();
         process_.cancel();
@@ -163,7 +189,7 @@ public:
     }
 protected:
     void closeEvent(QCloseEvent *event) override {
-        if (!authoring_->canClose() || projectWatcher_.isRunning() || kitWatcher_.isRunning()) {
+        if (integrationActive_ || !authoring_->canClose() || projectWatcher_.isRunning() || kitWatcher_.isRunning()) {
             statusBar()->showMessage(QStringLiteral("Espere a que termine la operación antes de cerrar ARTestDev."));
             event->ignore();
         } else event->accept();
@@ -171,6 +197,7 @@ protected:
 private:
     void updateNavigation() {
         const bool busy = authoring_->busy() || projectWatcher_.isRunning() || kitWatcher_.isRunning() || process_.busy();
+        cliAction_->setEnabled(!busy && authoring_->currentProject().valid);
         newProject_->setEnabled(!busy);
         loadProject_->setEnabled(!busy);
         welcomeCreate_->setEnabled(!busy);
@@ -222,7 +249,14 @@ private:
 
             else if (project_.valid && kit_.valid) lines << QStringLiteral("Configuración e inventario válidos para inspección.");
         }
-        diagnostics_->setPlainText(lines.join(QStringLiteral("\n\n")));
+        diagnosticSnapshot_ = lines;
+        QStringList visible;
+        for (const auto &message : lines) if (!clearedDiagnostics_.contains(message)) visible.append(message);
+        // Inspection refreshes are snapshots; a repaint must not undo the user's Clear.
+        {
+            const QSignalBlocker rendering(diagnostics_);
+            diagnostics_->setPlainText(visible.join(QStringLiteral("\n\n")));
+        }
         if (process_.terminationUnconfirmed()) status_->setText(QStringLiteral("Terminación no confirmada; nueva comprobación bloqueada."));
         else if (process_.busy()) status_->setText(QStringLiteral("Comprobación en curso; interfaz disponible."));
         else status_->setText(QStringLiteral("Inspección terminada."));
@@ -251,6 +285,8 @@ private:
     QLabel *status_ = nullptr;
     QPushButton *recheck_ = nullptr;
     QPlainTextEdit *diagnostics_ = nullptr;
+    QStringList diagnosticSnapshot_;
+    QSet<QString> clearedDiagnostics_;
     QFutureWatcher<Project> projectWatcher_;
     QFutureWatcher<Kit> kitWatcher_;
     Project project_;
@@ -260,10 +296,12 @@ private:
     ProcessAdapter process_;
     AuthoringWidget *authoring_ = nullptr;
     QStackedWidget *pages_ = nullptr;
-    QAction *newProject_ = nullptr, *loadProject_ = nullptr;
+    QAction *newProject_ = nullptr, *loadProject_ = nullptr, *cliAction_ = nullptr;
     QPushButton *welcomeCreate_ = nullptr;
+    bool integrationActive_ = false;
 };
 
+#ifndef ARTESTDEV_WINDOW_TESTING
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
     Window window;
@@ -273,3 +311,5 @@ int main(int argc, char **argv) {
         QTimer::singleShot(500, &app, [&app] { app.exit(installedSdk().valid ? 0 : 2); });
     return app.exec();
 }
+
+#endif

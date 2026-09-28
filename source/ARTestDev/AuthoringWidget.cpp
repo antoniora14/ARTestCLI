@@ -1,4 +1,5 @@
 #include "AuthoringWidget.h"
+#include "DiagnosticMenu.h"
 #include "SdkLocation.h"
 #include <QCoreApplication>
 #include <QComboBox>
@@ -92,7 +93,7 @@ AuthoringWidget::AuthoringWidget(QWidget *parent, QSettings::Format settingsForm
     edit_ = new QPushButton(QStringLiteral("Edit")); edit_->setObjectName(QStringLiteral("edit"));
     editRow->addWidget(editor_, 1); editRow->addWidget(manualEditor_); editRow->addWidget(edit_); layout->addLayout(editRow);
     recheck_ = new QPushButton(QStringLiteral("Volver a comprobar")); recheck_->setObjectName(QStringLiteral("recheck")); layout->addWidget(recheck_);
-    diagnostics_ = new QPlainTextEdit; diagnostics_->setReadOnly(true); diagnostics_->setMaximumBlockCount(2000); layout->addWidget(diagnostics_, 1);
+    diagnostics_ = new QPlainTextEdit; diagnostics_->setReadOnly(true); diagnostics_->setMaximumBlockCount(2000); enableDiagnosticClear(diagnostics_); layout->addWidget(diagnostics_, 1);
     connect(name_, &QLineEdit::textChanged, this, &AuthoringWidget::refresh);
     for (auto *field : {driverName_, commandName_}) connect(field, &QLineEdit::textChanged, this, &AuthoringWidget::refresh);
     for (auto *field : {extensionId_, driverId_, commandId_}) connect(field, &QLineEdit::textEdited, this, &AuthoringWidget::refresh);
@@ -201,6 +202,7 @@ AuthoringWidget::AuthoringWidget(QWidget *parent, QSettings::Format settingsForm
     log(QStringLiteral("Generate y Edit no requieren ARTestCLI ni un compilador. El build C++ sin PowerShell llegará en DEV-01.4; esta entrega sólo genera y abre fuentes."));
     refresh();
 }
+QString AuthoringWidget::selectedPython() const { return python_->currentText(); }
 bool AuthoringWidget::busy() const {
     return generating_ || process_.busy() || projectWatcher_.isRunning() || kitWatcher_.isRunning() || toolsWatcher_.isRunning() || createWatcher_.isRunning() || editorWatcher_.isRunning();
 }

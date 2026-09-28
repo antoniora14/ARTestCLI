@@ -37,11 +37,11 @@ PreparationService::PreparationService(QObject *parent) : QObject(parent) {
 }
 bool PreparationService::busy() const { return checking_ || process_.busy(); }
 void PreparationService::cancel() { cancelled_ = true; process_.cancel(); }
-bool PreparationService::start(const QString &projectRoot, const QString &selectedPython, int timeoutMs) {
+bool PreparationService::start(const QString &projectRoot, const QString &selectedPython, int timeoutMs, const QString &outputRoot) {
     if (busy()) return false;
     checking_ = true; cancelled_ = false;
     const QString executable = executable_.isEmpty() ? QCoreApplication::applicationFilePath() : executable_;
-    connect(&inspection_, &QFutureWatcher<Kit>::finished, this, [this, projectRoot, selectedPython, timeoutMs] {
+    connect(&inspection_, &QFutureWatcher<Kit>::finished, this, [this, projectRoot, selectedPython, timeoutMs, outputRoot] {
         const Kit sdk = inspection_.result();
         checking_ = false;
         PreparationResult result;
@@ -50,7 +50,7 @@ bool PreparationService::start(const QString &projectRoot, const QString &select
             result.diagnostic = QStringLiteral("Cancelado antes de iniciar la preparación.");
         } else if (sdk.valid && QDir::isAbsolutePath(projectRoot) &&
                    process_.start(selectedPython, {"-I", "-B", sdk.root + "/python/tools/prepare.py",
-                        "--project", projectRoot, "--python", selectedPython}, projectRoot, timeoutMs, 256 * 1024, true)) return;
+                        "--project", projectRoot, "--python", selectedPython, "--output-root", outputRoot}, projectRoot, timeoutMs, 256 * 1024, true)) return;
         else result.diagnostic = sdk.diagnostics.join('\n') + QStringLiteral("\nSeleccione un proyecto externo al SDK y CPython 3.13 x64 con GIL instalado; compruebe el tiempo límite.");
         emit completed(result);
     }, Qt::SingleShotConnection);
