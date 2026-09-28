@@ -12,7 +12,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Core Widgets Concurrent Test)
 
-add_library(ARTestDevPrivate STATIC Inspection.cpp ProcessAdapter.cpp Readiness.cpp Authoring.cpp SdkLocation.cpp TreeProcess.cpp PreparationService.cpp NativeService.cpp)
+add_library(ARTestDevPrivate STATIC Inspection.cpp Presentation.cpp ProcessAdapter.cpp Readiness.cpp Authoring.cpp ManagedAuthoring.cpp SdkLocation.cpp TreeProcess.cpp PreparationService.cpp NativeService.cpp)
 qt_add_resources(ARTestDevPrivate authoring PREFIX "/authoring" BASE "resources"
   FILES resources/driver.py.in resources/command.py.in)
 target_link_libraries(ARTestDevPrivate PUBLIC Qt6::Core Qt6::Concurrent)
@@ -66,6 +66,9 @@ add_custom_command(TARGET ARTestDev POST_BUILD
 set(ARTESTDEV_EVIDENCE_ROOT "${CMAKE_CURRENT_BINARY_DIR}/dev014-evidence/regression" CACHE PATH "Current delivery test evidence")
 include(CTest)
 if(BUILD_TESTING)
+  add_executable(ARTestDevMetadataProbe ../../tests/TestSupport/Fakes/ARTestDevMetadataProbe.cpp ../../tests/TestSupport/Fakes/ARTestDevMetadataProbe.manifest)
+  target_include_directories(ARTestDevMetadataProbe PRIVATE ../ARTest.SDK/include ../ThirdParty)
+  target_compile_options(ARTestDevMetadataProbe PRIVATE /W4 /WX /utf-8)
   add_executable(ARTestDevNativeTests tests/NativeTests.cpp NativeOutputs.cpp NativeRetention.cpp)
   target_compile_definitions(ARTestDevNativeTests PRIVATE ARTESTDEV_TESTING)
   add_executable(ARTestDevNativeProcessProbe ../../tests/TestSupport/Fakes/ARTestDevNativeProcessProbe.cpp)
@@ -110,6 +113,7 @@ if(BUILD_TESTING)
   target_compile_definitions(ARTestDevUiTests PRIVATE ARTESTDEV_TESTING)
   add_test(NAME ARTestDevUiTests COMMAND ARTestDevUiTests -o "${ARTESTDEV_EVIDENCE_ROOT}/ui-$<CONFIG>.txt,txt")
   set_tests_properties(ARTestDevTests ARTestDevAuthoringTests ARTestDevUiTests PROPERTIES TIMEOUT 180)
+  set_tests_properties(ARTestDevAuthoringTests PROPERTIES TIMEOUT 360)
   set_property(TEST ARTestDevAuthoringTests ARTestDevNativeOnlyTests ARTestDevUiTests APPEND PROPERTY
     ENVIRONMENT "ARTESTDEV_TEST_STAGING=${ARTESTDEV_STAGING_ROOT}/$<CONFIG>")
   add_test(NAME ARTestDevAssemblyTests COMMAND "${ARTESTDEV_PWSH}" -NoProfile

@@ -18,10 +18,10 @@ stage-specific architecture documents before changing a public contract.
 ## Contract status
 
 - Engine host API: experimental `0.4`. API additions are append-only.
-- Native extension ABI: experimental `0.2`; native SDK `0.4.0`.
+- Native extension ABI: experimental `0.2`; native SDK `0.4.1`.
 - C-01: read docs/architecture/checkpoint-c01-effect-uncertainty.md and
   docs/sdk/external-effect-uncertainty.md before changing result propagation.
-  Python SDK `0.2.0` requires private wire `0.2`; reject old wire versions.
+  Python SDK `0.2.1` requires private wire `0.2`; reject old wire versions.
   Uncertainty is invocation-scoped across nested native/Python services, not
   a global Python flag. Preserve it when wrapping errors or observing cancellation.
 - Script document: `ARTest.Script` version `1`.
@@ -83,11 +83,21 @@ unless the user explicitly requests them.
   the scoped ARTestDev.exe GUI roadmap before C-03.
   DEV-01.1/01.2/01.2-A/01.3/01.4/01.4-A are ACCEPTED. DEV-01.4-A was accepted
   on 2026-09-25 after the selective native recompilation correction and bounded
-  retention gate. Read docs/sdk/artestdev-dev01-4.md. DEV-01.5 remains pending.
+  retention gate. Read docs/sdk/artestdev-dev01-4.md.
+  Generate readable IDs and its one-pass substitution correction are ACCEPTED
+  (2026-09-27). DEV-01.4-B, simplified authoring and managed identities, is
+  ACCEPTED after its two blocker corrections; read
+  docs/sdk/artestdev-dev01-4-b.md and the delivery roadmap. Editable names,
+  author/version and optional per-component Description live in existing source;
+  changing presentation must not change identity. Similarity is advisory, never
+  service selection. Compatible SDK source additions are authorized only for this
+  unit; Engine/ABI/API/IPC and execution formats remain unchanged.
+  The next authorized implementation is DEV-01.5: Integrate to ARTestCLI.
+  Its prerequisites are satisfied; DEV-01.6/01.7 remain pending.
   Always-Rebuild, repeated full-toolchain hashing and indefinite native output
   retention are replaceable tooling policies, not runtime invariants. Preserve
-  content integrity, ownership and interrupted recovery. This closure does not
-  authorize starting DEV-01.5 or later stages.
+  content integrity, ownership and interrupted recovery. DEV-01.5 authorization
+  does not include Test plan execution or later stages.
   Read docs/architecture/artestdev-initial-scope.md and
   docs/planning/artestdev-roadmap.md. Use C++20/Qt Widgets and application-local
   CMake. Keep orchestration outside Engine through existing CLI processes; the new

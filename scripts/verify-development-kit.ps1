@@ -20,12 +20,12 @@ foreach ($relative in $required) {
 }
 
 $kitVersion = Get-Content -LiteralPath (Join-Path $sourceRoot 'development-kit-version.json') -Raw | ConvertFrom-Json
-$nativeVersion = Get-Content -LiteralPath (Join-Path $repositoryRoot 'source\ARTest.SDK\sdk-version.json') -Raw | ConvertFrom-Json
+# The historical all-in-one kit retains its own frozen component versions.
 if ($kitVersion.schema -ne 'artest.schema.development-kit-version.v1' -or
     $kitVersion.kitVersion -ne '0.4.0' -or
     $kitVersion.stability -ne 'evaluation' -or
     $kitVersion.platform -ne 'windows-x64' -or
-    $kitVersion.nativeSdkVersion -ne $nativeVersion.sdkVersion -or
+    $kitVersion.nativeSdkVersion -ne '0.4.0' -or
     $kitVersion.pythonSdkVersion -ne '0.2.0' -or
     $kitVersion.pythonRuntime -ne '3.13' -or
     $kitVersion.pythonGil -ne 'required') {

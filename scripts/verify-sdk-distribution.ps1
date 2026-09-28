@@ -7,7 +7,7 @@ $sdkSource = Join-Path $repositoryRoot 'source\ARTest.SDK'
 $version = Get-Content -LiteralPath (Join-Path $sdkSource 'sdk-version.json') -Raw |
     ConvertFrom-Json
 if ($version.schema -ne 'artest.schema.sdk-version.v1' -or
-    $version.sdkVersion -ne '0.4.0' -or
+    $version.sdkVersion -ne '0.4.1' -or
     $version.engineApi -ne '0.4' -or
     $version.nativeExtensionAbi -ne '0.2' -or
     $version.stability -ne 'experimental' -or

@@ -54,7 +54,7 @@ foreach ($module in 'Core','Gui','Widgets','Concurrent') {
 Add-Resource (Join-Path $QtRoot "plugins/platforms/qwindows$suffix.dll") "platforms/qwindows$suffix.dll"
 Add-Resource (Join-Path $QtRoot 'sbom/qtbase-6.8.3.spdx') 'notices/qtbase-6.8.3.spdx'
 Add-Resource (Join-Path $PSScriptRoot 'resources/STAGING-NOTICES.md') 'notices/STAGING-NOTICES.md'
-foreach ($header in 'Command.h','Context.h','Definition.h','Extension.h','InstrumentDriver.h','Metadata.h',
+foreach ($header in 'Authoring.h','Command.h','Context.h','Definition.h','Extension.h','InstrumentDriver.h','Metadata.h',
     'MetadataGenerator.h','Parameters.h','Result.h','Schema.h','Testing.h',
     'detail/Marshalling.h','detail/NativeAdapter.h','detail/NativeContext.h') {
     Add-Resource (Join-Path $repo "source/ARTest.SDK/include/ARTest/$header") "native-sdk/include/ARTest/$header"
@@ -76,7 +76,7 @@ foreach ($name in '__init__.py','api.py','schema.py') {
     Add-Resource (Join-Path $repo "source/ARTest.Python/artest_sdk/$name") "python/artest_sdk/$name"
 }
 $wheelHashes = [ordered]@{
-    'artest_python-0.2.0-py3-none-any.whl' = 'ac124e00c1ba832b7d1c24377ded10a90a9dd1073f99ebbcb9b2f5861d2fa677'
+    'artest_python-0.2.1-py3-none-any.whl' = '17839d30f35e262c7bffb36d677152c02bcd49c06b45f3e2cc8c4415774c3147'
     'protobuf-6.33.4-cp310-abi3-win_amd64.whl' = '8f11ffae31ec67fc2554c2ef891dcb561dae9a2a3ed941f9e134c2db06657dbc'
     'pywin32-311-cp313-cp313-win_amd64.whl' = '718a38f7e5b058e76aee1c56ddd06908116d35147e133427e59a3983f703a20d'
 }
@@ -100,9 +100,9 @@ foreach ($name in '.gitignore','artest-project.json','artest-project.local.examp
     Add-Resource (Join-Path $repo "source/ARTest.Python/templates/minimal/$name") "python/templates/minimal/$name"
 }
 $version = Get-Content -Raw -LiteralPath (Join-Path $repo 'source/ARTest.SDK/sdk-version.json') | ConvertFrom-Json
-if ($version.sdkVersion -ne '0.4.0') { throw 'Review staging component compatibility before changing SDK version.' }
+if ($version.sdkVersion -ne '0.4.1') { throw 'Review staging component compatibility before changing SDK version.' }
 $pythonVersion = Get-Content -Raw -LiteralPath (Join-Path $repo 'source/ARTest.Python/artest_sdk/__init__.py')
-if ($pythonVersion -notmatch '__version__ = "0\.2\.0"') { throw 'Review staging compatibility before changing Python SDK version.' }
+if ($pythonVersion -notmatch '__version__ = "0\.2\.1"') { throw 'Review staging compatibility before changing Python SDK version.' }
 
 # Never bless corruption by refreshing hashes. Existing outputs must verify before any write.
 if (Test-Path -LiteralPath $destinationRoot) {
@@ -146,7 +146,7 @@ $inventory = @(foreach ($relative in $copies.Keys | Sort-Object) {
     internalVersion = 1
     platform = 'windows-x64'
     configuration = $Configuration
-    components = [ordered]@{ nativeSdk = '0.4.0'; pythonSdk = '0.2.0'; qt = '6.8.3' }
+    components = [ordered]@{ nativeSdk = '0.4.1'; pythonSdk = '0.2.1'; qt = '6.8.3' }
     paths = [ordered]@{ executable = 'ARTestDev.exe'; nativeSdk = 'native-sdk'; projectTool = 'python/tools/project.py'; pythonTemplate = 'python/templates/minimal' }
     files = $inventory
 } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $destinationRoot $descriptorName) -Encoding utf8

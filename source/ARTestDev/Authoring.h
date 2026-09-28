@@ -11,7 +11,15 @@ struct CreateRequest {
     QString variant = QStringLiteral("driver-command");
     QString workspace;
     Kit kit;
+    QString driverName = QStringLiteral("Simulated Source");
+    QString commandName = QStringLiteral("Measure Value");
+    // Null means suggested; an explicitly empty override is invalid.
+    QString extensionId;
+    QString driverId;
+    QString commandId;
 };
+struct SuggestedIds { QString extensionId, driverId, commandId; };
+SuggestedIds suggestedIds(const CreateRequest &request);
 struct Creation {
     CreateRequest request;
     QString staging;

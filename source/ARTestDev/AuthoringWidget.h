@@ -42,6 +42,7 @@ private:
     QSettings settings_;
     QString sdkExecutable_;
     QLineEdit *name_, *workspace_;
+    QLineEdit *driverName_, *commandName_, *extensionId_, *driverId_, *commandId_;
     QComboBox *language_, *variant_, *python_, *editor_;
     QWidget *inputs_;
     QPushButton *generate_, *edit_, *recheck_, *manualEditor_, *manualPython_;
@@ -59,6 +60,7 @@ private:
     bool createAfterProbe_ = false;
     enum class ProcessUse { Probe, Create } processUse_ = ProcessUse::Probe;
     QFutureWatcher<Kit> kitWatcher_;
+    QFutureWatcher<Project> projectWatcher_;
     QFutureWatcher<Tools> toolsWatcher_;
     QFutureWatcher<Creation> createWatcher_;
     QFutureWatcher<QString> editorWatcher_;

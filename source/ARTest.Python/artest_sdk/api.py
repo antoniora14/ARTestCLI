@@ -1,6 +1,7 @@
 """Developer-facing components. Registration inspects declarations, never factories."""
 import asyncio
 import inspect
+import re
 import time
 from dataclasses import dataclass
 from contextlib import asynccontextmanager
@@ -112,25 +113,61 @@ class Component:
     display_name: str
     requires: tuple
     flags: tuple
+    description: str = ""
+
+def _description(text):
+    if not isinstance(text, str): raise TypeError("Description must be a string")
+    if len(text) > 512 or "\0" in text:
+        raise ValueError("Description must contain at most 512 Unicode code points and no NUL")
+    text.encode("utf-8", errors="strict")
+    return text
+
+class IdentityNamespace:
+    """Portable source authority; anchors are permanent, independent of display names."""
+    def __init__(self, identity, overrides=None):
+        self._check_id(identity)
+        self.identity = identity
+        self._overrides = dict(overrides or {})
+        for anchor, value in self._overrides.items():
+            self._check_anchor(anchor)
+            self._check_id(value)
+
+    @staticmethod
+    def _check_id(value):
+        if not isinstance(value, str) or len(value) > 160 or not re.fullmatch(r"[a-z0-9]+([.-][a-z0-9]+)+", value):
+            raise ValueError("Invalid managed identity: " + repr(value))
+
+    @staticmethod
+    def _check_anchor(anchor):
+        if not isinstance(anchor, str) or len(anchor) > 64 or not re.fullmatch(r"[a-z0-9]+([.-][a-z0-9]+)*", anchor):
+            raise ValueError("Component anchor must be permanent lowercase letters/digits with dot or hyphen separators (maximum 64)")
+
+    def component(self, anchor):
+        self._check_anchor(anchor)
+        identity = self._overrides.get(anchor, self.identity + "." + anchor)
+        self._check_id(identity)
+        return identity
 
 class Extension:
     def __init__(self, identity, version, display_name, publisher):
         self.identity, self.version, self.display_name, self.publisher = identity, version, display_name, publisher
         self.components = {}
 
-    def _add(self, kind, identity, contract, cls, parameters, name, requires, flags=()):
-        if identity in self.components: raise ValueError("Duplicate component: " + identity)
+    def _add(self, kind, identity, contract, cls, parameters, name, requires, flags=(), description=""):
+        if identity in self.components:
+            raise ValueError("Duplicate component: " + identity + " (" + self.components[identity].display_name + " / " + name + ")")
+        _description(description)
         schema_for(parameters)
         if not issubclass(cls, Command if kind == "command" else Driver): raise TypeError("Invalid component base")
-        self.components[identity] = Component(kind, identity, contract, cls, parameters, name, tuple(requires), tuple(flags))
+        self.components[identity] = Component(kind, identity, contract, cls, parameters, name, tuple(requires), tuple(flags), description)
         return self
 
-    def command(self, identity, cls, parameters, *, name, requires=()):
-        return self._add("command", identity, "artest.contract.command.v1", cls, parameters, name, requires)
+    def command(self, identity, cls, parameters, *, name, requires=(), description=""):
+        return self._add("command", identity, "artest.contract.command.v1", cls, parameters, name, requires, description=description)
 
-    def driver(self, identity, cls, configuration, *, name, contract, simulated=False):
+    def driver(self, identity, cls, configuration, *, name, contract, simulated=False, description=""):
         return self._add("instrumentDriver", identity, contract, cls, configuration, name, (),
-                         ("simulated",) if simulated else ("requiresHardware",))
+                         ("simulated",) if simulated else ("requiresHardware",), description)
 
     def describe(self):
         result = []
@@ -141,5 +178,6 @@ class Extension:
                            "requires": [{"contractId": contract, "selection": "configured"} for contract in item.requires],
                            "schemaRole": role, "schemaId": item.type_id + ".input.v1",
                            "schema": schema_for(item.parameters)})
+            if item.description: result[-1]["description"] = item.description
         return {"extensionId": self.identity, "version": self.version, "displayName": self.display_name,
                 "publisher": self.publisher, "components": result}

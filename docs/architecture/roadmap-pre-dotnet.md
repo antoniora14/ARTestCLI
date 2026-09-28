@@ -33,7 +33,11 @@ inserted after PY-DX-01 and before C-03. Read its
 [delivery roadmap](../planning/artestdev-roadmap.md). DEV-01.1/01.2/01.2-A/01.3/01.4
 are ACCEPTED. DEV-01.4-A (incremental native builds and bounded retention) was
 accepted on 2026-09-25 after its selective-recompilation correction.
-DEV-01.5 is next; DEV-01.5–01.7 are not started here.
+The readable-ID Generate correction is ACCEPTED. DEV-01.4-B
+([simplified authoring and managed identities](../sdk/artestdev-dev01-4-b.md))
+is ACCEPTED after its two blocker corrections (2026-09-27). It includes optional
+driver/command Description in code. DEV-01.5 is the next authorized implementation;
+DEV-01.6/01.7 remain pending.
 The owner subsequently required separate authoring SDKs/projects and an independently
 selected ARTest installation. The [scope amendment](artestdev-initial-scope.md)
 replaces the proposed bundled evaluation target for new DEV-01 distribution;
@@ -42,7 +46,7 @@ The latest owner diagram sets Welcome -> form -> Generate -> Edit -> Integrate
 as the GUI journey. C++ builds in Visual Studio; Python prepares inside Integrate.
 Only ARTestCLI is an operational destination. Integrate to ARTestStudio remains
 a disabled future menu item, with no dependency on unfinished Studio integration.
-The seven main delivery stages are retained, with DEV-01.4-A inserted; optional
+The seven main delivery stages are retained, with DEV-01.4-A and DEV-01.4-B inserted; optional
 Test plan execution stays separate. The latest owner requirements remove the
 bundled Python runtime, allow SDK installation on a chosen drive/folder, suggest
 C:\Users\Public\ArtestDev as an editable workspace and require detection plus
@@ -57,7 +61,7 @@ to DEV-01.7. This does not authorize D5 or alter C-03/C-04.
 | 1 | C-01: external-effect uncertainty | Completed prerequisite; preserve its result semantics |
 | 2 | C-02: bounded TCP SDK example | ACCEPTED and closed; see the [checkpoint](checkpoint-c02-tcp-hello.md) |
 | 3 | PY-DX-01: Python Developer Experience: create, prepare and run | ACCEPTED and closed; see the closure record |
-| 4 | DEV-01: ARTestDev graphical extension development | DEV-01.1/01.2/01.2-A/01.3/01.4/01.4-A ACCEPTED; DEV-01.5 and later stages pending |
+| 4 | DEV-01: ARTestDev graphical extension development | DEV-01.1/01.2/01.2-A/01.3/01.4/01.4-A and readable-ID correction/DEV-01.4-B ACCEPTED; DEV-01.5 authorized next; DEV-01.6/01.7 pending |
 | 5 | C-03: cleanup, recovery and unconfirmed physical state | Pending; mandatory before .NET |
 | 6 | C-04: minimal modular instrument scenario | Pending; depends on C-03 and remains mandatory before .NET |
 | 7 | D4.3: .NET runtime parity | Not authorized by this decision; requires the preceding gates and a separate start decision |

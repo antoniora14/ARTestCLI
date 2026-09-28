@@ -1,4 +1,5 @@
 #include "Authoring.h"
+#include "IdentityOverrides.h"
 #include "SdkLocation.h"
 #include <QCoreApplication>
 #include <QDir>
@@ -6,6 +7,7 @@
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QProcess>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QScopeGuard>
@@ -270,6 +272,216 @@ private slots:
         r.name = QStringLiteral("ARTest Extension Starter");
         const Creation other = finishCreation(beginCreation(r)); QVERIFY(other.success);
         QVERIFY(other.extensionId != c.extensionId);
+    }
+    void readableIds_data() {
+        QTest::addColumn<QString>("language"); QTest::addColumn<QString>("variant"); QTest::addColumn<bool>("advanced");
+        for (const QString language : {"cpp", "python"})
+            for (const QString variant : {"driver-command", "driver-only", "command-only"})
+                for (bool advanced : {false, true})
+                    QTest::newRow(qPrintable(language + '/' + variant + (advanced ? "/advanced" : "/suggested"))) << language << variant << advanced;
+    }
+    void readableIds() {
+        QFETCH(QString, language); QFETCH(QString, variant); QFETCH(bool, advanced);
+        QTemporaryDir temp;
+        CreateRequest r{"Bench Power", language, variant, temp.path(), kit_};
+        r.driverName = "Power Supply"; r.commandName = "Power-On";
+        if (advanced) { r.extensionId = "lab.bench"; r.driverId = "lab.supply"; r.commandId = "lab.power-on"; }
+        auto c = beginCreation(r); QVERIFY2(c.success, qPrintable(c.diagnostics.join('\n')));
+        QCOMPARE(c.extensionId, advanced ? QString("lab.bench") : QString("bench-power"));
+        if (language == "python") {
+            ProcessAdapter process; ProcessResult result; bool done = false;
+            connect(&process, &ProcessAdapter::completed, this, [&](const ProcessResult &v) { result = v; done = true; });
+            QVERIFY(process.start(python_, pythonCreateArguments(c)));
+            QTRY_VERIFY_WITH_TIMEOUT(done, 35000);
+            QVERIFY2(result.status == ProcessResult::Status::Success, result.output.constData());
+        }
+        c = finishCreation(c); QVERIFY2(c.success, qPrintable(c.diagnostics.join('\n')));
+        const QString configPath = c.destination + "/artest-sdk-project.json";
+        const auto before = bytes(configPath);
+        const auto config = object(configPath);
+        const auto source = bytes(c.destination + (language == "cpp" ? "/Extension.cpp" : "/src/extension.py"));
+        QVERIFY(!source.contains("local."));
+        const auto plan = object(c.destination + '/' + config.value("plan").toString());
+        if (variant != "command-only") {
+            QCOMPARE(config.value("driverId").toString(), advanced ? QString("lab.supply") : QString("bench-power.power-supply"));
+            QVERIFY(source.contains(config.value("driverId").toString().toUtf8()));
+            QVERIFY(source.contains("Power Supply"));
+            QCOMPARE(plan.value("instruments").toArray()[0].toObject().value("type"), config.value("driverId"));
+            QCOMPARE(config.value("contractId").toString(), c.extensionId + ".contract.simulated-source.v1");
+        } else {
+            QCOMPARE(config.value("contractId").toString(), QString("com.example.artest.contract.value-source.v1"));
+            QVERIFY(bytes(behaviorFiles(inspectProject(c.destination)).first()).contains("com.example.artest.instrument.value-source.v1/read"));
+        }
+        if (variant != "driver-only") {
+            QCOMPARE(config.value("commandId").toString(), advanced ? QString("lab.power-on") : QString("bench-power.power-on"));
+            QVERIFY(source.contains(config.value("commandId").toString().toUtf8())); QVERIFY(source.contains("Power-On"));
+            QCOMPARE(plan.value("commands").toArray()[0].toObject().value("name"), config.value("commandId"));
+        }
+        QVERIFY(inspectProject(c.destination).valid);
+        QVERIFY(!editorArguments("editor.exe", inspectProject(c.destination)).isEmpty());
+        QCOMPARE(bytes(configPath), before);
+        r.name = "Bench-Power";
+        QVERIFY(validateForm(r).join('\n').contains("ID local duplicado"));
+        QVERIFY(!beginCreation(r).success);
+        QCOMPARE(bytes(configPath), before);
+    }
+    void identityOverrides_data() {
+        QTest::addColumn<QString>("language"); QTest::addColumn<QString>("variant");
+        for (const QString language : {"cpp", "python"})
+            for (const QString variant : {"driver-command", "driver-only", "command-only"})
+                QTest::newRow(qPrintable(language + '/' + variant)) << language << variant;
+    }
+    void identityOverrides() {
+        QFETCH(QString, language); QFETCH(QString, variant);
+        for (const auto &ids : ::identityOverrides()) {
+            QTemporaryDir temp;
+            CreateRequest r{"Bench Power", language, variant, temp.path(), kit_};
+            r.extensionId = ids.extension; r.driverId = ids.driver; r.commandId = ids.command;
+            r.driverName = "Power Supply"; r.commandName = "Power-On";
+            auto c = beginCreation(r); QVERIFY2(c.success, qPrintable(ids.label + ':' + c.diagnostics.join('\n')));
+            if (language == "python") {
+                ProcessAdapter process; ProcessResult result; bool done = false;
+                connect(&process, &ProcessAdapter::completed, this, [&](const ProcessResult &v) { result = v; done = true; });
+                QVERIFY(process.start(python_, pythonCreateArguments(c)));
+                QTRY_VERIFY_WITH_TIMEOUT(done, 35000);
+                QVERIFY2(result.status == ProcessResult::Status::Success, result.output.constData());
+            }
+            c = finishCreation(c); QVERIFY2(c.success, qPrintable(ids.label + ':' + c.diagnostics.join('\n')));
+            const auto config = object(c.destination + "/artest-sdk-project.json");
+            QCOMPARE(config.value("extensionId").toString(), ids.extension);
+            const auto source = bytes(c.destination + (language == "cpp" ? "/Extension.cpp" : "/src/extension.py"));
+            const auto quoted = [](const QString &id) { return '"' + id.toUtf8() + '"'; };
+            QVERIFY(source.contains(quoted(ids.extension)));
+            const QString contract = variant == "command-only" ? "com.example.artest.contract.value-source.v1" : ids.extension + ".contract.simulated-source.v1";
+            QCOMPARE(config.value("contractId").toString(), contract);
+            if (language == "python") QVERIFY(source.contains(quoted(contract)));
+            else {
+                const auto owner = bytes(c.destination + (variant == "driver-only" ? "/SimulatedValueSource.h" : "/ReadValueCommand.h"));
+                QVERIFY(owner.contains("SourceContract[] = " + quoted(contract)));
+                QVERIFY(source.contains("SourceContract"));
+            }
+            QStringList plans{config.value("plan").toString()};
+            if (language == "cpp" && variant == "driver-command") plans << "MultipleInstruments.json";
+            for (const auto &file : plans) {
+                const auto plan = object(c.destination + '/' + file);
+                for (const auto &entry : plan.value("instruments").toArray())
+                    QCOMPARE(entry.toObject().value("type").toString(), variant == "command-only" ? QString("com.example.artest.driver.sim-value-source") : ids.driver);
+                for (const auto &entry : plan.value("commands").toArray())
+                    QCOMPARE(entry.toObject().value("name").toString(), ids.command);
+            }
+            if (variant != "command-only") {
+                QCOMPARE(config.value("driverId").toString(), ids.driver); QVERIFY(source.contains(quoted(ids.driver)));
+                if (language == "cpp") QVERIFY(source.contains(".schemaId = " + quoted(ids.extension + ".configuration.v1")));
+            }
+            if (variant != "driver-only") {
+                QCOMPARE(config.value("commandId").toString(), ids.command); QVERIFY(source.contains(quoted(ids.command)));
+                if (language == "cpp") {
+                    QVERIFY(source.contains(".schemaId = " + quoted(ids.extension + ".parameters.v1")));
+                    const auto behavior = bytes(c.destination + "/ReadValueCommand.h");
+                    QVERIFY(behavior.contains(quoted(contract)));
+                    QVERIFY(behavior.contains(quoted(variant == "command-only" ? QString("com.example.artest.instrument.value-source.v1/read") : contract + "/read")));
+                }
+            }
+            QVERIFY(inspectProject(c.destination).valid);
+            QCOMPARE(bytes(c.destination + (language == "cpp" ? "/Extension.cpp" : "/src/extension.py")), source);
+        }
+    }
+    void normalizationAndValidation() {
+        QTemporaryDir temp;
+        CreateRequest r{"Bénch  Power", "cpp", "driver-command", temp.path(), kit_};
+        r.driverName = "Pówer  Supply"; r.commandName = "Power-On";
+        auto ids = suggestedIds(r);
+        QCOMPARE(ids.extensionId, QString("bench-power")); QCOMPARE(ids.driverId, QString("bench-power.power-supply"));
+        QCOMPARE(ids.commandId, QString("bench-power.power-on")); QVERIFY(validateForm(r).isEmpty());
+        r.name = "Bench"; QCOMPARE(suggestedIds(r).extensionId, QString("bench-extension"));
+        r.name = "123 Bench"; QCOMPARE(suggestedIds(r).extensionId, QString("extension-123-bench"));
+        r.name = "---"; QVERIFY(!validateForm(r).isEmpty()); r.name = "Bench Power";
+        for (const QString name : {QString(""), QString("   "), QString("---"), QString("測定"), QString("bad\nname")}) {
+            r.driverName = name; QVERIFY(!validateForm(r).isEmpty());
+        }
+        r.driverName = "Power On"; QVERIFY(!validateForm(r).isEmpty());
+        r.driverName = "Power Supply";
+        for (const QString id : {QString(""), QString("UPPER.id"), QString("single"), QString("bad..id"), QString("bad/id"), QString("bad.id\n")}) {
+            r.extensionId = id; QVERIFY(!validateForm(r).isEmpty());
+        }
+        r.extensionId = "custom.bench"; QCOMPARE(suggestedIds(r).driverId, QString("custom.bench.power-supply"));
+        r.driverId = r.extensionId; QVERIFY(!validateForm(r).isEmpty());
+        r.driverId = "custom.supply"; r.commandId = r.driverId; QVERIFY(!validateForm(r).isEmpty());
+        r.commandId = "custom.read"; QVERIFY(validateForm(r).isEmpty());
+        r.variant = "command-only"; r.driverName = ""; r.driverId = ""; QVERIFY(validateForm(r).isEmpty());
+    }
+    void visibleNamesAreNotIdentityTokens() {
+        QTemporaryDir temp;
+        CreateRequest r{"Named Project", "cpp", "driver-command", temp.path(), kit_};
+        r.driverName = "com.example.artest.contract.value-source.v1";
+        r.commandName = "ARTest extension starter";
+        const auto c = finishCreation(beginCreation(r)); QVERIFY2(c.success, qPrintable(c.diagnostics.join('\n')));
+        const auto source = bytes(c.destination + "/Extension.cpp");
+        if (kit_.origin == Kit::Origin::DevelopmentStaging) {
+            QVERIFY(source.contains("ids.Driver(\"driver\", \"com.example.artest.contract.value-source.v1\""));
+            QVERIFY(source.contains("ids.Command(\"read\", \"ARTest extension starter\""));
+            QVERIFY(source.contains(".requiredContracts = {SourceContract}"));
+            QVERIFY(bytes(c.destination + "/ReadValueCommand.h").contains("SourceContract[] = \"named-project.contract.simulated-source.v1\""));
+        } else {
+            QVERIFY(source.contains(".name = \"com.example.artest.contract.value-source.v1\""));
+            QVERIFY(source.contains(".name = \"ARTest extension starter\""));
+            QVERIFY(source.contains(".contract = \"named-project.contract.simulated-source.v1\""));
+        }
+    }
+    void pythonVisibleNamesAreNotTemplateTokens_data() {
+        QTest::addColumn<QString>("variant");
+        QTest::addColumn<QString>("driverName");
+        QTest::addColumn<QString>("commandName");
+        QTest::newRow("legacy") << "driver-command" << "Measure simulated value" << "Power-On";
+        QTest::newRow("combined-driver-token") << "driver-command" << "simulated=True," << "Power-On";
+        QTest::newRow("combined-command-token") << "driver-command" << "Power supply" << "requires=(CONTRACT,),";
+        QTest::newRow("combined-both-tokens") << "driver-command" << "simulated=True," << "requires=(CONTRACT,),";
+        QTest::newRow("driver-only-token") << "driver-only" << "simulated=True," << "";
+        QTest::newRow("command-only-token") << "command-only" << "" << "requires=(CONTRACT,),";
+    }
+    void pythonVisibleNamesAreNotTemplateTokens() {
+        QFETCH(QString, variant); QFETCH(QString, driverName); QFETCH(QString, commandName);
+        QTemporaryDir temp;
+        CreateRequest r{"Named Project", "python", variant, temp.path(), kit_};
+        r.driverName = driverName; r.commandName = commandName;
+        r.extensionId = "exact.extension";
+        if (variant != "command-only") r.driverId = "exact.driver";
+        if (variant != "driver-only") r.commandId = "exact.command";
+        auto c = beginCreation(r); QVERIFY(c.success);
+        ProcessAdapter process; ProcessResult result; bool done = false;
+        connect(&process, &ProcessAdapter::completed, this, [&](const ProcessResult &v) { result = v; done = true; });
+        QVERIFY(process.start(python_, pythonCreateArguments(c)));
+        QTRY_VERIFY_WITH_TIMEOUT(done, 35000);
+        QVERIFY2(result.status == ProcessResult::Status::Success, result.output.constData());
+        c = finishCreation(c); QVERIFY2(c.success, qPrintable(c.diagnostics.join('\n')));
+        const auto source = bytes(c.destination + "/src/extension.py");
+        QProcess inspect;
+        inspect.start(python_, {"-I", "-B", "-c",
+            "import ast,json,sys\n"
+            "tree=ast.parse(open(sys.argv[1],encoding='utf-8').read())\n"
+            "calls=[n for n in ast.walk(tree) if isinstance(n,ast.Call)]\n"
+            "ids=next(n for n in calls if isinstance(n.func,ast.Name) and n.func.id=='IdentityNamespace')\n"
+            "result={'namespace':ast.literal_eval(ids.args[0]),'ids':ast.literal_eval(ids.args[1])}\n"
+            "for n in calls:\n"
+            " if isinstance(n.func,ast.Attribute) and n.func.attr in ('driver','command'):\n"
+            "  result[n.func.attr]={k.arg:ast.literal_eval(k.value) for k in n.keywords if k.arg in ('name','description')}\n"
+            "print(json.dumps(result))\n", c.destination + "/src/extension.py"});
+        QVERIFY(inspect.waitForFinished(15000));
+        QCOMPARE(inspect.exitCode(), 0);
+        const auto parsed = QJsonDocument::fromJson(inspect.readAllStandardOutput()).object();
+        QCOMPARE(parsed["namespace"].toString(), QString("exact.extension"));
+        QJsonObject ids;
+        for (const auto &kind : {QString("driver"), QString("command")}) {
+            const bool present = kind == "driver" ? variant != "command-only" : variant != "driver-only";
+            QCOMPARE(parsed.contains(kind), present);
+            if (!present) continue;
+            QCOMPARE(parsed[kind].toObject()["name"].toString(), kind == "driver" ? driverName : commandName);
+            QVERIFY(parsed[kind].toObject().contains("description"));
+            QCOMPARE(parsed[kind].toObject()["description"].toString(), QString(""));
+            ids.insert(kind == "driver" ? "driver" : "read", "exact." + kind);
+        }
+        QCOMPARE(parsed["ids"].toObject(), ids);
+        QCOMPARE(source.count("description=\"\""), variant == "driver-command" ? 2 : 1);
     }
     void deniedWorkspace() {
         QTemporaryDir temp;

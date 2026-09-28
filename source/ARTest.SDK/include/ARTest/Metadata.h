@@ -100,6 +100,7 @@ inline void MetadataVersion(const std::string &value)
             {"schemas", Json::array({{{"role", role}, {"schemaId", schemaId}, {"path", path},
                                       {"mediaType", "application/json; charset=utf-8"}}})}};
         if (driver) component["flags"].push_back(entry->simulated ? "simulated" : "requiresHardware");
+        if (!metadata.description.empty()) component["description"] = metadata.description;
         auto aliases = metadata.aliases;
         std::sort(aliases.begin(), aliases.end());
         for (const auto &alias : aliases)

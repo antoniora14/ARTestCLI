@@ -68,7 +68,7 @@ Kit inspectStagingExecutable(const QString &executable) {
     const auto document = QJsonDocument::fromJson(file.readAll(), &parse);
     const auto manifest = document.object();
     const QString configuration = manifest.value("configuration").toString();
-    const QJsonObject versions{{"nativeSdk", "0.4.0"}, {"pythonSdk", "0.2.0"}, {"qt", "6.8.3"}};
+    const QJsonObject versions{{"nativeSdk", "0.4.1"}, {"pythonSdk", "0.2.1"}, {"qt", "6.8.3"}};
     const QJsonObject paths{{"executable", "ARTestDev.exe"}, {"nativeSdk", "native-sdk"}, {"projectTool", "python/tools/project.py"}, {"pythonTemplate", "python/templates/minimal"}};
     if (parse.error != QJsonParseError::NoError || !document.isObject() ||
         manifest.value("internalVersion").toDouble() != 1 || manifest.value("platform") != "windows-x64" ||
@@ -113,9 +113,9 @@ Kit inspectStagingExecutable(const QString &executable) {
         "native-sdk/include/artestextensionabi.h", "native-sdk/include/nlohmann/json.hpp",
         "notices/qtbase-6.8.3.spdx", "notices/staging-notices.md",
         "python/tools/prepare.py", "python/artest_sdk/__init__.py", "python/artest_sdk/api.py", "python/artest_sdk/schema.py",
-        "python/wheels/artest-offline-wheelhouse.json", "python/wheels/artest_python-0.2.0-py3-none-any.whl",
+        "python/wheels/artest-offline-wheelhouse.json", "python/wheels/artest_python-0.2.1-py3-none-any.whl",
         "python/wheels/protobuf-6.33.4-cp310-abi3-win_amd64.whl", "python/wheels/pywin32-311-cp313-cp313-win_amd64.whl"};
-    for (const QString &header : QStringList{"command.h", "context.h", "definition.h", "extension.h", "instrumentdriver.h",
+    for (const QString &header : QStringList{"authoring.h", "command.h", "context.h", "definition.h", "extension.h", "instrumentdriver.h",
          "metadata.h", "metadatagenerator.h", "parameters.h", "result.h", "schema.h", "testing.h",
          "detail/marshalling.h", "detail/nativeadapter.h", "detail/nativecontext.h"})
         required << "native-sdk/include/artest/" + header;
@@ -134,7 +134,7 @@ Kit inspectStagingExecutable(const QString &executable) {
     QFile nativeVersion(out.root + "/native-sdk/sdk-version.json");
     if (nativeVersion.open(QIODevice::ReadOnly)) {
         const auto version = QJsonDocument::fromJson(nativeVersion.readAll()).object();
-        if (version.value("sdkVersion") != "0.4.0" || version.value("engineApi") != "0.4" ||
+        if (version.value("sdkVersion") != "0.4.1" || version.value("engineApi") != "0.4" ||
             version.value("nativeExtensionAbi") != "0.2" || version.value("platform") != "windows-x64")
             out.diagnostics << "Versión del SDK nativo incompatible con el descriptor privado.";
     }

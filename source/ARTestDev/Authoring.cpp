@@ -1,10 +1,13 @@
 #include "Authoring.h"
 #include "SdkLocation.h"
+#include "ManagedAuthoring.h"
+#include "Presentation.h"
 
 #include <QDirIterator>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QMap>
 #include <QRegularExpression>
 #include <QResource>
 #include <QSettings>
@@ -64,7 +67,7 @@ QString slug(const QString &name) {
         else if (!result.isEmpty() && !result.endsWith('-')) result += '-';
     }
     while (result.endsWith('-')) result.chop(1);
-    if (result.isEmpty()) result = QStringLiteral("extension");
+    if (result.isEmpty()) return {};
     if (result.front().isDigit()) result.prepend(QStringLiteral("extension-"));
     return result;
 }
@@ -95,8 +98,44 @@ void removeRegistration(QString &text, const QString &kind) {
     require(begin >= 0 && end > begin, QStringLiteral("Registro de plantilla incompatible: %1").arg(kind));
     text.remove(begin, end + 7 - begin);
 }
-QString driverId(const Creation &c) { return c.extensionId + QStringLiteral(".driver.simulated-source"); }
-QString commandId(const Creation &c) { return c.extensionId + QStringLiteral(".command.measure-value"); }
+QString driverId(const Creation &c) { return c.request.driverId; }
+QString commandId(const Creation &c) { return c.request.commandId; }
+QString literal(const QString &value) {
+    const QByteArray array = QJsonDocument(QJsonArray{value}).toJson(QJsonDocument::Compact);
+    return QString::fromUtf8(array.mid(1, array.size() - 2));
+}
+void replaceIdentities(QString &text, const QMap<QString, QString> &identities) {
+    QStringList tokens;
+    QMap<QString, QString> replacements;
+    for (auto it = identities.cbegin(); it != identities.cend(); ++it) {
+        const QString token = literal(it.key());
+        require(text.contains(token), QStringLiteral("Plantilla incompatible: falta %1").arg(it.key()));
+        tokens << QRegularExpression::escape(token);
+        replacements.insert(token, literal(it.value()));
+    }
+    // Match only complete original literals; inserted IDs are opaque, even when
+    // they equal another template identity or contain one as a prefix.
+    const QRegularExpression pattern(tokens.join('|'));
+    auto matches = pattern.globalMatch(text);
+    QString result;
+    qsizetype offset = 0;
+    while (matches.hasNext()) {
+        const auto match = matches.next();
+        result += text.mid(offset, match.capturedStart() - offset);
+        result += replacements.value(match.captured());
+        offset = match.capturedEnd();
+    }
+    result += text.mid(offset);
+    text = result;
+}
+void displayName(QString &text, const QString &owner, const QString &prefix, const QString &name) {
+    const qsizetype component = text.indexOf(owner);
+    const qsizetype field = text.indexOf(prefix, component);
+    const qsizetype begin = field + prefix.size() - 1;
+    const qsizetype end = text.indexOf('"', begin + 1);
+    require(component >= 0 && field > component && end > begin, QStringLiteral("Nombre de componente ausente en la plantilla."));
+    text.replace(begin, end - begin + 1, literal(name));
+}
 QString contractId(const Creation &c) {
     return c.request.variant == QStringLiteral("command-only") ? QStringLiteral("com.example.artest.contract.value-source.v1")
         : c.extensionId + QStringLiteral(".contract.simulated-source.v1");
@@ -120,10 +159,8 @@ void nativeProject(Creation &c) {
     }
     replace(project, QStringLiteral("{52B2D553-945F-4788-ACD0-6DFAB4EE0C2A}"), QUuid::createUuid().toString().toUpper());
     QString definition = read(root + QStringLiteral("/Extension.cpp"));
-    replace(definition, QStringLiteral("com.example.artest.extension.starter"), c.extensionId);
-    QString title = c.request.name + QStringLiteral(" extension");
-    title.replace('\\', QStringLiteral("\\\\")).replace('"', QStringLiteral("\\\""));
-    replace(definition, QStringLiteral("ARTest extension starter"), title);
+    QMap<QString, QString> identities{{QStringLiteral("com.example.artest.extension.starter"), c.extensionId},
+        {QStringLiteral("com.example.artest.contract.value-source.v1"), contractId(c)}};
     const bool driver = c.request.variant != QStringLiteral("command-only");
     const bool command = c.request.variant != QStringLiteral("driver-only");
     if (!driver || !command) {
@@ -135,26 +172,29 @@ void nativeProject(Creation &c) {
         require(QFile::remove(root + '/' + header) && QFile::remove(root + QStringLiteral("/MultipleInstruments.json")), QStringLiteral("No se pudo adaptar la variante nativa."));
     }
     if (driver) {
-        replace(definition, QStringLiteral("com.example.artest.driver.sim-value-source"), driverId(c));
-        replace(definition, QStringLiteral("com.example.artest.schema.sim-value-source.configuration.v1"), c.extensionId + QStringLiteral(".configuration.v1"));
+        identities.insert(QStringLiteral("com.example.artest.driver.sim-value-source"), driverId(c));
+        identities.insert(QStringLiteral("com.example.artest.schema.sim-value-source.configuration.v1"), c.extensionId + QStringLiteral(".configuration.v1"));
         QString behavior = read(root + QStringLiteral("/SimulatedValueSource.h"));
-        replace(behavior, QStringLiteral("com.example.artest.instrument.value-source.v1/read"), contractId(c) + QStringLiteral("/read"));
+        replaceIdentities(behavior, {{QStringLiteral("com.example.artest.instrument.value-source.v1/read"), contractId(c) + QStringLiteral("/read")}});
         write(root + QStringLiteral("/SimulatedValueSource.h"), behavior);
     }
     if (command) {
-        replace(definition, QStringLiteral("com.example.artest.command.read-value"), commandId(c));
-        replace(definition, QStringLiteral("com.example.artest.schema.read-value.parameters.v1"), c.extensionId + QStringLiteral(".parameters.v1"));
+        identities.insert(QStringLiteral("com.example.artest.command.read-value"), commandId(c));
+        identities.insert(QStringLiteral("com.example.artest.schema.read-value.parameters.v1"), c.extensionId + QStringLiteral(".parameters.v1"));
         QString behavior = read(root + QStringLiteral("/ReadValueCommand.h"));
-        replace(behavior, QStringLiteral("com.example.artest.contract.value-source.v1"), contractId(c));
-        if (driver) replace(behavior, QStringLiteral("com.example.artest.instrument.value-source.v1/read"), contractId(c) + QStringLiteral("/read"));
+        replaceIdentities(behavior, {{QStringLiteral("com.example.artest.contract.value-source.v1"), contractId(c)},
+            {QStringLiteral("com.example.artest.instrument.value-source.v1/read"), driver ? contractId(c) + QStringLiteral("/read") : QStringLiteral("com.example.artest.instrument.value-source.v1/read")}});
         write(root + QStringLiteral("/ReadValueCommand.h"), behavior);
     }
-    replace(definition, QStringLiteral("com.example.artest.contract.value-source.v1"), contractId(c));
+    replaceIdentities(definition, identities);
+    replace(definition, QStringLiteral("\"ARTest extension starter\""), literal(c.request.name + QStringLiteral(" extension")));
+    if (driver) displayName(definition, QStringLiteral(".id = ") + literal(driverId(c)), QStringLiteral(".name = \""), c.request.driverName);
+    if (command) displayName(definition, QStringLiteral(".id = ") + literal(commandId(c)), QStringLiteral(".name = \""), c.request.commandName);
     write(root + QStringLiteral("/Extension.cpp"), definition);
     if (driver && command) {
         QString multiple = read(root + QStringLiteral("/MultipleInstruments.json"));
-        replace(multiple, QStringLiteral("com.example.artest.driver.sim-value-source"), driverId(c));
-        replace(multiple, QStringLiteral("com.example.artest.command.read-value"), commandId(c));
+        replaceIdentities(multiple, {{QStringLiteral("com.example.artest.driver.sim-value-source"), driverId(c)},
+            {QStringLiteral("com.example.artest.command.read-value"), commandId(c)}});
         write(root + QStringLiteral("/MultipleInstruments.json"), multiple);
     }
     write(root + '/' + c.projectFile, project);
@@ -195,13 +235,24 @@ void planAndConfig(const Creation &c) {
     json(root + QStringLiteral("/artest-sdk-project.json"), guided);
 }
 void pythonVariant(const Creation &c) {
-    if (c.request.variant == QStringLiteral("driver-command")) return;
+    if (c.request.variant == QStringLiteral("driver-command")) {
+        const QString path = c.staging + QStringLiteral("/project/src/extension.py");
+        QString text = read(path);
+        replace(text, QStringLiteral("\"Minimal simulated source\""), literal(c.request.name));
+        displayName(text, QStringLiteral("\n    extension.driver("), QStringLiteral("name=\""), c.request.driverName);
+        displayName(text, QStringLiteral("\n    extension.command("), QStringLiteral("name=\""), c.request.commandName);
+        write(path, text);
+        return;
+    }
     initializeAuthoringResources();
     QFile resource(c.request.variant == QStringLiteral("driver-only") ? QStringLiteral(":/authoring/driver.py.in") : QStringLiteral(":/authoring/command.py.in"));
     require(resource.open(QIODevice::ReadOnly), QStringLiteral("Falta recurso de variante Python."));
     QString text = QString::fromUtf8(resource.readAll());
     text.replace(QStringLiteral("@EXTENSION@"), c.extensionId).replace(QStringLiteral("@DRIVER@"), driverId(c))
         .replace(QStringLiteral("@COMMAND@"), commandId(c)).replace(QStringLiteral("@CONTRACT@"), contractId(c));
+    replace(text, c.request.variant == QStringLiteral("driver-only") ? QStringLiteral("\"Simulated source\", \"Example\"") : QStringLiteral("\"Measure a compatible source\", \"Example\""), literal(c.request.name) + QStringLiteral(", \"Example\""));
+    displayName(text, c.request.variant == QStringLiteral("driver-only") ? QStringLiteral("\n    extension.driver(") : QStringLiteral("\n    extension.command("),
+        QStringLiteral("name=\""), c.request.variant == QStringLiteral("driver-only") ? c.request.driverName : c.request.commandName);
     write(c.staging + QStringLiteral("/project/src/extension.py"), text);
 }
 void candidate(QStringList &list, const QString &path) {
@@ -227,8 +278,41 @@ bool executableImage(const QString &path) {
 }
 
 QString defaultWorkspace() { return QStringLiteral("C:/Users/Public/ArtestDev"); }
+SuggestedIds suggestedIds(const CreateRequest &r) {
+    QString extension = slug(r.name);
+    if (!extension.isEmpty() && !extension.contains('-')) extension += QStringLiteral("-extension");
+    const QString prefix = r.extensionId.isNull() ? extension : r.extensionId;
+    const auto component = [&](const QString &name) {
+        const QString part = slug(name);
+        return prefix.isEmpty() || part.isEmpty() ? QString() : prefix + '.' + part;
+    };
+    return {extension, component(r.driverName), component(r.commandName)};
+}
 QStringList validateForm(const CreateRequest &r) {
     QStringList errors;
+    const auto suggested = suggestedIds(r);
+    const QString extension = r.extensionId.isNull() ? suggested.extensionId : r.extensionId;
+    const QString driver = r.driverId.isNull() ? suggested.driverId : r.driverId;
+    const QString command = r.commandId.isNull() ? suggested.commandId : r.commandId;
+    const QRegularExpression stable(QStringLiteral("\\A[a-z0-9]+(?:[.-][a-z0-9]+(?:-[a-z0-9]+)*)+\\z"));
+    QStringList ids{extension};
+    const auto nameValid = [](const QString &name) {
+        return !name.trimmed().isEmpty() && name.size() <= 80 && !slug(name).isEmpty() &&
+            !name.contains(QRegularExpression(QStringLiteral("[\\x00-\\x1f\\x7f]")));
+    };
+    if (!nameValid(r.name)) errors << QStringLiteral("Nombre de proyecto: la normalización debe contener letras o números ASCII.");
+    if (r.variant != QStringLiteral("command-only")) {
+        ids << driver;
+        if (!nameValid(r.driverName)) errors << QStringLiteral("Nombre del driver vacío o no normalizable (máximo 80 caracteres).");
+    }
+    if (r.variant != QStringLiteral("driver-only")) {
+        ids << command;
+        if (!nameValid(r.commandName)) errors << QStringLiteral("Nombre del comando vacío o no normalizable (máximo 80 caracteres).");
+    }
+    for (const QString &id : ids)
+        if (!stable.match(id).hasMatch()) errors << QStringLiteral("ID inválido: %1. Use minúsculas ASCII y segmentos separados por punto o guion.").arg(id);
+    QStringList distinct = ids; distinct.removeDuplicates();
+    if (distinct.size() != ids.size()) errors << QStringLiteral("Los IDs de extensión, driver y comando deben ser distintos.");
     const QRegularExpression invalid(QStringLiteral("[<>:\"/\\\\|?*\\x00-\\x1f]"));
     const QRegularExpression reserved(QStringLiteral("^(con|prn|aux|nul|clock\\$|com[1-9]|lpt[1-9])(?:\\.|$)"), QRegularExpression::CaseInsensitiveOption);
     if (r.name.isEmpty() || r.name.size() > 80 || r.name != r.name.trimmed() || r.name.endsWith('.') ||
@@ -242,6 +326,25 @@ QStringList validateForm(const CreateRequest &r) {
         errors << QStringLiteral("Mantenga el workspace separado de la instalación SDK (sin directorios anidados).");
     const QString destination = workspace + '/' + r.name;
     if (QFileInfo::exists(destination)) errors << QStringLiteral("El destino ya existe; elija otro nombre. No se reemplaza contenido.");
+    if (ordinaryPath(workspace) && QFileInfo(workspace).isDir()) {
+        const auto directories = QDir(workspace).entryList(QDir::Dirs | QDir::Hidden | QDir::NoDotAndDotDot);
+        if (directories.size() > 1024) errors << QStringLiteral("Workspace con demasiados directorios para comprobar IDs locales (máximo 1024).");
+        else for (const QString &directory : directories) {
+            const QString config = workspace + '/' + directory + QStringLiteral("/artest-sdk-project.json");
+            if (!QFileInfo::exists(config)) continue;
+            try {
+                QJsonParseError parse;
+                const auto document = QJsonDocument::fromJson(read(config).toUtf8(), &parse);
+                require(parse.error == QJsonParseError::NoError && document.isObject() && !document.object().isEmpty(),
+                        QStringLiteral("Configuración local corrupta: %1. No se pudo completar la comprobación de IDs.").arg(config));
+                const auto existing = document.object();
+                for (const auto &key : {"extensionId", "driverId", "commandId"}) {
+                    const QString id = existing.value(QLatin1String(key)).toString();
+                    if (!id.isEmpty() && ids.contains(id)) errors << QStringLiteral("ID local duplicado: %1 en %2. Elija otro ID o workspace.").arg(id, config);
+                }
+            } catch (const std::exception &error) { errors << QString::fromUtf8(error.what()); }
+        }
+    }
     if (destination.size() > 190) errors << QStringLiteral("Acorte workspace/nombre: el starter MSBuild requiere margen para sus rutas de salida.");
     if (!r.kit.valid) errors << QStringLiteral("Recursos SDK no disponibles. Repare o reinstale ARTestDev y vuelva a comprobar.");
     if (r.kit.valid) {
@@ -255,6 +358,11 @@ QStringList validateForm(const CreateRequest &r) {
 }
 Creation beginCreation(const CreateRequest &request) {
     Creation c; c.request = request;
+    const auto suggested = suggestedIds(request);
+    if (c.request.extensionId.isNull()) c.request.extensionId = suggested.extensionId;
+    if (c.request.driverId.isNull()) c.request.driverId = suggested.driverId;
+    if (c.request.commandId.isNull()) c.request.commandId = suggested.commandId;
+    c.extensionId = c.request.extensionId;
     c.request.workspace = QDir::cleanPath(QDir::fromNativeSeparators(request.workspace));
     c.destination = c.request.workspace + '/' + request.name;
     c.diagnostics = validateForm(c.request);
@@ -267,15 +375,29 @@ Creation beginCreation(const CreateRequest &request) {
         require(QDir().mkpath(c.request.workspace) && ordinaryPath(c.request.workspace), QStringLiteral("No se puede crear el workspace. Seleccione una carpeta con permiso de escritura."));
         c.staging = c.request.workspace + QStringLiteral("/.artest-new-") + QUuid::createUuid().toString(QUuid::Id128);
         require(QDir().mkdir(c.staging), QStringLiteral("No se puede reservar el destino temporal; revise los permisos."));
-        c.extensionId = QStringLiteral("local.") + QUuid::createUuid().toString(QUuid::Id128).left(16);
         if (request.language == QStringLiteral("cpp")) nativeProject(c);
+        QJsonArray proposed;
+        if (c.request.variant != "command-only") proposed.append(QJsonObject{{"kind", "instrumentDriver"}, {"typeId", c.request.driverId}, {"displayName", c.request.driverName}});
+        if (c.request.variant != "driver-only") proposed.append(QJsonObject{{"kind", "command"}, {"typeId", c.request.commandId}, {"displayName", c.request.commandName}});
+        c.diagnostics.append(localNameWarnings(c.request.workspace, c.destination, proposed, c.extensionId));
+        for (const auto &message : c.diagnostics) require(!message.startsWith("ERROR "), message);
         c.success = true;
     } catch (const std::exception &error) { c.diagnostics << QString::fromUtf8(error.what()); }
     return c;
 }
 QStringList pythonCreateArguments(const Creation &c) {
+    // project.py creates both components before the unselected one is removed.
+    QString driver = driverId(c), command = commandId(c);
+    if (c.request.variant == QStringLiteral("command-only")) {
+        driver = c.extensionId + QStringLiteral(".unused-driver");
+        while (driver == command) driver += QStringLiteral("-unused");
+    }
+    if (c.request.variant == QStringLiteral("driver-only")) {
+        command = c.extensionId + QStringLiteral(".unused-command");
+        while (command == driver) command += QStringLiteral("-unused");
+    }
     return {QStringLiteral("-I"), QStringLiteral("-B"), c.request.kit.projectTool, QStringLiteral("create"), c.staging + QStringLiteral("/project"),
-        QStringLiteral("--extension-id"), c.extensionId, QStringLiteral("--driver-id"), driverId(c), QStringLiteral("--command-id"), commandId(c), QStringLiteral("--author"), QStringLiteral("Example")};
+        QStringLiteral("--extension-id"), c.extensionId, QStringLiteral("--driver-id"), driver, QStringLiteral("--command-id"), command, QStringLiteral("--author"), QStringLiteral("Example")};
 }
 Creation finishCreation(Creation c) {
     c.success = false;
@@ -283,6 +405,7 @@ Creation finishCreation(Creation c) {
         const QString root = c.staging + QStringLiteral("/project");
         require(ordinaryPath(root) && under(root, c.request.workspace), QStringLiteral("Destino temporal inseguro."));
         if (c.request.language == QStringLiteral("python")) pythonVariant(c);
+        applyManagedAuthoring(c);
         planAndConfig(c);
         write(root + QStringLiteral("/GENERATE-EDIT.md"), QStringLiteral(
             "# %1\n\nAbra este proyecto con Edit en ARTestDev. Edite %2.\n\n"
@@ -301,6 +424,27 @@ Creation finishCreation(Creation c) {
                 "Cambios de fuentes/SDK/configuración requieren Build explícito en Visual Studio.\n"
                 "No siga los comandos de publicación del README histórico para este proyecto.\n"
                 "No borre journals o resultados anteriores para resolver fallos de ownership.\n").arg(c.request.name, c.projectFile));
+        }
+        const QString guide = root + QStringLiteral("/GENERATE-EDIT.md");
+        write(guide, read(guide) + QStringLiteral(
+            "\nLos IDs se fijaron en Generate y no se recalculan al abrir, editar o construir.\n"
+            "Los nombres personalizados no implementan comportamiento: esta plantilla simula/lee valores, no enciende equipos.\n"
+            "Las colisiones con una instalación se comprobarán en DEV-01.5.\n"));
+        if (c.request.kit.origin == Kit::Origin::DevelopmentStaging) {
+            write(guide, read(guide) + QStringLiteral(
+                "\n## Autoría administrada (DEV-01.4-B)\n\n"
+                "Edite nombres, Author/publisher, Version major.minor.patch y Description en %1.\n"
+                "Description vacío se omite; máximo 512 puntos Unicode, sin NUL.\n"
+                "IdentityNamespace es la autoridad portable: conserve namespace, anclas y overrides iniciales.\n"
+                "Cambiar un nombre visible o una clase conserva IDs si conserva su ancla. Copiar fuentes conserva la misma extensión.\n"
+                "Para otro comando use una ancla nueva (por ejemplo trigger), su clase y schema: %2.\n"
+                "No añada IDs a la tabla de overrides ni cambie Test plans para seguir nombres visibles.\n"
+                "Comparta contrato/operación por sus símbolos existentes; no seleccione un driver por similitud.\n"
+                "Después de Build/preparación, Volver a comprobar muestra metadata verificada y cobertura local.\n"
+                "Se requiere SDK nativo 0.4.1 / Python 0.2.1 para estas ayudas; proyectos anteriores no se migran.\n")
+                .arg(c.request.language == "python" ? "src/extension.py" : "Extension.cpp",
+                     c.request.language == "python" ? "extension.command(IDENTITIES.component(\"trigger\"), MiComando, Parametros, name=\"Set Trigger\", requires=(CONTRACT,))"
+                     : "extension.AddCommand<MiComando>(ids.Command(\"trigger\", \"Set Trigger\", {.schema = Schema::Object(), .requiredContracts = {SourceContract}}))"));
         }
         const Project project = inspectProject(root);
         require(project.valid, project.diagnostics.join('\n'));
@@ -333,6 +477,7 @@ QStringList behaviorFiles(const Project &project) {
     QStringList result;
     if (project.variant != QStringLiteral("command-only")) result << project.root + QStringLiteral("/SimulatedValueSource.h");
     if (project.variant != QStringLiteral("driver-only")) result << project.root + QStringLiteral("/ReadValueCommand.h");
+    result << project.root + QStringLiteral("/Extension.cpp");
     return result;
 }
 QString pythonProbeCode() {

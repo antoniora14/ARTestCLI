@@ -33,6 +33,7 @@ PYTHON_PROBE_OUTPUT_LIMIT = 16 * 1024
 SUPPORTED_PYTHON = (3, 13)
 SUPPORTED_PYTHON_SDK_NAME = "artest-python"
 SUPPORTED_PYTHON_SDK_VERSION = "0.2.0"
+SUPPORTED_PYTHON_SDK_VERSIONS = (SUPPORTED_PYTHON_SDK_VERSION, "0.2.1")
 SUPPORTED_PYTHON_REQUIREMENT = ">=3.13,<3.14"
 SUPPORTED_WHEEL_TAG = "py3-none-any"
 PE_MACHINE_AMD64 = 0x8664
@@ -790,9 +791,9 @@ def _inspect_sdk_wheel(path: Path) -> dict:
 def _sdk_diagnostics(local: LocalConfiguration) -> tuple[list[Diagnostic], dict | None]:
     path = local.sdk_wheel
     expected = (
-        "a readable artest-python 0.2.0 wheel for CPython 3.13 using private wire 0.2"
+        "a readable artest-python 0.2.0 or 0.2.1 wheel for CPython 3.13 using private wire 0.2"
     )
-    correction = "Set sdkWheel to the unmodified ARTest Python SDK 0.2.0 wheel."
+    correction = "Set sdkWheel to an unmodified ARTest Python SDK 0.2.0 or 0.2.1 wheel; managed identities require 0.2.1."
     if not path.exists():
         return [
             _diagnostic(
@@ -824,8 +825,8 @@ def _sdk_diagnostics(local: LocalConfiguration) -> tuple[list[Diagnostic], dict 
             normalized_name == SUPPORTED_PYTHON_SDK_NAME,
         ),
         (
-            "sdkWheel.metadata.Version", SUPPORTED_PYTHON_SDK_VERSION,
-            observed["version"] == SUPPORTED_PYTHON_SDK_VERSION,
+            "sdkWheel.metadata.Version", "0.2.0 or 0.2.1",
+            observed["version"] in SUPPORTED_PYTHON_SDK_VERSIONS,
         ),
         (
             "sdkWheel.metadata.Requires-Python", SUPPORTED_PYTHON_REQUIREMENT,

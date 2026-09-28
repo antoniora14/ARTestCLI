@@ -1,8 +1,9 @@
 # DEV-01 — ARTestDev delivery roadmap
 
-Status (2026-09-25): DEV-01.1/01.2/01.2-A/01.3/01.4/01.4-A are ACCEPTED.
-The Architect accepted DEV-01.4-A after reviewing the selective-recompilation
-correction and its Debug/Release evidence. DEV-01.5–DEV-01.7 remain pending.
+Status (2026-09-28): DEV-01.1/01.2/01.2-A/01.3/01.4/01.4-A are ACCEPTED.
+The readable-ID Generate adjustment and DEV-01.4-B (simplified authoring and managed
+identities) are ACCEPTED, including their blocker corrections. DEV-01.5 is the next
+authorized implementation; DEV-01.6/01.7 remain pending.
 The owner-approved flow diagram supersedes the earlier primary Build and integrate
 journey. The subsequent clarification excludes functional Studio integration;
 only its disabled menu item is included. The latest SDK amendment excludes bundled
@@ -47,7 +48,9 @@ C-03/C-04, .NET and D5 sequencing is unchanged.
 | DEV-01.3 | ACCEPTED: Python preparation/reuse service for the Integrate pipeline |
 | DEV-01.4 | ACCEPTED: native IDE outputs, provenance and validation without PowerShell |
 | DEV-01.4-A | ACCEPTED: incremental native builds and bounded project-local retention; selective recompilation verified in Debug/Release |
-| DEV-01.5 | Integrate menu, CLI target discovery/selection, safe registration and visible result |
+| Generate readable IDs | ACCEPTED: readable defaults/overrides, exact one-pass substitutions and historical IDs preserved |
+| DEV-01.4-B | ACCEPTED: code-only presentation, stable managed identities, optional Description and local name-similarity diagnostics |
+| DEV-01.5 | Integrate menu, CLI target discovery/selection, safe registration and visible result; prerequisites satisfied, authorized next |
 | DEV-01.6 | Secondary explicit Test plan validation/execution |
 | DEV-01.7 | Minimal SDK with selectable installation folder; first-use acceptance after manual prerequisite setup |
 
@@ -243,9 +246,53 @@ recovery, ownership guards and separate Engine-backed target validation.
 semantics, public contracts, registration/run, global cleanup, installers or
 DEV-01.5. No removal of hashes or relabeling obsolete outputs as current.
 
+## DEV-01.4-B — Simplified authoring and managed identities
+
+**Status:** ACCEPTED on 2026-09-27 after review of literal-name generation and
+current-wheel selection corrections. The guide records the focused evidence.
+The [implementation guide](../sdk/artestdev-dev01-4-b.md) is the detailed authority.
+The preceding [readable-ID correction](../sdk/artestdev-readable-ids.md) is ACCEPTED
+and remains a compatibility baseline, not a reason to require manual ID editing.
+
+**Objective:** developers edit driver/command names, Author, Version and optional
+per-component Description in existing C++/Python source, then implement behavior.
+No new configuration file to maintain and no repeated literal IDs/contracts.
+Adding a second command must be supported, not just the initial one-command template.
+
+**Components:** additive module-local C++ authoring helpers/metadata generation,
+Python SDK declarations/packaging projection, templates, ARTestDev generation/
+inspection and local diagnostics; existing preparation/build adapters only for
+necessary wiring. Preserve low-level SDK calls, private staging inventories and
+the accepted native incremental/recovery path.
+
+**Steps:** (1) shared declarations and stable portable identity ownership;
+(2) six template variants and existing Build/preparation integration;
+(3) bounded advisory local-name checks; (4) Debug/Release, Python, external SDK
+and compatibility evidence. The guide defines acceptance for each step and the
+combined gate. A short source-level API example and identity strategy are recorded
+before expansion; no Engine work is authorized.
+
+**Acceptance:** names/descriptions/author/version change without changing IDs;
+multiple commands and reorder/removal preserve surviving IDs; clean/copy/rebuild
+works without local caches; manifest descriptions round-trip using existing
+fields; exact identity conflicts fail, similar names warn without renaming.
+Metadata-only generation, command-only broker contracts, old projects/overrides,
+native independence and source/binary provenance remain verified.
+
+**Do not touch:** Engine/Core/ABI/Engine API/private wire or manifest/receipt/
+catalog formats, hardware, registration/run, automatic project migration,
+compiler reflection infrastructure, global indexing/AI services, installers,
+Studio, .NET or later DEV stages. Internal generated artifacts are permitted only
+when necessary; they are not new developer-maintained configuration.
+
 ## DEV-01.5 — Integrate to ARTestCLI
 
-**Prerequisite:** DEV-01.4-A accepted; this amendment does not start DEV-01.5.
+**Prerequisite:** DEV-01.4-A and DEV-01.4-B accepted, including the already accepted
+readable-ID correction. These prerequisites are satisfied; DEV-01.5 is authorized
+as the next implementation on 2026-09-28. Reuse DEV-01.4-B's
+diagnostic policy for the selected installation: updates retain identity;
+similar names alone never reject or replace another package. Actual target ID
+conflicts remain subject to the existing full-catalog validation and ownership.
 
 **Objective:** deliver the diagram's Integrate menu and the complete registration
 result. Include `Integrate to ARTestCLI` and disabled `Integrate to ARTestStudio`.
@@ -345,7 +392,8 @@ development staging; see [delivery and usage](../sdk/artestdev-dev01-2.md). Its 
 must return `DEV-01.2-A ACCEPTED` or `DEV-01.2-A REQUIRES FIXES`; later stages remain pending.
 Do not expand the fix handoff into all GUI stages. Each stage reports changes,
 exact tests/results, limitations and candidate evidence; follow AGENTS.md integration
-checks. This documentation update authorizes no commit/push or cross-task dispatch.
+checks. Implementation handoffs require separate review before commit/push; no cross-task
+dispatch is authorized by this roadmap.
 Stop and report architectural contradictions or required public-contract changes.
 
 Known incidents remain in the canonical roadmap. Preserve failures and assess

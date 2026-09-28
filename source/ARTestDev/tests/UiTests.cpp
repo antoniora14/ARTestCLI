@@ -1,6 +1,8 @@
 #include "AuthoringWidget.h"
 #include <QApplication>
 #include <QComboBox>
+#include <QCheckBox>
+#include <QJsonDocument>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QTemporaryDir>
@@ -45,12 +47,43 @@ private slots:
         QVERIFY(!widget.busy());
         QVERIFY(generate->isEnabled());
         name->setText("../bad"); QVERIFY(!generate->isEnabled()); name->setText("UI Project"); QVERIFY(generate->isEnabled());
+        auto *driverName = widget.findChild<QLineEdit *>("driverName");
+        auto *commandName = widget.findChild<QLineEdit *>("commandName");
+        auto *extensionId = widget.findChild<QLineEdit *>("extensionId");
+        auto *driverId = widget.findChild<QLineEdit *>("driverId");
+        auto *commandId = widget.findChild<QLineEdit *>("commandId");
+        driverName->setText("Power Supply"); commandName->setText("Power-On");
+        QCOMPARE(extensionId->text(), QString("ui-project")); QCOMPARE(driverId->text(), QString("ui-project.power-supply"));
+        QCOMPARE(commandId->text(), QString("ui-project.power-on")); QVERIFY(extensionId->isReadOnly());
+        driverName->clear(); QVERIFY(!generate->isEnabled()); driverName->setText("Power Supply");
+        auto *variant = widget.findChild<QComboBox *>("variant");
+        variant->setCurrentIndex(1); QVERIFY(!commandName->isEnabled()); QVERIFY(!commandId->isEnabled());
+        variant->setCurrentIndex(2); QVERIFY(!driverName->isEnabled()); QVERIFY(commandName->isEnabled());
+        variant->setCurrentIndex(0);
+        widget.findChild<QCheckBox *>("advancedIds")->setChecked(true);
+        const auto editId = [](QLineEdit *field, const QString &value) {
+            field->setFocus(); field->selectAll(); QTest::keyClicks(field, value);
+        };
+        editId(extensionId, "lab.ui"); QCOMPARE(driverId->text(), QString("lab.ui.power-supply"));
+        extensionId->selectAll(); QTest::keyClick(extensionId, Qt::Key_Backspace); QVERIFY(!generate->isEnabled());
+        editId(extensionId, "lab.ui");
+        editId(commandId, "lab.ui.power-supply"); QVERIFY(!generate->isEnabled());
+        editId(commandId, "lab.action"); QVERIFY(generate->isEnabled());
+        commandName->setText("Read Value"); QCOMPARE(commandId->text(), QString("lab.action"));
+        QTest::mouseClick(widget.findChild<QPushButton *>("resetIds"), Qt::LeftButton);
+        QCOMPARE(extensionId->text(), QString("ui-project")); QCOMPARE(commandId->text(), QString("ui-project.read-value"));
+        editId(extensionId, "local.0123456789abcdef");
+        editId(driverId, "local.0123456789abcdef.driver.simulated-source");
+        editId(commandId, "local.0123456789abcdef.command.measure-value");
         QTest::mouseClick(generate, Qt::LeftButton);
         QVERIFY(widget.busy()); QVERIFY(!generate->isEnabled()); QVERIFY(!name->isEnabled());
         QVERIFY(!widget.canClose());
         QTRY_VERIFY_WITH_TIMEOUT(edit->isEnabled(), 60000);
         QVERIFY(!widget.busy());
         QVERIFY(QFileInfo::exists(location->text() + "/UI Project/artest-sdk-project.json"));
+        const QString identityPath = location->text() + "/UI Project/artest-sdk-project.json";
+        QFile identity(identityPath); QVERIFY(identity.open(QIODevice::ReadOnly)); const auto identityBefore = identity.readAll(); identity.close();
+        QCOMPARE(QJsonDocument::fromJson(identityBefore).object().value("extensionId").toString(), QString("local.0123456789abcdef"));
         QCOMPARE(name->text(), QStringLiteral("UI Project")); QVERIFY(!generate->isEnabled());
         QVERIFY(edit->isEnabled());
         QVERIFY(widget.canClose());
@@ -81,6 +114,7 @@ private slots:
         missing.activate();
         QTRY_VERIFY_WITH_TIMEOUT(!missing.busy(), 60000);
         missing.open(inspectProject(location->text() + "/UI Project"));
+        QVERIFY(identity.open(QIODevice::ReadOnly)); QCOMPARE(identity.readAll(), identityBefore);
         QVERIFY(!missing.findChild<QPushButton *>("generate")->isEnabled());
         QVERIFY(missing.findChild<QPushButton *>("edit")->isEnabled());
         QVERIFY(missing.findChild<QPlainTextEdit *>()->toPlainText().contains("Repare o reinstale"));

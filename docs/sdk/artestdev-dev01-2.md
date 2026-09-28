@@ -5,6 +5,12 @@ Esta guía conserva su flujo y evidencia. La entrega posterior
 [DEV-01.3](artestdev-dev01-3.md) añade preparación privada para revisión;
 no autoriza DEV-01.4 ni etapas posteriores.
 
+El ajuste ACCEPTED previo a DEV-01.5 añade
+[nombres e IDs legibles en Generate](artestdev-readable-ids.md). El formulario
+permite nombrar los componentes y revisar/editar sus IDs; no migra proyectos
+existentes ni modifica los cierres ACCEPTED. Los límites y resultados históricos
+de esta guía se conservan; la guía enlazada describe únicamente el ajuste nuevo.
+
 ## Uso sin terminal
 
 1. Abra ARTestDev. Welcome muestra **Welcome to ARTestDev**, **The Art of Testing**

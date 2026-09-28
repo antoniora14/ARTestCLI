@@ -1,9 +1,11 @@
 #include "Authoring.h"
+#include "IdentityOverrides.h"
 #include "SdkLocation.h"
 #include "NativeOutputs.h"
 #include "NativeRetention.h"
 #include "TreeProcess.h"
 #include "NativeService.h"
+#include "Presentation.h"
 #include <vector>
 #include <cstring>
 #include <stdexcept>
@@ -92,6 +94,69 @@ class NativeTests : public QObject {
         return QJsonDocument::fromJson(r.output).object();
     }
 private slots:
+    void managedAuthoring() {
+        CreateRequest request{"managed", "cpp", "driver-command", root_ + "/managed-workspace", inspectStagingExecutable(sdk_ + "/ARTestDev.exe")};
+        auto c = finishCreation(beginCreation(request)); QVERIFY2(c.success, qPrintable(c.diagnostics.join('\n')));
+        const QString project = c.destination + '/' + c.projectFile;
+        const QString source = c.destination + "/Extension.cpp";
+        const auto original = bytes(source), plan = bytes(c.destination + "/TestPlan.json");
+        const auto build = [&](const QString &label) { return run(msbuild_, {project, "/t:Build", "/m:1", "/nr:false", "/v:minimal", "/p:Configuration=" + configuration_ + ";Platform=x64"}, root_, "managed-" + label + ".log"); };
+        auto result = build("initial"); QVERIFY2(result.status == ProcessResult::Status::Success, result.output.constData());
+        const QString package = c.destination + "/.artest/native/" + configuration_ + "/current/package/artest-extension.json";
+        const auto first = Native::readObject(package);
+        auto edited = original;
+        edited.replace("\"Example\"", "\"New author\"");
+        edited.replace("\"0.1.0\"", "\"2.3.4\"");
+        edited.replace("\"Simulated Source\"", "\"PicoScope2204A\"");
+        edited.replace("\"Measure Value\"", "\"Read_Wave_Form\"");
+        edited.replace(".description = \"\"", ".description = \"Captura \\\"canal\\\"\\n\\\\ UTF-8: ñ\"");
+        const QByteArray extra = "    extension.AddCommand<ReadValueCommand>(ids.Command(\"trigger\", \"Read Wave Form\", {.schema = Schema::Object(), .requiredContracts = {SourceContract}}));\n";
+        edited.replace("    return extension;", extra + "    return extension;");
+        put(source, edited);
+        QVERIFY(!inspectPresentation(c.destination).current);
+        result = build("edited"); QVERIFY2(result.status == ProcessResult::Status::Success, result.output.constData());
+        const auto updated = Native::readObject(package);
+        QCOMPARE(updated.value("publisher").toString(), QString("New author"));
+        QCOMPARE(updated.value("version").toString(), QString("2.3.4"));
+        QCOMPARE(updated.value("components").toArray().size(), 3);
+        for (const auto &prior : first.value("components").toArray()) {
+            bool found = false;
+            for (const auto &next : updated.value("components").toArray()) if (prior.toObject().value("typeId") == next.toObject().value("typeId")) {
+                QCOMPARE(prior.toObject().value("schemas"), next.toObject().value("schemas"));
+                QCOMPARE(prior.toObject().value("contractId"), next.toObject().value("contractId"));
+                QVERIFY(!next.toObject().value("description").toString().isEmpty()); found = true;
+            }
+            QVERIFY(found);
+        }
+        QCOMPARE(check(project, true).value("status").toString(), QString("target-validated"));
+        const auto presentation = inspectPresentation(c.destination);
+        QVERIFY2(presentation.current, qPrintable(presentation.diagnostics.join('\n')));
+        const auto publishedBytes = bytes(package); put(package, publishedBytes + "\n");
+        QVERIFY(!inspectPresentation(c.destination).current); put(package, publishedBytes);
+        QVERIFY(localNameWarnings(QFileInfo(c.destination).absolutePath(), c.destination, presentation.components).join('\n').contains("equivalentes"));
+        const auto owner = bytes(c.destination + "/.artest/native/" + configuration_ + "/current/ownership.json");
+        result = build("unchanged"); QVERIFY2(result.status == ProcessResult::Status::Success, result.output.constData());
+        QCOMPARE(bytes(c.destination + "/.artest/native/" + configuration_ + "/current/ownership.json"), owner);
+        auto reordered = edited; reordered.replace(extra, ""); reordered.replace("    extension.AddCommand<ReadValueCommand>(ids.Command(\"read\"", extra + "    extension.AddCommand<ReadValueCommand>(ids.Command(\"read\"");
+        put(source, reordered); result = build("reordered"); QVERIFY2(result.status == ProcessResult::Status::Success, result.output.constData());
+        QCOMPARE(Native::readObject(package).value("components"), updated.value("components"));
+        auto removed = edited; removed.replace(extra, ""); put(source, removed);
+        result = build("removed"); QVERIFY2(result.status == ProcessResult::Status::Success, result.output.constData());
+        const auto remaining = Native::readObject(package).value("components").toArray();
+        QCOMPARE(remaining.size(), 2);
+        for (const auto &component : remaining) QVERIFY(updated.value("components").toArray().contains(component));
+        auto duplicate = edited; duplicate.replace("\"trigger\"", "\"read\""); put(source, duplicate);
+        result = build("duplicate"); QVERIFY(result.status != ProcessResult::Status::Success);
+        QCOMPARE(Native::readObject(package).value("components").toArray(), remaining);
+        put(source, edited);
+        const QString copied = root_ + "/managed-workspace/copied-managed"; QVERIFY(QDir().mkpath(copied));
+        for (const auto &file : QDir(c.destination).entryInfoList(QDir::Files | QDir::Hidden)) QVERIFY(QFile::copy(file.absoluteFilePath(), copied + '/' + file.fileName()));
+        const auto copyBuild = run(msbuild_, {copied + '/' + c.projectFile, "/t:Build", "/m:1", "/nr:false", "/v:minimal", "/p:Configuration=" + configuration_ + ";Platform=x64"}, root_, "managed-copy-clean.log");
+        QVERIFY2(copyBuild.status == ProcessResult::Status::Success, copyBuild.output.constData());
+        QCOMPARE(Native::readObject(copied + "/.artest/native/" + configuration_ + "/current/package/artest-extension.json").value("components"), updated.value("components"));
+        QVERIFY(localNameWarnings(QFileInfo(copied).absolutePath(), copied, updated.value("components").toArray(), c.extensionId).join('\n').contains("ERROR ID local duplicado"));
+        QCOMPARE(bytes(c.destination + "/TestPlan.json"), plan);
+    }
     void lateBoundArguments() {
         CreateRequest request; request.kit = inspectStagingExecutable(sdk_ + "/ARTestDev.exe");
         request.workspace = root_ + "/Late property projects"; request.name = "latebound"; request.language = "cpp"; request.variant = "driver-command";
@@ -410,10 +475,64 @@ private slots:
         QTest::addColumn<QString>("variant");
         for (const char *v : {"driver-only", "command-only", "driver-command"}) QTest::newRow(v) << QString::fromLatin1(v);
     }
+    void readableIdentities_data() {
+        QTest::addColumn<QString>("variant"); QTest::addColumn<QString>("label");
+        QTest::addColumn<QString>("extension"); QTest::addColumn<QString>("driver"); QTest::addColumn<QString>("command");
+        for (const QString variant : {"driver-command", "driver-only", "command-only"})
+            QTest::newRow(qPrintable(variant)) << variant << variant << QString() << QString() << QString();
+        for (const auto &ids : identityOverrides())
+            QTest::newRow(qPrintable(ids.label)) << QString("driver-command") << ids.label << ids.extension << ids.driver << ids.command;
+    }
+    void readableIdentities() {
+        QFETCH(QString, variant);
+        QFETCH(QString, label); QFETCH(QString, extension); QFETCH(QString, driver); QFETCH(QString, command);
+        CreateRequest request{"Bench Power", "cpp", variant, root_ + "/identities/" + label, inspectStagingExecutable(sdk_ + "/ARTestDev.exe")};
+        request.extensionId = extension; request.driverId = driver; request.commandId = command;
+        request.driverName = "Power \"Supply\""; request.commandName = "Power-On";
+        if (variant == "command-only") {
+            request.extensionId = "local.0123456789abcdef";
+            request.commandId = "custom.power-on";
+        }
+        auto c = finishCreation(beginCreation(request)); QVERIFY2(c.success, qPrintable(c.diagnostics.join('\n')));
+        const QString project = c.destination + '/' + c.projectFile;
+        const auto config = bytes(c.destination + "/artest-sdk-project.json");
+        const auto source = bytes(c.destination + "/Extension.cpp");
+        const auto plan = bytes(c.destination + "/TestPlan.json");
+        QVERIFY(inspectProject(c.destination).valid);
+        const auto built = run(msbuild_, {project, "/t:Build", "/m:1", "/nr:false", "/v:minimal", "/p:Configuration=" + configuration_ + ";Platform=x64"}, root_, "identities-" + label + "-build.log");
+        QVERIFY2(built.status == ProcessResult::Status::Success, built.output.constData());
+        const auto valid = check(project, true); QVERIFY2(valid.value("status") == "target-validated", QJsonDocument(valid).toJson().constData());
+        const auto guided = QJsonDocument::fromJson(config).object();
+        if (!extension.isNull()) {
+            QCOMPARE(guided.value("extensionId").toString(), extension);
+            QCOMPARE(guided.value("driverId").toString(), driver);
+            QCOMPARE(guided.value("commandId").toString(), command);
+        }
+        const auto package = c.destination + "/.artest/native/" + configuration_ + "/current/package";
+        const auto manifest = Native::readObject(package + "/artest-extension.json");
+        QCOMPARE(manifest.value("extensionId"), guided.value("extensionId"));
+        for (const auto &entry : manifest.value("components").toArray()) {
+            const auto component = entry.toObject(); const bool isDriver = component.value("kind") == "instrumentDriver";
+            QCOMPARE(component.value("typeId"), guided.value(isDriver ? "driverId" : "commandId"));
+            QCOMPARE(component.value("displayName").toString(), isDriver ? request.driverName : request.commandName);
+            if (isDriver) QCOMPARE(component.value("contractId"), guided.value("contractId"));
+            else QCOMPARE(component.value("requires").toArray()[0].toObject().value("contractId"), guided.value("contractId"));
+            for (const auto &schemaValue : component.value("schemas").toArray()) {
+                const auto schema = schemaValue.toObject();
+                QVERIFY(QFileInfo::exists(package + '/' + schema.value("path").toString()));
+                QCOMPARE(schema.value("schemaId").toString(), c.extensionId + (isDriver ? ".configuration.v1" : ".parameters.v1"));
+            }
+        }
+        QCOMPARE(bytes(c.destination + "/artest-sdk-project.json"), config);
+        QCOMPARE(bytes(c.destination + "/Extension.cpp"), source);
+        QCOMPARE(bytes(c.destination + "/TestPlan.json"), plan);
+    }
     void variants() {
         QFETCH(QString, variant);
         const auto kit = inspectStagingExecutable(sdk_ + "/ARTestDev.exe");
         CreateRequest request; request.kit = kit; request.workspace = root_ + "/Projects with spaces"; request.name = variant; request.language = "cpp"; request.variant = variant;
+        request.driverName = "Power \"Supply\""; request.commandName = "Power-On";
+        if (variant == "command-only") request.commandId = "custom.power-on";
         auto c = beginCreation(request); QVERIFY2(c.success, qPrintable(c.diagnostics.join('\n')));
         c = finishCreation(c); QVERIFY2(c.success, qPrintable(c.diagnostics.join('\n')));
         const QString project = c.destination + '/' + c.projectFile;
@@ -438,6 +557,14 @@ private slots:
         QVERIFY2(built.status == ProcessResult::Status::Success, built.output.constData());
         const auto fresh = check(project); QCOMPARE(fresh.value("status").toString(), "compiled");
         const auto valid = check(project, true); QVERIFY2(valid.value("status") == "target-validated", QJsonDocument(valid).toJson().constData());
+        const auto guided = Native::readObject(c.destination + "/artest-sdk-project.json");
+        const auto generated = Native::readObject(c.destination + "/.artest/native/" + configuration_ + "/current/package/artest-extension.json");
+        QCOMPARE(generated.value("extensionId"), guided.value("extensionId"));
+        for (const auto &entry : generated.value("components").toArray()) {
+            const auto component = entry.toObject(); const bool driver = component.value("kind") == "instrumentDriver";
+            QCOMPARE(component.value("typeId"), guided.value(driver ? "driverId" : "commandId"));
+            QCOMPARE(component.value("displayName").toString(), driver ? request.driverName : request.commandName);
+        }
         QCOMPARE(Native::inventory(sdk_), beforeSdk);
         const QString source = c.destination + "/Extension.cpp"; const auto original = bytes(source); auto changed = original;
         const auto pos = changed.indexOf("extension"); QVERIFY(pos >= 0); changed[pos] = 'E'; put(source, changed);

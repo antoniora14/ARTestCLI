@@ -2,6 +2,7 @@
 #include "SdkLocation.h"
 #include <QCoreApplication>
 #include <QComboBox>
+#include <QCheckBox>
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QFileInfo>
@@ -51,6 +52,29 @@ AuthoringWidget::AuthoringWidget(QWidget *parent, QSettings::Format settingsForm
     };
     form->addRow(QStringLiteral("Nombre"), name_); form->addRow(QStringLiteral("Lenguaje"), language_);
     form->addRow(QStringLiteral("Componentes"), variant_);
+    driverName_ = new QLineEdit(QStringLiteral("Simulated Source")); driverName_->setObjectName(QStringLiteral("driverName"));
+    commandName_ = new QLineEdit(QStringLiteral("Measure Value")); commandName_->setObjectName(QStringLiteral("commandName"));
+    form->addRow(QStringLiteral("Nombre del driver"), driverName_);
+    form->addRow(QStringLiteral("Nombre del comando"), commandName_);
+    extensionId_ = new QLineEdit; extensionId_->setObjectName(QStringLiteral("extensionId"));
+    driverId_ = new QLineEdit; driverId_->setObjectName(QStringLiteral("driverId"));
+    commandId_ = new QLineEdit; commandId_->setObjectName(QStringLiteral("commandId"));
+    for (auto *field : {extensionId_, driverId_, commandId_}) field->setReadOnly(true);
+    form->addRow(QStringLiteral("ID de extensión"), extensionId_);
+    form->addRow(QStringLiteral("ID de driver"), driverId_);
+    form->addRow(QStringLiteral("ID de comando"), commandId_);
+    auto *advanced = new QCheckBox(QStringLiteral("Opciones avanzadas: editar IDs")); advanced->setObjectName(QStringLiteral("advancedIds"));
+    auto *resetIds = new QPushButton(QStringLiteral("Restaurar IDs sugeridos")); resetIds->setObjectName(QStringLiteral("resetIds"));
+    form->addRow(advanced, resetIds);
+    connect(advanced, &QCheckBox::toggled, this, [this](bool enabled) {
+        for (auto *field : {extensionId_, driverId_, commandId_}) field->setReadOnly(!enabled);
+    });
+    connect(resetIds, &QPushButton::clicked, this, [this] {
+        for (auto *field : {extensionId_, driverId_, commandId_}) field->setModified(false);
+        refresh();
+    });
+    auto *semantics = new QLabel(QStringLiteral("Los nombres no cambian el comportamiento: la plantilla simula/lee valores; no enciende equipos. Los IDs se fijan al generar."));
+    semantics->setWordWrap(true); form->addRow(semantics);
     addFolder(QStringLiteral("Workspace"), workspace_);
     python_ = new QComboBox; python_->setObjectName(QStringLiteral("python"));
     const QString savedPython = settings_.value(QStringLiteral("python")).toString();
@@ -70,6 +94,8 @@ AuthoringWidget::AuthoringWidget(QWidget *parent, QSettings::Format settingsForm
     recheck_ = new QPushButton(QStringLiteral("Volver a comprobar")); recheck_->setObjectName(QStringLiteral("recheck")); layout->addWidget(recheck_);
     diagnostics_ = new QPlainTextEdit; diagnostics_->setReadOnly(true); diagnostics_->setMaximumBlockCount(2000); layout->addWidget(diagnostics_, 1);
     connect(name_, &QLineEdit::textChanged, this, &AuthoringWidget::refresh);
+    for (auto *field : {driverName_, commandName_}) connect(field, &QLineEdit::textChanged, this, &AuthoringWidget::refresh);
+    for (auto *field : {extensionId_, driverId_, commandId_}) connect(field, &QLineEdit::textEdited, this, &AuthoringWidget::refresh);
     connect(workspace_, &QLineEdit::textChanged, this, [this] { settings_.setValue(QStringLiteral("workspace"), workspace_->text()); refresh(); });
     connect(language_, &QComboBox::currentIndexChanged, this, [this] { invalidatePython(); populateEditors(); refresh(); });
     connect(variant_, &QComboBox::currentIndexChanged, this, &AuthoringWidget::refresh);
@@ -113,6 +139,12 @@ AuthoringWidget::AuthoringWidget(QWidget *parent, QSettings::Format settingsForm
     connect(&kitWatcher_, &QFutureWatcher<Kit>::finished, this, [this] {
         kit_ = kitWatcher_.result();
         log(kit_.valid ? QStringLiteral("Inventario de recursos locales íntegro. Recursos de autoría: %1").arg(kit_.root) : kit_.diagnostics.join('\n'));
+        refresh();
+    });
+    connect(&projectWatcher_, &QFutureWatcher<Project>::finished, this, [this] {
+        project_ = projectWatcher_.result();
+        log(project_.diagnostics.join('\n'));
+        log(project_.presentation.join('\n'));
         refresh();
     });
     connect(&toolsWatcher_, &QFutureWatcher<Tools>::finished, this, [this] {
@@ -170,19 +202,32 @@ AuthoringWidget::AuthoringWidget(QWidget *parent, QSettings::Format settingsForm
     refresh();
 }
 bool AuthoringWidget::busy() const {
-    return generating_ || process_.busy() || kitWatcher_.isRunning() || toolsWatcher_.isRunning() || createWatcher_.isRunning() || editorWatcher_.isRunning();
+    return generating_ || process_.busy() || projectWatcher_.isRunning() || kitWatcher_.isRunning() || toolsWatcher_.isRunning() || createWatcher_.isRunning() || editorWatcher_.isRunning();
 }
 bool AuthoringWidget::canClose() const {
     // File workers must finish; read-only probes retain ProcessAdapter's bounded teardown.
     // An unconfirmed create child only owns its unpublished staging directory.
-    return !generating_ && !kitWatcher_.isRunning() && !toolsWatcher_.isRunning() &&
+    return !generating_ && !projectWatcher_.isRunning() && !kitWatcher_.isRunning() && !toolsWatcher_.isRunning() &&
            !createWatcher_.isRunning() && !editorWatcher_.isRunning();
 }
 void AuthoringWidget::log(const QString &text) { if (!text.isEmpty()) diagnostics_->appendPlainText(text); }
 CreateRequest AuthoringWidget::request() const {
-    return {name_->text(), language_->currentData().toString(), variant_->currentData().toString(), workspace_->text(), kit_};
+    CreateRequest r{name_->text(), language_->currentData().toString(), variant_->currentData().toString(), workspace_->text(), kit_};
+    r.driverName = driverName_->text(); r.commandName = commandName_->text();
+    if (extensionId_->isModified()) r.extensionId = extensionId_->text();
+    if (driverId_->isModified()) r.driverId = driverId_->text();
+    if (commandId_->isModified()) r.commandId = commandId_->text();
+    return r;
 }
 void AuthoringWidget::refresh() {
+    const auto suggested = suggestedIds(request());
+    if (!extensionId_->isModified()) extensionId_->setText(suggested.extensionId);
+    if (!driverId_->isModified()) driverId_->setText(suggested.driverId);
+    if (!commandId_->isModified()) commandId_->setText(suggested.commandId);
+    const bool driver = variant_->currentData() != QStringLiteral("command-only");
+    const bool command = variant_->currentData() != QStringLiteral("driver-only");
+    driverName_->setEnabled(driver); driverId_->setEnabled(driver);
+    commandName_->setEnabled(command); commandId_->setEnabled(command);
     const bool active = busy();
     inputs_->setEnabled(!active); recheck_->setEnabled(!active); manualEditor_->setEnabled(!active); editor_->setEnabled(!active);
     python_->setEnabled(!active && language_->currentData() == QStringLiteral("python")); manualPython_->setEnabled(python_->isEnabled());
@@ -213,6 +258,10 @@ void AuthoringWidget::recheck() {
     if (busy()) return;
     invalidatePython();
     const QString executable = sdkExecutable_;
+    if (!project_.root.isEmpty()) {
+        const QString path = project_.root;
+        projectWatcher_.setFuture(QtConcurrent::run([path] { return inspectProject(path); }));
+    }
     kitWatcher_.setFuture(QtConcurrent::run([executable] { return inspectStagingExecutable(executable); }));
     const QString visualStudio = settings_.value(QStringLiteral("editor/cpp")).toString();
     toolsWatcher_.setFuture(QtConcurrent::run([visualStudio] { return discoverTools(visualStudio); })); refresh();
@@ -271,6 +320,8 @@ void AuthoringWidget::showCreation() {
         project_ = inspectProject(creation_.destination);
         behavior_->setText(QStringLiteral("Proyecto: %1\nEdite el comportamiento en:\n%2").arg(project_.root, behaviorFiles(project_).join('\n')));
         log(QStringLiteral("Generate completado: %1. Test plan creado; no ejecutado.").arg(project_.root));
+        log(creation_.diagnostics.join('\n'));
+        log(project_.presentation.join('\n'));
         populateEditors();
     } else log(creation_.diagnostics.join('\n'));
     refresh();
@@ -278,6 +329,7 @@ void AuthoringWidget::showCreation() {
 void AuthoringWidget::open(const Project &project) {
     if (busy()) return;
     project_ = project;
+    log(project_.presentation.join('\n'));
     language_->setCurrentIndex(project.language == QStringLiteral("cpp") ? 1 : 0);
     behavior_->setText(QStringLiteral("Proyecto: %1\nEdite el comportamiento en:\n%2").arg(project_.root, behaviorFiles(project_).join('\n')));
     populateEditors(); refresh();
@@ -286,6 +338,9 @@ void AuthoringWidget::newProject() {
     if (busy()) return;
     project_ = {};
     creation_ = {};
+    for (auto *field : {extensionId_, driverId_, commandId_}) field->setModified(false);
+    driverName_->setText(QStringLiteral("Simulated Source"));
+    commandName_->setText(QStringLiteral("Measure Value"));
     name_->clear();
     behavior_->clear();
     diagnostics_->clear();

@@ -189,6 +189,7 @@ private:
         if (!tool.isEmpty()) summary << QStringLiteral("Herramienta local: %1").arg(tool);
         summary_->setText(summary.join('\n'));
         QStringList lines = project_.diagnostics;
+        lines.append(project_.presentation);
         lines.append(kit_.diagnostics);
         for (const QString &item : project_.prerequisites)
             lines << QStringLiteral("Prerrequisito de autoría: %1").arg(item);

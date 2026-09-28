@@ -306,6 +306,27 @@ active or ambiguous state is preserved. Python preparation/environments and lega
 SDK targets are unchanged. See the guide for the measurement and acceptance gate.
 This scoped local retention is distinct from out-of-scope global cleanup.
 
+## Authoring simplification amendment (2026-09-27)
+
+DEV-01.4-B is approved before DEV-01.5; see
+[the implementation guide](../sdk/artestdev-dev01-4-b.md).
+Keep the owner's editable presentation in existing source: driver/command names,
+Author, Version and optional per-component Description. Do not introduce another
+developer-maintained configuration file or require repeated literal identities.
+Stable portable component identities are independent of presentation and caches.
+Shared contract declarations still describe real semantics and broker operations;
+the tool does not infer device behavior from a name.
+
+Compatible additive C++/Python authoring helpers and metadata projection are
+authorized for this unit, preserving existing low-level APIs. Description uses
+the already allowed component manifest field; no Engine, runtime ABI, Engine API,
+wire, manifest-version or receipt-format change is authorized. Local name
+similarity is advisory and bounded, never identity merging or hardware selection.
+Selected-installation checks remain DEV-01.5. Existing projects/IDs are not
+silently migrated; all accepted stages and the readable-ID correction remain valid.
+DEV-01.4-B is ACCEPTED after review of the two blocker corrections (2026-09-27).
+DEV-01.5 is the next authorized implementation; later gates remain separate.
+
 ## Boundaries and invariants
 
 - No Engine/Core linkage in ARTestDev. Use existing CLI subprocesses; keep Engine,

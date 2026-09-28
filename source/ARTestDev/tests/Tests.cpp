@@ -1,6 +1,7 @@
 #include "Inspection.h"
 #include "ProcessAdapter.h"
 #include "Readiness.h"
+#include "Presentation.h"
 
 #include <QCoreApplication>
 #include <QCryptographicHash>
@@ -32,6 +33,31 @@ static void writeJson(const QString &path, const QJsonObject &value) {
 class Tests : public QObject {
     Q_OBJECT
 private slots:
+    void boundedNamePolicy() {
+        QCOMPARE(comparisonName("Read_Wave_Form"), comparisonName("read-wave-form"));
+        QCOMPARE(comparisonName("Réád Wave Form"), comparisonName("read_wave_form"));
+        QVERIFY(nameSimilarity("PicoScope2204A", "PicoScope2205A").contains("parecidos"));
+        QVERIFY(nameSimilarity("abcde", "abcdf").isEmpty());
+        QVERIFY(nameSimilarity("Read", "Write").isEmpty());
+        QVERIFY(nameSimilarity("abcdef", "abcdefg").contains("parecidos"));
+        QVERIFY(nameSimilarity("abcdefg", "abcdef").contains("parecidos"));
+        QVERIFY(nameSimilarity("abcxdef", "abcdef").contains("parecidos"));
+        QVERIFY(nameSimilarity("abcdef", "abcdxy").isEmpty());
+        QTemporaryDir workspace;
+        const QJsonArray rows{QJsonObject{{"kind", "command"}, {"typeId", "a.read"}, {"displayName", "Read_Wave_Form"}},
+                             QJsonObject{{"kind", "command"}, {"typeId", "b.read"}, {"displayName", "Read Wave Form"}},
+                             QJsonObject{{"kind", "instrumentDriver"}, {"typeId", "a.driver"}, {"displayName", "Read Wave Form"}}};
+        const auto warnings = localNameWarnings(workspace.path(), workspace.path() + "/self", rows);
+        QCOMPARE(warnings.size(), 1);
+        QVERIFY(warnings[0].contains("WARNING") && warnings[0].contains("equivalentes"));
+        const auto duplicates = localNameWarnings(workspace.path(), workspace.path() + "/self", QJsonArray{rows[0], rows[0]});
+        QVERIFY(duplicates.join('\n').contains("ERROR ID local duplicado"));
+        writeFile(workspace.path() + "/other/artest-sdk-project.json", "{broken");
+        QVERIFY(localNameWarnings(workspace.path(), workspace.path() + "/self", rows).join('\n').contains("Cobertura incompleta"));
+        QVERIFY(!inspectPresentation(workspace.path() + "/other").current);
+        for (int i = 0; i < 1024; ++i) QVERIFY(QDir().mkdir(workspace.path() + '/' + QString::number(i)));
+        QVERIFY(localNameWarnings(workspace.path(), workspace.path() + "/self", rows).join('\n').contains("1024"));
+    }
     void projectAndPortableLocalSeparation() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());

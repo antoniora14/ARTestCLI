@@ -1,5 +1,7 @@
 #include "PreparationService.h"
+#include "Authoring.h"
 #include "SdkLocation.h"
+#include "Presentation.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QDirIterator>
@@ -63,6 +65,68 @@ class PreparationTests : public QObject {
         return path;
     }
 private slots:
+    void managedAuthoring() {
+        CreateRequest request{"Managed Python", "python", "driver-command", root_ + "/managed", inspectStagingExecutable(sdk_ + "/ARTestDev.exe")};
+        auto creation = beginCreation(request); QVERIFY2(creation.success, qPrintable(creation.diagnostics.join('\n')));
+        ProcessAdapter process; ProcessResult generation; bool done = false;
+        connect(&process, &ProcessAdapter::completed, this, [&](const ProcessResult &v) { generation = v; done = true; });
+        QVERIFY(process.start(python_, pythonCreateArguments(creation))); QTRY_VERIFY_WITH_TIMEOUT(done, 35000);
+        QVERIFY2(generation.status == ProcessResult::Status::Success, generation.output.constData());
+        creation = finishCreation(creation); QVERIFY2(creation.success, qPrintable(creation.diagnostics.join('\n')));
+        const auto path = creation.destination, sourcePath = path + "/src/extension.py";
+        const auto original = bytes(sourcePath), plan = bytes(path + "/plan/measurement.json");
+        const auto first = run(path); QVERIFY2(first.status == PreparationResult::Status::Prepared, qPrintable(first.diagnostic));
+        const auto manifest = [&](const PreparationResult &r) { return QJsonDocument::fromJson(bytes(r.revision + "/package/artest-extension.json")).object(); };
+        const auto before = manifest(first);
+        auto edited = original;
+        edited.replace("\"Example\"", "\"New author\""); edited.replace("\"0.1.0\"", "\"2.3.4\"");
+        edited.replace("\"Simulated Source\"", "\"PicoScope2204A\""); edited.replace("\"Measure Value\"", "\"Read_Wave_Form\"");
+        edited.replace("description=\"\"", "description=\"Captura \\\"canal\\\"\\n\\\\ ñ 😀\"");
+        const QByteArray extra = "    extension.command(IDENTITIES.component(\"trigger\"), MeasureValue, MeasurementParameters, name=\"Read Wave Form\", requires=(CONTRACT,))\n";
+        edited.replace("    return extension", extra + "    return extension"); put(sourcePath, edited);
+        QVERIFY(!inspectPresentation(path).current);
+        const auto changed = run(path); QVERIFY2(changed.status == PreparationResult::Status::Prepared, qPrintable(changed.diagnostic + QString::fromUtf8(changed.output)));
+        const auto after = manifest(changed); QCOMPARE(after.value("components").toArray().size(), 3);
+        QCOMPARE(after.value("publisher").toString(), QString("New author")); QCOMPARE(after.value("version").toString(), QString("2.3.4"));
+        for (const auto &prior : before.value("components").toArray()) {
+            bool found = false;
+            for (const auto &next : after.value("components").toArray()) if (prior.toObject().value("typeId") == next.toObject().value("typeId")) {
+                QCOMPARE(prior.toObject().value("schemas"), next.toObject().value("schemas"));
+                QCOMPARE(prior.toObject().value("contractId"), next.toObject().value("contractId"));
+                QVERIFY(next.toObject().value("description").toString().contains("ñ")); found = true;
+            }
+            QVERIFY(found);
+        }
+        const auto observed = inspectPresentation(path); QVERIFY2(observed.current, qPrintable(observed.diagnostics.join('\n')));
+        QVERIFY(localNameWarnings(QFileInfo(path).absolutePath(), path, observed.components).join('\n').contains("equivalentes"));
+        QCOMPARE(run(path).status, PreparationResult::Status::Reused);
+        const QString cli = qEnvironmentVariable("ARTESTDEV_TEST_CLI"); QVERIFY2(QFileInfo::exists(cli), "Explicit separate CLI required");
+        ProcessAdapter doctor; ProcessResult doctorResult; done = false;
+        connect(&doctor, &ProcessAdapter::completed, this, [&](const ProcessResult &v) { doctorResult = v; done = true; });
+        QVERIFY(doctor.start(QCoreApplication::applicationDirPath() + "/ARTestDevMetadataProbe.exe",
+            {QFileInfo(cli).absolutePath() + "/ARTestEngine.dll", changed.revision, changed.association}, 30000));
+        QTRY_VERIFY_WITH_TIMEOUT(done, 35000);
+        put(root_ + "/managed-doctor.log", doctorResult.output);
+        QVERIFY2(doctorResult.status == ProcessResult::Status::Success, doctorResult.output.constData());
+        auto reordered = edited; reordered.replace(extra, ""); reordered.replace("    extension.driver(", extra + "    extension.driver("); put(sourcePath, reordered);
+        const auto reorderedResult = run(path); QVERIFY2(reorderedResult.status == PreparationResult::Status::Prepared, qPrintable(reorderedResult.diagnostic));
+        QCOMPARE(manifest(reorderedResult).value("components"), after.value("components"));
+        auto removed = edited; removed.replace(extra, ""); put(sourcePath, removed);
+        const auto removal = run(path); QVERIFY2(removal.status == PreparationResult::Status::Prepared, qPrintable(removal.diagnostic));
+        QCOMPARE(manifest(removal).value("components").toArray().size(), 2);
+        for (const auto &component : manifest(removal).value("components").toArray()) QVERIFY(after.value("components").toArray().contains(component));
+        const auto ready = bytes(path + "/.artest/stage3/ready.json");
+        auto duplicate = edited; duplicate.replace("\"trigger\"", "\"read\""); put(sourcePath, duplicate);
+        QCOMPARE(run(path).status, PreparationResult::Status::Failed); QCOMPARE(bytes(path + "/.artest/stage3/ready.json"), ready);
+        // Copy only portable author inputs. No environment, outputs or index are copied.
+        const QString copied = root_ + "/managed/Managed Copy"; QDir().mkpath(copied);
+        for (const auto &file : QDir(path).entryInfoList(QDir::Files | QDir::Hidden)) put(copied + '/' + file.fileName(), bytes(file.absoluteFilePath()));
+        copyTree(path + "/src", copied + "/src"); copyTree(path + "/plan", copied + "/plan"); put(copied + "/src/extension.py", edited);
+        const auto copyResult = run(copied); QVERIFY2(copyResult.status == PreparationResult::Status::Prepared, qPrintable(copyResult.diagnostic));
+        QCOMPARE(manifest(copyResult).value("components"), after.value("components"));
+        QVERIFY(localNameWarnings(QFileInfo(copied).absolutePath(), copied, after.value("components").toArray(), creation.extensionId).join('\n').contains("ERROR ID local duplicado"));
+        QCOMPARE(bytes(path + "/plan/measurement.json"), plan);
+    }
     void initTestCase() {
         sdk_ = qEnvironmentVariable("ARTESTDEV_TEST_STAGING");
         python_ = qEnvironmentVariable("ARTESTDEV_TEST_PYTHON");
@@ -116,6 +180,48 @@ private slots:
         QVERIFY(QFileInfo::exists(failure.value("revision").toString() + "/environment"));
         QCOMPARE(bytes(path + "/artest-project.local.json"), local);
         QCOMPARE(bytes(path + "/artest-project.json"), portable);
+    }
+    void generatedIdentities_data() {
+        QTest::addColumn<QString>("variant");
+        for (const QString variant : {"driver-only", "command-only", "driver-command"}) QTest::newRow(qPrintable(variant)) << variant;
+    }
+    void generatedIdentities() {
+        QFETCH(QString, variant);
+        CreateRequest request{"Bench Power", "python", variant, root_ + '/' + variant, inspectStagingExecutable(sdk_ + "/ARTestDev.exe")};
+        request.driverName = "Power \"Supply\""; request.commandName = "Power-On";
+        if (variant == "command-only") request.commandId = "custom.power-on";
+        auto creation = beginCreation(request); QVERIFY2(creation.success, qPrintable(creation.diagnostics.join('\n')));
+        ProcessAdapter process; ProcessResult result; bool done = false;
+        connect(&process, &ProcessAdapter::completed, this, [&](const ProcessResult &v) { result = v; done = true; });
+        QVERIFY(process.start(python_, pythonCreateArguments(creation)));
+        QTRY_VERIFY_WITH_TIMEOUT(done, 35000);
+        QVERIFY2(result.status == ProcessResult::Status::Success, result.output.constData());
+        creation = finishCreation(creation); QVERIFY2(creation.success, qPrintable(creation.diagnostics.join('\n')));
+        const auto source = bytes(creation.destination + "/src/extension.py");
+        const auto config = bytes(creation.destination + "/artest-sdk-project.json");
+        const auto plan = bytes(creation.destination + "/plan/measurement.json");
+        const auto prepared = run(creation.destination);
+        QVERIFY2(prepared.status == PreparationResult::Status::Prepared, qPrintable(prepared.diagnostic + QString::fromUtf8(prepared.output)));
+        const auto guided = QJsonDocument::fromJson(config).object();
+        bool found = false;
+        QDirIterator it(prepared.revision, {"artest-extension.json"}, QDir::Files, QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            const auto manifest = QJsonDocument::fromJson(bytes(it.next())).object();
+            QCOMPARE(manifest.value("extensionId").toString(), QString("bench-power"));
+            const auto components = manifest.value("components").toArray();
+            QCOMPARE(components.size(), variant == "driver-command" ? 2 : 1);
+            for (const auto &entry : components) {
+                const auto component = entry.toObject();
+                const bool driver = component.value("kind") == "instrumentDriver";
+                QCOMPARE(component.value("typeId"), guided.value(driver ? "driverId" : "commandId"));
+            }
+            found = true;
+        }
+        QVERIFY(found);
+        QCOMPARE(run(creation.destination).status, PreparationResult::Status::Reused);
+        QCOMPARE(bytes(creation.destination + "/src/extension.py"), source);
+        QCOMPARE(bytes(creation.destination + "/artest-sdk-project.json"), config);
+        QCOMPARE(bytes(creation.destination + "/plan/measurement.json"), plan);
     }
     void corruptEnvironment() {
         const auto path = project("corrupt environment");
@@ -185,7 +291,7 @@ private slots:
         sealFixture(sdk_ + "/artestdev-staging.json");
         auto tooling = run(path); QCOMPARE(tooling.status, PreparationResult::Status::Prepared);
         QVERIFY(tooling.identity != first.identity);
-        const auto wheel = sdk_ + "/python/wheels/artest_python-0.2.0-py3-none-any.whl";
+        const auto wheel = sdk_ + "/python/wheels/artest_python-0.2.1-py3-none-any.whl";
         put(wheel, bytes(wheel) + "\n");
         sealFixture(sdk_ + "/python/wheels/artest-offline-wheelhouse.json");
         sealFixture(sdk_ + "/artestdev-staging.json");

@@ -15,6 +15,7 @@ struct ComponentMetadata
     std::string schemaId; // Optional override; generated IDs have a stable v1 suffix.
     std::vector<std::string> requiredContracts;
     std::vector<std::string> aliases;
+    std::string description;
 };
 struct CommandInfo
 {
@@ -54,6 +55,31 @@ inline void RequireText(std::string_view text, std::string_view field)
     if (text.empty() || text.find('\0') != std::string_view::npos)
         throw std::invalid_argument(std::string{field} +
                                     " must be non-empty and contain no null bytes.");
+}
+inline void ValidateDescription(std::string_view text)
+{
+    // Validate UTF-8 scalars, not bytes; reject overlong sequences and surrogates.
+    std::size_t count = 0;
+    for (std::size_t i = 0; i < text.size();)
+    {
+        const auto first = static_cast<unsigned char>(text[i++]);
+        unsigned value = first;
+        unsigned tail = 0, minimum = 0;
+        if (first >= 0xc2 && first <= 0xdf) { value = first & 31; tail = 1; minimum = 0x80; }
+        else if (first >= 0xe0 && first <= 0xef) { value = first & 15; tail = 2; minimum = 0x800; }
+        else if (first >= 0xf0 && first <= 0xf4) { value = first & 7; tail = 3; minimum = 0x10000; }
+        else if (first == 0 || first >= 0x80) throw std::invalid_argument("Description contains invalid UTF-8 or NUL.");
+        for (unsigned n = 0; n < tail; ++n)
+        {
+            if (i == text.size()) throw std::invalid_argument("Description contains incomplete UTF-8.");
+            const auto next = static_cast<unsigned char>(text[i++]);
+            if ((next & 0xc0) != 0x80) throw std::invalid_argument("Description contains invalid UTF-8.");
+            value = (value << 6) | (next & 63);
+        }
+        if (value < minimum || value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff))
+            throw std::invalid_argument("Description contains invalid Unicode.");
+        if (++count > 512) throw std::invalid_argument("Description exceeds 512 Unicode code points.");
+    }
 }
 } // namespace detail
 
@@ -96,12 +122,13 @@ class Extension final
         detail::RequireText(entry.id, "Component ID");
         detail::RequireText(entry.name, "Component name");
         detail::RequireText(entry.contract, "Component contract");
+        detail::ValidateDescription(entry.metadata.description);
         if (entry.version.empty())
             entry.version = m_version;
         detail::RequireText(entry.version, "Component version");
         for (const auto &existing : m_components)
             if (existing.id == entry.id)
-                throw std::invalid_argument("Duplicate component ID: " + entry.id);
+                throw std::invalid_argument("Duplicate component ID: " + entry.id + " (" + existing.name + " / " + entry.name + ")");
         m_components.push_back(std::move(entry));
     }
     friend struct detail::DefinitionAccess;

@@ -2,6 +2,7 @@
 
 // The single authoring entry point. Public classes remain local to your DLL.
 #include "Definition.h"
+#include "Authoring.h"
 #include "detail/NativeAdapter.h"
 
 // Define exactly once, in the extension's .cpp entry point. DefineFunction returns

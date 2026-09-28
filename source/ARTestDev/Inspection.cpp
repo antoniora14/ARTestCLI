@@ -1,5 +1,6 @@
 #include "Inspection.h"
 #include "SdkLocation.h"
+#include "Presentation.h"
 
 #include <QCryptographicHash>
 #include <QDir>
@@ -198,6 +199,24 @@ Project inspectProject(const QString &folder) {
         }
     }
     out.valid = out.diagnostics.isEmpty();
+    if (out.valid) {
+        const auto metadata = inspectPresentation(out.root);
+        out.presentation = metadata.diagnostics;
+        if (metadata.current) {
+            out.presentation << "Metadata publicada verificada contra fuentes; no acredita integración ni preparación del destino.";
+            for (const auto &value : metadata.components) {
+                const auto component = value.toObject();
+                out.presentation << component.value("kind").toString() + ": " + component.value("displayName").toString() + " [" + component.value("typeId").toString() + "]";
+                const auto description = component.value("description").toString();
+                if (!description.isEmpty()) out.presentation << description;
+            }
+            const auto messages = localNameWarnings(QFileInfo(out.root).absolutePath(), out.root, metadata.components, out.extensionId);
+            for (const auto &message : messages) {
+                if (message.startsWith("ERROR ")) { out.diagnostics << message; out.valid = false; }
+                else out.presentation << message;
+            }
+        }
+    }
     return out;
 }
 

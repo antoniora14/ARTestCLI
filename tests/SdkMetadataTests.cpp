@@ -53,6 +53,48 @@ Extension Single(ComponentMetadata metadata, std::string id = "com.test.command"
 }
 } // namespace
 
+TEST(SdkMetadataTests, ManagedIdentitiesAndDescriptionsArePortableAndMetadataOnly)
+{
+    const IdentityNamespace ids{"com.test.managed", {{"read", "legacy.read"}}};
+    const auto build = [&](bool reverse, std::string name, std::string description) {
+        Extension extension{ids.Id(), "1.2.3", "Example", "Author"};
+        const auto read = [&] { extension.AddCommand<NeverConstructCommand>(ids.Command("read", name,
+            {.schema = Schema::Object(), .requiredContracts = {"com.test.contract"}, .description = description})); };
+        const auto second = [&] { extension.AddCommand<NeverConstructCommand>(ids.Command("trigger", "Set trigger",
+            {.schema = Schema::Object(), .requiredContracts = {"com.test.contract"}})); };
+        if (reverse) { second(); read(); } else { read(); second(); }
+        extension.AddDriver<NeverConstructDriver>(ids.Driver("driver", "Scope", "com.test.contract", DriverMode::Simulated,
+            {.schema = Schema::Object(), .description = "Simulated driver"}));
+        return GenerateMetadata(extension, "Example.dll");
+    };
+    const auto original = build(false, "Read", "");
+    EXPECT_EQ(original.manifest, build(true, "Read", "").manifest);
+    const auto renamed = build(true, "Renamed", "Captura \"canal\"\n\\ UTF-8: \xc3\xb1");
+    ASSERT_EQ(renamed.manifest["components"].size(), 3U);
+    for (std::size_t n = 0; n < 3; ++n)
+    {
+        EXPECT_EQ(original.manifest["components"][n]["typeId"], renamed.manifest["components"][n]["typeId"]);
+        EXPECT_EQ(original.manifest["components"][n]["schemas"], renamed.manifest["components"][n]["schemas"]);
+    }
+    EXPECT_EQ(ids.Component("read"), "legacy.read");
+    EXPECT_EQ(IdentityNamespace("com.test.managed").Component("trigger"), ids.Component("trigger"));
+    EXPECT_FALSE(original.manifest["components"][2].contains("description"));
+    EXPECT_EQ(renamed.manifest["components"][2]["displayName"], "Renamed");
+    EXPECT_EQ(original.schemas, renamed.schemas);
+    EXPECT_THROW(build(false, "Read", std::string(513, 'x')), std::invalid_argument);
+    EXPECT_THROW(build(false, "Read", std::string("a\0b", 3)), std::invalid_argument);
+    for (const auto *invalid : {"\xc0\x80", "\xed\xa0\x80", "\xf4\x90\x80\x80", "\xe2\x82"})
+        EXPECT_THROW(build(false, "Read", invalid), std::invalid_argument);
+    EXPECT_NO_THROW(build(false, "Read", std::string(512, 'x')));
+    std::string supplementary;
+    for (int i = 0; i < 512; ++i) supplementary += "\xf0\x9f\x98\x80";
+    EXPECT_NO_THROW(build(false, "Read", supplementary));
+    EXPECT_THROW(build(false, "Read", supplementary + "x"), std::invalid_argument);
+    Extension duplicate{ids.Id(), "1.0.0", "Example", "Author"};
+    duplicate.AddCommand<NeverConstructCommand>(ids.Command("read", "First", {.schema = Schema::Object()}));
+    EXPECT_THROW(duplicate.AddCommand<NeverConstructCommand>(ids.Command("read", "Second", {.schema = Schema::Object()})), std::invalid_argument);
+}
+
 TEST(SdkMetadataTests, DefinitionFeedsManifestAndAbiWithoutConstructingComponents)
 {
     const auto bundle = GenerateMetadata(Describe(), "Example.dll");

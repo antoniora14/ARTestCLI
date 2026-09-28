@@ -12,10 +12,17 @@ function Invoke-PythonTool([string[]]$ToolArguments) {
     & $Python -I -B $tool @ToolArguments
     if ($LASTEXITCODE -ne 0) { throw "Python preparation failed with exit code $LASTEXITCODE." }
 }
-Invoke-PythonTool @('sdk', '--protoc', "$repo\artifacts\vcpkg-process\artest-x64-windows-static-md\tools\protobuf\protoc.exe",
-    '--protocol', "$repo\source\ARTestEngine.Process\protocol\artest_process.proto", '--output', "$OutputRoot\sdk")
+$sdkOutput = Join-Path "$OutputRoot\sdk" ([Guid]::NewGuid().ToString('N'))
+$generated = @(Invoke-PythonTool @('sdk', '--protoc', "$repo\artifacts\vcpkg-process\artest-x64-windows-static-md\tools\protobuf\protoc.exe",
+    '--protocol', "$repo\source\ARTestEngine.Process\protocol\artest_process.proto", '--output', $sdkOutput))
+# Consume only the wheel reported by this successful generation, preserving prior outputs.
+if ($generated.Count -ne 1) { throw 'SDK generation did not report exactly one wheel.' }
+$wheel = [IO.Path]::GetFullPath([string]$generated[0])
+if ([IO.Path]::GetDirectoryName($wheel) -ne $sdkOutput -or
+    [IO.Path]::GetExtension($wheel) -ne '.whl' -or -not (Test-Path -LiteralPath $wheel -PathType Leaf)) {
+    throw 'SDK generation reported an invalid wheel path.'
+}
 $lock = "$repo\source\ARTest.Python\requirements.lock"
-$wheel = "$OutputRoot\sdk\artest_python-0.2.0-py3-none-any.whl"
 Invoke-PythonTool @('package', '--source', "$repo\source\ARTest.Python\examples\simulated",
     '--entry-point', 'extension:define_extension', '--lock', $lock, '--output', "$OutputRoot\extensions\ARTestPySimulated")
 Invoke-PythonTool @('prepare', '--package', "$OutputRoot\extensions\ARTestPySimulated",

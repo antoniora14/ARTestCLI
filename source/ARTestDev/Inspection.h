@@ -17,6 +17,7 @@ struct Project {
     QStringList prerequisites;
     QStringList targetDiagnostics;
     QStringList diagnostics;
+    QStringList presentation;
     bool valid = false;
 };
 

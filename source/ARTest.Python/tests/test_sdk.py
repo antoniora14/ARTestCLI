@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from artest_sdk import Command, Driver, Extension, Result, operation, parameter
+from artest_sdk import Command, Driver, Extension, IdentityNamespace, Result, operation, parameter
 from artest_sdk.schema import decode, schema_for
 from artest_sdk.api import Context, OperationError
 
@@ -18,6 +18,36 @@ class CountingDriver(Driver):
     def __init__(self): CountingDriver.instances += 1
 
 class MetadataTests(unittest.TestCase):
+    def test_managed_identity_and_description(self):
+        ids = IdentityNamespace("com.test.managed", {"read": "legacy.read"})
+        def build(order, name="Read", description="", version="1.2.3", author="Author"):
+            result = Extension(ids.identity, version, "Example", author)
+            for anchor in order:
+                result.command(ids.component(anchor), Command, Parameters, name=name,
+                               requires=("com.test.contract",), description=description)
+            result.driver(ids.component("driver"), CountingDriver, Parameters, name="Scope",
+                          contract="com.test.contract", simulated=True, description="Simulated driver")
+            return result.describe()
+        original = build(["read", "trigger"])
+        self.assertEqual(original, build(["trigger", "read"]))
+        changed = build(["trigger", "read"], "Renamed", 'Captura "canal"\n\\ ñ 😀', "2.3.4", "Other")
+        for before, after in zip(original["components"], changed["components"]):
+            for field in ("typeId", "contractId", "schemaId", "requires"):
+                self.assertEqual(before[field], after[field])
+        self.assertEqual(ids.component("read"), "legacy.read")
+        self.assertEqual(ids.component("trigger"), IdentityNamespace("com.test.managed").component("trigger"))
+        self.assertNotIn("description", original["components"][-1])
+        self.assertIn("description", changed["components"][-1])
+        self.assertEqual(CountingDriver.instances, 0)
+        for invalid in ("a\0b", "x" * 513, "\ud800", None):
+            with self.subTest(invalid=repr(invalid)), self.assertRaises((ValueError, TypeError)):
+                build(["read"], description=invalid)
+        build(["read"], description="😀" * 512)
+        with self.assertRaisesRegex(ValueError, "Duplicate component"):
+            build(["read", "read"])
+        survivor = build(["trigger"])["components"]
+        self.assertEqual([x["typeId"] for x in survivor], ["com.test.managed.driver", "com.test.managed.trigger"])
+
     def test_generation_does_not_construct(self):
         definition = Extension("com.test.extension", "0.1.0", "test", "test").driver(
             "com.test.driver", CountingDriver, Parameters, name="test", contract="com.test.contract", simulated=True)

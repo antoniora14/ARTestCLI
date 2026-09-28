@@ -27,7 +27,7 @@ def offline_lock(path):
 def package_operation(arguments, sdk_root):
     tool = load_tool(sdk_root / "python/tools/project.py")
     package = tool._package_module()
-    wheel = sdk_root / "python/wheels/artest_python-0.2.0-py3-none-any.whl"
+    wheel = sdk_root / "python/wheels/artest_python-0.2.1-py3-none-any.whl"
     if package.offline_wheelhouse(wheel) is None:
         raise ValueError("Missing offline wheelhouse; repair SDK resources")
     if arguments[0] == "prepare":
@@ -47,7 +47,7 @@ def package_operation(arguments, sdk_root):
 
 def prepare(root, python, sdk_root, *, authorize_commit=None):
     tool = load_tool(sdk_root / "python/tools/project.py")
-    wheel = sdk_root / "python/wheels/artest_python-0.2.0-py3-none-any.whl"
+    wheel = sdk_root / "python/wheels/artest_python-0.2.1-py3-none-any.whl"
     project = tool._load_project(root, preparation=(python, wheel))
     tool._reject_reparse_ancestors(Path(root))
     if Path(root).resolve().is_relative_to(sdk_root.resolve()) or sdk_root.resolve().is_relative_to(Path(root).resolve()):
