@@ -1,4 +1,5 @@
 #include "FileIntegrity.h"
+#include "PrivatePath.h"
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <array>
@@ -69,7 +70,7 @@ Sha256Provider &Provider()
         throw std::runtime_error("Windows could not create a SHA-256 hash.");
     }
 
-    std::ifstream input{path, std::ios::binary};
+    std::ifstream input{private_path::Access(path), std::ios::binary};
     if (!input)
     {
         throw std::runtime_error("The extension entry could not be opened for hashing.");

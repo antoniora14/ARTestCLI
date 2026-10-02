@@ -3,9 +3,11 @@ import ctypes
 import json
 import struct
 import threading
+# Load the DLL through pywintypes first: win32file's implicit loader truncates
+# its path in long prepared environments before pywintypes can initialize it.
+import pywintypes
 import win32file
 import win32event
-import pywintypes
 from . import artest_process_pb2 as wire
 
 MAX_FRAME = 1024 * 1024

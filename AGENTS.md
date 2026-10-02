@@ -94,8 +94,10 @@ unless the user explicitly requests them.
   unit; Engine/ABI/API/IPC and execution formats remain unchanged.
   DEV-01.5 (Integrate to ARTestCLI) is ACCEPTED on 2026-09-28, including
   Clear in all diagnostic panels and inspection-scoped suppression. Read
-  docs/sdk/artestdev-dev01-5.md. DEV-01.6 is next in the roadmap but requires
-  a separate implementation handoff; DEV-01.6/01.7 remain pending.
+  docs/sdk/artestdev-dev01-5.md. DEV-01.6 is ACCEPTED on 2026-10-01, including
+  explicit Test plan execution and the authorized private long-path/worker import
+  corrections; read docs/sdk/artestdev-dev01-6.md. DEV-01.7 is next and requires
+  a separate implementation handoff; it remains pending.
   Always-Rebuild, repeated full-toolchain hashing and indefinite native output
   retention are replaceable tooling policies, not runtime invariants. Preserve
   content integrity, ownership and interrupted recovery. DEV-01.5 acceptance

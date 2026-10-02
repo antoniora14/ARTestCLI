@@ -51,6 +51,7 @@
     <ClInclude Include="Extensions\CatalogValidation.h" />
     <ClCompile Include="Extensions\ComponentSchema.cpp" />
     <ClInclude Include="Extensions\FileIntegrity.h" />
+    <ClInclude Include="Extensions\PrivatePath.h" />
     <ClCompile Include="Extensions\FileIntegrity.cpp" />
     <ClCompile Include="Extensions\CatalogSnapshot.cpp" />
     <ClCompile Include="Extensions\ExtensionRuntime.cpp" />

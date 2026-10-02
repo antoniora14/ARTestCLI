@@ -47,7 +47,7 @@
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>gtest.lib;Ws2_32.lib;Shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gtest.lib;Ws2_32.lib;Shell32.lib;bcrypt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -61,6 +61,9 @@
     <ClCompile Include="TestSupport\Fakes\TcpHelloServer.cpp"><TreatWarningAsError>true</TreatWarningAsError><PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile>
     <ClCompile Include="ProcessRuntimeTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="PythonIntegrationTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
+    <ClCompile Include="ManagedIntegrityTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
+    <ClCompile Include="..\source\ARTestEngine\Extensions\ManagedIntegrity.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
+    <ClCompile Include="..\source\ARTestEngine\Extensions\FileIntegrity.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="EffectUncertaintyTests.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="TestSupport\ProcessWorker.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>
     <ClCompile Include="..\source\ARTestEngine\Extensions\ComponentAdapters.cpp"><TreatWarningAsError>true</TreatWarningAsError></ClCompile>

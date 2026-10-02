@@ -7,6 +7,7 @@
 #include "Readiness.h"
 #include "AuthoringWidget.h"
 #include "IntegrationDialog.h"
+#include "TestPlanDialog.h"
 
 #include <QApplication>
 #include <QFileDialog>
@@ -92,15 +93,28 @@ public:
         cliAction_->setEnabled(false);
         cliAction_->setStatusTip(QStringLiteral("Preparar, validar y registrar en una instalacion ARTestCLI seleccionada."));
         connect(cliAction_, &QAction::triggered, this, [this] {
-            if (authoring_->busy() || !authoring_->currentProject().valid) return;
+            if (integrationActive_ || authoring_->busy() || !authoring_->currentProject().valid) return;
             IntegrationDialog dialog(authoring_->currentProject(), authoring_->selectedPython(), this);
             integrationActive_ = true;
+            updateNavigation();
             dialog.exec();
             integrationActive_ = false;
+            updateNavigation();
         });
         auto *studioAction = integrateMenu->addAction(QStringLiteral("To ARTestStudio"));
         studioAction->setEnabled(false);
         studioAction->setStatusTip(QStringLiteral("Integración futura; sin acciones disponibles."));
+        runAction_ = projectMenu->addAction(QStringLiteral("Run Test plan"));
+        runAction_->setEnabled(false);
+        connect(runAction_, &QAction::triggered, this, [this] {
+            if (integrationActive_ || authoring_->busy() || !authoring_->currentProject().valid) return;
+            integrationActive_ = true;
+            updateNavigation();
+            TestPlanDialog dialog(authoring_->currentProject(), authoring_->selectedPython(), this);
+            dialog.exec();
+            integrationActive_ = false;
+            updateNavigation();
+        });
         auto *helpMenu = menuBar()->addMenu(QStringLiteral("Help"));
         auto *about = helpMenu->addAction(QStringLiteral("About ARTestDev"));
         connect(about, &QAction::triggered, this, [this] {
@@ -196,8 +210,9 @@ protected:
     }
 private:
     void updateNavigation() {
-        const bool busy = authoring_->busy() || projectWatcher_.isRunning() || kitWatcher_.isRunning() || process_.busy();
+        const bool busy = integrationActive_ || authoring_->busy() || projectWatcher_.isRunning() || kitWatcher_.isRunning() || process_.busy();
         cliAction_->setEnabled(!busy && authoring_->currentProject().valid);
+        runAction_->setEnabled(!busy && !integrationActive_ && authoring_->currentProject().valid);
         newProject_->setEnabled(!busy);
         loadProject_->setEnabled(!busy);
         welcomeCreate_->setEnabled(!busy);
@@ -296,7 +311,7 @@ private:
     ProcessAdapter process_;
     AuthoringWidget *authoring_ = nullptr;
     QStackedWidget *pages_ = nullptr;
-    QAction *newProject_ = nullptr, *loadProject_ = nullptr, *cliAction_ = nullptr;
+    QAction *newProject_ = nullptr, *loadProject_ = nullptr, *cliAction_ = nullptr, *runAction_ = nullptr;
     QPushButton *welcomeCreate_ = nullptr;
     bool integrationActive_ = false;
 };

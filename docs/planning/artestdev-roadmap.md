@@ -1,10 +1,12 @@
 # DEV-01 — ARTestDev delivery roadmap
 
-Status (2026-09-28): DEV-01.1/01.2/01.2-A/01.3/01.4/01.4-A are ACCEPTED.
+Status (2026-10-01): DEV-01.1/01.2/01.2-A/01.3/01.4/01.4-A are ACCEPTED.
 The readable-ID Generate adjustment and DEV-01.4-B (simplified authoring and managed
 identities) are ACCEPTED, including their blocker corrections. DEV-01.5 is ACCEPTED,
 including Clear in all diagnostic panels and its inspection-scoped correction.
-DEV-01.6 is next with a separate handoff required; DEV-01.6/01.7 remain pending.
+DEV-01.6 is ACCEPTED, including the authorized private Engine long-path correction
+and Python worker import order. See [its guide](../sdk/artestdev-dev01-6.md).
+DEV-01.7 is next with a separate handoff required; it remains pending.
 The owner-approved flow diagram supersedes the earlier primary Build and integrate
 journey. The subsequent clarification excludes functional Studio integration;
 only its disabled menu item is included. The latest SDK amendment excludes bundled
@@ -328,6 +330,10 @@ write or accidental registration. Integration never starts a Test plan.
 active sessions, global registries/environments, automatic installers, run or hardware.
 
 ## DEV-01.6 — Secondary explicit Test plan validation/execution
+
+**Status:** ACCEPTED on 2026-10-01. The reviewed candidate includes the explicitly
+authorized private integrity-path and Python worker initialization fixes; no public
+contracts changed. Final evidence: `source/ARTestDev/build/dev016-evidence/worker-final/candidate.json`.
 
 **Objective:** retain optional Run Test plan after integration without adding a
 required step to the diagram or running anything automatically.

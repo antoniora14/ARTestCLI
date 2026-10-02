@@ -76,7 +76,7 @@ foreach ($name in '__init__.py','api.py','schema.py') {
     Add-Resource (Join-Path $repo "source/ARTest.Python/artest_sdk/$name") "python/artest_sdk/$name"
 }
 $wheelHashes = [ordered]@{
-    'artest_python-0.2.1-py3-none-any.whl' = '17839d30f35e262c7bffb36d677152c02bcd49c06b45f3e2cc8c4415774c3147'
+    'artest_python-0.2.1-py3-none-any.whl' = 'dda4863823389537f68ce40fce10c787af5d2ebc681585a0f749a0f0973e0cf9'
     'protobuf-6.33.4-cp310-abi3-win_amd64.whl' = '8f11ffae31ec67fc2554c2ef891dcb561dae9a2a3ed941f9e134c2db06657dbc'
     'pywin32-311-cp313-cp313-win_amd64.whl' = '718a38f7e5b058e76aee1c56ddd06908116d35147e133427e59a3983f703a20d'
 }
